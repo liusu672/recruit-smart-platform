@@ -18,3 +18,16 @@ mybatis-plus:
 logging:
   level:
     com.recruit.biz.mapper: debug
+jwt:
+  secret: recruit-smart-platform-secret-key-2026
+  expire-time: 86400000
+
+knife4j:
+  enable: true
+
+springdoc:
+  packages-to-scan: com.recruit.biz.controller
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

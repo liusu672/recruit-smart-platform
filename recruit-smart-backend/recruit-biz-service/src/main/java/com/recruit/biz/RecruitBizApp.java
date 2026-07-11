@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @MapperScan("com.recruit.biz.mapper")
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.recruit")
 public class RecruitBizApp {
     public static void main(String[] args){
         SpringApplication.run(RecruitBizApp.class,args);

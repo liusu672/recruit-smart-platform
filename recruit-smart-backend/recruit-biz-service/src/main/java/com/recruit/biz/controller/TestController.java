@@ -3,11 +3,12 @@ package com.recruit.biz.controller;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.SysUserMapper;
 import com.recruit.common.result.Result;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
-
+@Tag(name="测试用，请无视")
 @RestController
 public class TestController {
     @Resource
