@@ -18,4 +18,19 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 logging:
   level:
-    com.recruit.biz.mapper: debug
+    com.recruit.ai.mapper: debug
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+    enable-document-manage: true
+    enable-version: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
