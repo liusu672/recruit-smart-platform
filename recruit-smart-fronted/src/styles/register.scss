@@ -41,7 +41,12 @@
   max-width: none;
   filter: drop-shadow(0 22px 36px rgb(21 23 28 / 10%));
   pointer-events: none;
-  animation: rocketDriveIn 1120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: 54% 58%;
+  will-change: transform, opacity, filter;
+  // 注册页采用点火跃升，与登录页从左侧驶入的动效形成区分。
+  animation:
+    registerRocketLaunch 1320ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    registerRocketHover 6200ms ease-in-out 1450ms infinite;
 }
 
 .register-brand-footer {
@@ -99,6 +104,45 @@
   border-radius: var(--rs-radius-sm);
   font-size: 13px;
   line-height: 1.5;
+}
+
+@keyframes registerRocketLaunch {
+  0% {
+    opacity: 0;
+    filter: blur(5px) drop-shadow(0 8px 14px rgb(21 23 28 / 0%));
+    transform: translate3d(48px, 260px, 0) scale(0.64) rotate(9deg);
+  }
+
+  48% {
+    opacity: 1;
+    filter: blur(0) drop-shadow(0 28px 44px rgb(21 23 28 / 14%));
+    transform: translate3d(-18px, -30px, 0) scale(1.06) rotate(-4deg);
+  }
+
+  70% {
+    transform: translate3d(9px, 10px, 0) scale(0.985) rotate(1.8deg);
+  }
+
+  86% {
+    transform: translate3d(-4px, -5px, 0) scale(1.008) rotate(-0.7deg);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0) drop-shadow(0 22px 36px rgb(21 23 28 / 10%));
+    transform: translate3d(0, 0, 0) scale(1) rotate(0);
+  }
+}
+
+@keyframes registerRocketHover {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+
+  50% {
+    transform: translate3d(6px, -8px, 0) rotate(0.7deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
