@@ -1,0 +1,68 @@
+:root {
+  /* 与 design.md 保持一致；新增视觉值必须先补充到设计规范。 */
+  --rs-blue-500: #3183d8;
+  --rs-blue-600: #2874c4;
+  --rs-blue-700: #2164ab;
+  --rs-blue-050: #eaf4fd;
+
+  --rs-gray-950: #15171c;
+  --rs-gray-700: #454b57;
+  --rs-gray-600: #68707d;
+  --rs-gray-400: #9aa1ad;
+  --rs-gray-300: #cdd4df;
+  --rs-gray-200: #e3e7ee;
+  --rs-gray-100: #f0f2f6;
+  --rs-gray-050: #f8f9fb;
+  --rs-canvas: #f5f7fa;
+  --rs-white: #ffffff;
+
+  --rs-success-700: #126c32;
+  --rs-success-050: #eaf7ee;
+  --rs-warning-800: #8a4b00;
+  --rs-warning-050: #fff5df;
+  --rs-danger-700: #b42318;
+  --rs-danger-050: #fdecec;
+
+  --rs-brand-primary: var(--rs-blue-500);
+  --rs-action-primary: var(--rs-blue-600);
+  --rs-action-primary-hover: var(--rs-blue-700);
+  --rs-focus-ring: var(--rs-blue-600);
+  --rs-surface-canvas: var(--rs-canvas);
+  --rs-surface-primary: var(--rs-white);
+  --rs-surface-subtle: var(--rs-gray-050);
+  --rs-surface-muted: var(--rs-gray-100);
+  --rs-surface-selected: var(--rs-blue-050);
+  --rs-text-primary: var(--rs-gray-950);
+  --rs-text-secondary: var(--rs-gray-700);
+  --rs-text-tertiary: var(--rs-gray-600);
+  --rs-text-disabled: var(--rs-gray-400);
+  --rs-border-default: var(--rs-gray-200);
+  --rs-border-strong: var(--rs-gray-300);
+
+  --rs-font-family:
+    Inter, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --rs-space-1: 4px;
+  --rs-space-2: 8px;
+  --rs-space-3: 12px;
+  --rs-space-4: 16px;
+  --rs-space-6: 24px;
+  --rs-space-8: 32px;
+  --rs-space-12: 48px;
+
+  --rs-radius-xs: 4px;
+  --rs-radius-sm: 8px;
+  --rs-radius-md: 12px;
+  --rs-radius-pill: 9999px;
+
+  --rs-shadow-floating: 0 8px 30px rgb(21 23 28 / 10%);
+  --rs-motion-fast: 120ms;
+  --rs-motion-standard: 180ms;
+  --rs-motion-panel: 240ms;
+  --rs-ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --rs-topbar-height: 56px;
+  --rs-sidebar-width: 232px;
+  --rs-detail-panel-width: 440px;
+  --rs-ai-panel-width: 400px;
+}
