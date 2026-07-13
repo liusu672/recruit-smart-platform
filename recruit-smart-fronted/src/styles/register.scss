@@ -1,0 +1,112 @@
+.register-screen {
+  // 注册页沿用候选人端的蓝白结构，但将视觉焦点留给注册表单。
+  background: linear-gradient(
+    to bottom,
+    var(--rs-blue-500) 0,
+    var(--rs-blue-500) 458px,
+    var(--rs-surface-primary) 458px,
+    var(--rs-surface-primary) 100%
+  );
+}
+
+.register-screen .login-shell::before {
+  background: var(--rs-blue-500);
+}
+
+.register-back-link {
+  text-decoration: none;
+}
+
+.register-screen .register-main {
+  grid-template-columns: minmax(0, 720px) 492px;
+  padding-top: 74px;
+  padding-bottom: 24px;
+}
+
+.register-screen .register-brand-panel {
+  grid-template-rows: 260px minmax(0, 78px) auto;
+  min-height: 0;
+}
+
+.register-visual {
+  position: absolute;
+  top: -62px;
+  left: 344px;
+  width: 385px;
+  height: 385px;
+  z-index: 1;
+}
+
+.register-rocket-image {
+  position: absolute;
+  top: -78px;
+  left: -70px;
+  width: 520px;
+  max-width: none;
+  filter: drop-shadow(0 22px 36px rgb(21 23 28 / 10%));
+  pointer-events: none;
+  animation: rocketDriveIn 1120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.register-brand-footer {
+  display: block;
+  max-width: 360px;
+  color: var(--rs-blue-050);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.register-brand-footer::before {
+  display: none;
+}
+
+.register-screen .register-card {
+  align-self: start;
+  min-height: 0;
+  padding: 28px 32px;
+}
+
+.register-card .login-card-header {
+  gap: var(--rs-space-1);
+  margin-bottom: var(--rs-space-4);
+}
+
+.register-card .login-title {
+  font-size: 32px;
+}
+
+.register-card .login-description {
+  font-size: 14px;
+}
+
+.register-card .login-form {
+  gap: var(--rs-space-3);
+}
+
+.register-card .login-field {
+  gap: var(--rs-space-1);
+}
+
+.register-card .login-input,
+.register-card .button.full {
+  height: 48px;
+}
+
+.register-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rs-space-2);
+  padding: var(--rs-space-3);
+  color: var(--rs-blue-700);
+  background: var(--rs-blue-050);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .register-rocket-image {
+    animation: none;
+  }
+}

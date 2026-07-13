@@ -1,0 +1,60 @@
+:root {
+  /* Element Plus 只提供控件能力；Recruit Smart Token 才是视觉事实来源。 */
+  --el-color-primary: var(--rs-action-primary);
+  --el-color-primary-light-3: var(--rs-blue-500);
+  --el-color-primary-light-5: #70ace8;
+  --el-color-primary-light-7: var(--rs-blue-050);
+  --el-color-primary-light-9: var(--rs-blue-050);
+  --el-color-primary-dark-2: var(--rs-action-primary-hover);
+  --el-border-radius-base: var(--rs-radius-sm);
+  --el-font-family: var(--rs-font-family);
+  --el-text-color-primary: var(--rs-text-primary);
+  --el-text-color-regular: var(--rs-text-secondary);
+  --el-text-color-secondary: var(--rs-text-tertiary);
+  --el-border-color: var(--rs-border-default);
+  --el-border-color-light: var(--rs-border-default);
+  --el-fill-color-light: var(--rs-surface-subtle);
+  --el-bg-color-page: var(--rs-surface-canvas);
+}
+
+.el-button {
+  font-weight: 600;
+  transition:
+    background-color var(--rs-motion-fast) var(--rs-ease-standard),
+    border-color var(--rs-motion-fast) var(--rs-ease-standard),
+    color var(--rs-motion-fast) var(--rs-ease-standard),
+    transform var(--rs-motion-fast) var(--rs-ease-standard);
+}
+
+.el-button:active {
+  transform: scale(0.98);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--rs-action-primary);
+  --el-button-border-color: var(--rs-action-primary);
+  --el-button-hover-bg-color: var(--rs-action-primary-hover);
+  --el-button-hover-border-color: var(--rs-action-primary-hover);
+}
+
+.el-input__wrapper,
+.el-select__wrapper {
+  box-shadow: 0 0 0 1px var(--rs-border-strong) inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow:
+    0 0 0 1px var(--rs-focus-ring) inset,
+    0 0 0 3px rgb(49 131 216 / 16%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .el-button {
+    transition: none;
+  }
+
+  .el-button:active {
+    transform: none;
+  }
+}
