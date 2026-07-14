@@ -20,8 +20,10 @@ public class JobPositionCreateDTO {
     @Schema(description = "所在地址", example = "武汉")
     private String location;
     @Schema(description = "最低薪资", example = "9000")
+    @NotNull(message="最低薪资不能为空")
     private BigDecimal salaryMin;
     @Schema(description = "最高薪资", example = "15000")
+    @NotNull(message="最高薪资不能为空")
     private BigDecimal salaryMax;
     @Schema(description = "所需人数", example = "1")
     @NotNull(message="人数需求不能为空")
@@ -31,7 +33,4 @@ public class JobPositionCreateDTO {
     private String responsibilities;
     @Schema(description = "任职要求", example = "熟悉Java、Spring Boot、MySQL，了解微服务架构，有项目经验优先。")
     private String requirements;
-    @Schema(description = "创建者", example = "admin")
-    @NotNull(message="创建者不能为空")
-    private Long createdBy;
 }

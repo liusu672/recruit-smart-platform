@@ -6,7 +6,9 @@ import com.recruit.biz.dto.JobPositionCreateDTO;
 import com.recruit.biz.dto.JobPositionQueryDTO;
 import com.recruit.biz.dto.JobPositionUpdateDTO;
 import com.recruit.biz.entity.JobPosition;
+import com.recruit.biz.enums.JobPositionStatus;
 import com.recruit.biz.mapper.JobPositionMapper;
+import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.JobPositionService;
 import com.recruit.biz.vo.JobPositionVO;
 import com.recruit.common.enums.ErrorCode;
@@ -31,7 +33,7 @@ public class JobPositionServiceImpl implements JobPositionService {
                 new LambdaQueryWrapper<JobPosition>()
                         .eq(JobPosition::getTitle,dto.getTitle())
                         .eq(JobPosition::getDepartment,dto.getDepartment())
-                        .ne(JobPosition::getStatus,"CLOSED")
+                        .ne(JobPosition::getStatus, JobPositionStatus.CLOSED.name())
         );
         if (count > 0) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "该部门下已存在相同职位");
@@ -45,11 +47,11 @@ public class JobPositionServiceImpl implements JobPositionService {
             throw new BusinessException(ErrorCode.PARAM_ERROR,"最高薪资不能低于最低薪资");
         }
         job.setHeadcount(dto.getHeadcount());
-        job.setCreatedBy(dto.getCreatedBy());
+        job.setCreatedBy(UserContext.getUserId());
         job.setResponsibilities(dto.getResponsibilities());
         job.setRequirements(dto.getRequirements());
 
-        job.setStatus("DRAFT");
+        job.setStatus(JobPositionStatus.DRAFT.name());
 
         jobPositionMapper.insert(job);
         return job.getId();
@@ -66,7 +68,7 @@ public class JobPositionServiceImpl implements JobPositionService {
                 new LambdaQueryWrapper<JobPosition>()
                         .eq(JobPosition::getTitle, dto.getTitle())
                         .eq(JobPosition::getDepartment, dto.getDepartment())
-                        .ne(JobPosition::getStatus, "CLOSED")
+                        .ne(JobPosition::getStatus, JobPositionStatus.CLOSED.name())
                         .ne(JobPosition::getId, id)
         );
         if (count > 0) {
@@ -94,7 +96,28 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     public JobPositionVO getById(Long id){
         JobPosition job = jobPositionMapper.selectById(id);
+        if (job == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "职位不存在");
+        }
         return toVO(job);
+    }
+
+    @Override
+    public JobPositionVO getOpenById(Long id) {
+        JobPosition job = jobPositionMapper.selectById(id);
+        if (job == null || !JobPositionStatus.OPEN.name().equals(job.getStatus())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "招聘中的职位不存在");
+        }
+        return toVO(job);
+    }
+
+    @Override
+    public PageResult<JobPositionVO> openJobPages(JobPositionQueryDTO dto) {
+        JobPositionQueryDTO query = dto == null
+                ? new JobPositionQueryDTO()
+                : dto;
+        query.setStatus(JobPositionStatus.OPEN.name());
+        return jobPages(query);
     }
 
     @Override
@@ -106,7 +129,7 @@ public class JobPositionServiceImpl implements JobPositionService {
         Integer pageNum=dto.getPageNum()==null||dto.getPageNum()<1
                 ?1
                 :dto.getPageNum();
-        Integer pageSize=dto.getPageSize()==null||dto.getPageSize()<1
+        Integer pageSize=dto.getPageSize()==null||dto.getPageSize()<1||dto.getPageSize()>100
                 ?10
                 :dto.getPageSize();
         Page<JobPosition> page=new Page<>(pageNum,pageSize);
@@ -161,12 +184,9 @@ public class JobPositionServiceImpl implements JobPositionService {
             vo.setSalaryRange(job.getSalaryMin() + "-" + job.getSalaryMax());
         }
 
-        if ("DRAFT".equals(job.getStatus())) {
-            vo.setStatusText("草稿");
-        } else if ("OPEN".equals(job.getStatus())) {
-            vo.setStatusText("招聘中");
-        } else if ("CLOSED".equals(job.getStatus())) {
-            vo.setStatusText("已关闭");
+        JobPositionStatus status = JobPositionStatus.fromCode(job.getStatus());
+        if (status != null) {
+            vo.setStatusText(status.getDescription());
         }
 
         return vo;
@@ -177,25 +197,53 @@ public class JobPositionServiceImpl implements JobPositionService {
         if(jobPosition==null){
             throw new BusinessException(ErrorCode.PARAM_ERROR,"该职位不存在");
         }
-        if(!"DRAFT".equals(jobPosition.getStatus())){
+        if(!JobPositionStatus.DRAFT.name().equals(jobPosition.getStatus())){
             throw new BusinessException(ErrorCode.PARAM_ERROR,"非草稿职位不可发布");
         }
-            jobPosition.setStatus("OPEN");
+            jobPosition.setStatus(JobPositionStatus.OPEN.name());
             jobPosition.setPublishedAt(LocalDateTime.now());
             jobPositionMapper.updateById(jobPosition);
     }
+
+    @Override
+    public void pauseJob(Long id) {
+        JobPosition jobPosition = getJob(id);
+        if (!JobPositionStatus.OPEN.name().equals(jobPosition.getStatus())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "只有招聘中的职位可以暂停");
+        }
+        jobPosition.setStatus(JobPositionStatus.PAUSED.name());
+        jobPositionMapper.updateById(jobPosition);
+    }
+
+    @Override
+    public void resumeJob(Long id) {
+        JobPosition jobPosition = getJob(id);
+        if (!JobPositionStatus.PAUSED.name().equals(jobPosition.getStatus())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "只有已暂停的职位可以恢复");
+        }
+        jobPosition.setStatus(JobPositionStatus.OPEN.name());
+        jobPositionMapper.updateById(jobPosition);
+    }
+
     @Override
     public void closeJob(Long id){
-        JobPosition jobPosition=jobPositionMapper.selectById(id);
-        if(jobPosition==null){
-            throw new BusinessException(ErrorCode.PARAM_ERROR,"该职位不存在");
+        JobPosition jobPosition = getJob(id);
+        boolean canClose = JobPositionStatus.OPEN.name().equals(jobPosition.getStatus())
+                || JobPositionStatus.PAUSED.name().equals(jobPosition.getStatus());
+        if(!canClose){
+            throw new BusinessException(ErrorCode.PARAM_ERROR,"只有招聘中或已暂停的职位可以关闭");
         }
-        if(!"OPEN".equals(jobPosition.getStatus())){
-            throw new BusinessException(ErrorCode.PARAM_ERROR,"该职位已经关闭或尚未发布");
-        }
-            jobPosition.setStatus("CLOSED");
+            jobPosition.setStatus(JobPositionStatus.CLOSED.name());
             jobPosition.setClosedAt(LocalDateTime.now());
             jobPositionMapper.updateById(jobPosition);
 
+    }
+
+    private JobPosition getJob(Long id) {
+        JobPosition jobPosition = jobPositionMapper.selectById(id);
+        if (jobPosition == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "职位不存在");
+        }
+        return jobPosition;
     }
 }
