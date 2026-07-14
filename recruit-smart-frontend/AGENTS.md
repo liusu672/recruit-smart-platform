@@ -2,7 +2,7 @@
 
 ## Scope And Sources Of Truth
 
-This file applies to `frontend/` and inherits the repository-level `AGENTS.md` rules.
+This file applies to `recruit-smart-frontend/` and inherits the repository-level `AGENTS.md` rules.
 
 - Read `design.md` before changing any page, component, interaction, color, spacing, radius, typography, shadow, or AI surface.
 - Read `前端框架.md` before changing architecture, dependencies, routing, state management, authentication, or API conventions.
@@ -29,7 +29,7 @@ Keep route pages thin. Put reusable markup in components, interaction logic in c
 
 ## Development Commands
 
-Run commands from `frontend/`:
+Run commands from `recruit-smart-frontend/`:
 
 ```bash
 npm install

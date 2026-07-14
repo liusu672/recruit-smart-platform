@@ -6,7 +6,7 @@
 
 ## Project Structure & Module Organization
 
-后端位于 `recruit-smart-backend/`，采用 Java 21、Spring Boot、Spring Cloud 与 Maven 多模块结构。前端位于 `frontend/`，采用 Vue 3、TypeScript、Vite 与 npm。
+后端位于 `recruit-smart-backend/`，采用 Java 21、Spring Boot、Spring Cloud 与 Maven 多模块结构。前端位于 `recruit-smart-frontend/`，采用 Vue 3、TypeScript、Vite 与 npm。
 
 - `recruit-gateway/`：统一入口与路由转发。
 - `recruit-biz-service/`：传统业务域，负责招聘主流程和最终业务状态落库。
@@ -14,7 +14,7 @@
 - `recruit-common/`：统一返回、分页、异常和通用枚举。
 - `feign-api/`：服务间调用契约。
 - `sql/recruit_smart_init.sql`：数据库初始化脚本。
-- `frontend/`：招聘平台前端 SPA，包含登录、注册、工作台、候选人、流程、面试和 AI 审批页面。
+- `recruit-smart-frontend/`：招聘平台前端 SPA，包含登录、注册、工作台、候选人、流程、面试和 AI 审批页面。
 
 生产代码放在各模块 `src/main/java`，配置放在 `src/main/resources/application.yml`，测试放在 `src/test/java`。
 
@@ -30,7 +30,7 @@
 
 本地启动前确认 MySQL、Nacos 和各模块 `application.yml` 配置可用。
 
-在 `frontend/` 下执行：
+在 `recruit-smart-frontend/` 下执行：
 
 - `npm install`：安装前端依赖。
 - `npm run dev`：启动 Vite 开发服务器。
