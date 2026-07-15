@@ -114,10 +114,12 @@ CREATE TABLE resume (
   project_experience TEXT COMMENT '项目经历摘要',
   work_experience TEXT COMMENT '工作经历摘要',
   is_default TINYINT NOT NULL DEFAULT 0 COMMENT '是否默认简历：1是，0否',
+  parse_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '解析状态：PENDING等待解析，PROCESSING解析中，SUCCESS解析成功，FAILED解析失败',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   KEY idx_resume_candidate_id (candidate_id),
-  KEY idx_resume_is_default (is_default)
+  KEY idx_resume_is_default (is_default),
+  KEY idx_resume_parse_status (parse_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历表';
 
 -- 6. Job application table. This is the center table of recruitment workflow.
@@ -198,7 +200,7 @@ CREATE TABLE interview_feedback (
   ai_summary TEXT COMMENT 'AI反馈摘要',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  KEY idx_feedback_interview_id (interview_id),
+  UNIQUE KEY uk_feedback_interview_id (interview_id),
   KEY idx_feedback_interviewer_id (interviewer_id),
   KEY idx_feedback_suggestion (suggestion)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试反馈表';
@@ -309,23 +311,23 @@ INSERT INTO candidate (
 
 INSERT INTO resume (
   id, candidate_id, resume_name, file_url, file_type, parsed_content,
-  skills, project_experience, work_experience, is_default
+  skills, project_experience, work_experience, is_default, parse_status
 ) VALUES
 (1, 1, '张三-Java后端简历', '/files/resume/zhangsan-java.pdf', 'PDF',
  '张三，本科，软件工程专业，熟悉Java、Spring Boot、MySQL，参与过招聘管理系统开发。',
  'Java,Spring Boot,MySQL,Redis,Git',
  '参与招聘管理系统后端开发，负责职位、投递、面试模块接口。',
- '2年Java后端开发经验。', 1),
+ '2年Java后端开发经验。', 1, 'SUCCESS'),
 (2, 2, '李四-AI算法简历', '/files/resume/lisi-ai.pdf', 'PDF',
  '李四，硕士，熟悉Python、机器学习、文本向量化和语义检索。',
  'Python,Machine Learning,RAG,Qdrant,PyTorch',
  '参与简历语义匹配实验项目，负责文本向量化和相似度计算。',
- '1年AI算法实习经验。', 1),
+ '1年AI算法实习经验。', 1, 'SUCCESS'),
 (3, 3, '王五-HR简历', '/files/resume/wangwu-hr.pdf', 'PDF',
  '王五，本科，人力资源管理专业，熟悉招聘流程和候选人沟通。',
  '招聘流程,候选人沟通,Offer管理,入职办理',
  '参与校园招聘活动组织和候选人跟进。',
- '3年人力资源相关经验。', 1);
+ '3年人力资源相关经验。', 1, 'SUCCESS');
 
 INSERT INTO job_application (
   id, job_id, candidate_id, resume_id, status, allow_adjustment, adjusted_job_id,

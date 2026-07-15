@@ -4,12 +4,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruit.biz.dto.CandidateCreateDTO;
 import com.recruit.biz.dto.CandidateQueryDTO;
+import com.recruit.biz.dto.CandidateSelfUpdateDTO;
 import com.recruit.biz.dto.CandidateUpdateDTO;
 import com.recruit.biz.entity.Candidate;
+import com.recruit.biz.entity.Resume;
+import com.recruit.biz.enums.ResumeParseStatus;
 import com.recruit.biz.mapper.CandidateMapper;
+import com.recruit.biz.mapper.ResumeMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.CandidateService;
+import com.recruit.biz.vo.CandidateDetailVO;
 import com.recruit.biz.vo.CandidateVO;
+import com.recruit.biz.vo.ResumeSummaryVO;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
 import com.recruit.common.result.PageResult;
@@ -23,6 +29,8 @@ import java.util.List;
 public class CandidateServiceImpl implements CandidateService {
     @Resource
     private CandidateMapper candidateMapper;
+    @Resource
+    private ResumeMapper resumeMapper;
     @Override
     public Long createCandidate(CandidateCreateDTO dto) {
         Long phoneCount = candidateMapper.selectCount(
@@ -127,6 +135,55 @@ public class CandidateServiceImpl implements CandidateService {
 
         if (StringUtils.hasText(dto.getSource())) {
             candidate.setSource(dto.getSource());
+        }
+
+        candidateMapper.updateById(candidate);
+    }
+
+    @Override
+    public CandidateDetailVO getCandidateDetail(Long id) {
+        Candidate candidate = candidateMapper.selectById(id);
+        if (candidate == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "候选人不存在");
+        }
+        return toDetailVO(candidate);
+    }
+
+    @Override
+    public CandidateDetailVO getCurrentCandidate() {
+        return toDetailVO(getCurrentCandidateEntity());
+    }
+
+    @Override
+    public void updateCurrentCandidate(CandidateSelfUpdateDTO dto) {
+        if (dto.getGender() == null
+                && dto.getAge() == null
+                && dto.getEducation() == null
+                && dto.getSchool() == null
+                && dto.getMajor() == null
+                && dto.getYearsOfExperience() == null) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "没有需要修改的求职资料");
+        }
+
+        Candidate candidate = getCurrentCandidateEntity();
+
+        if (dto.getGender() != null) {
+            candidate.setGender(dto.getGender());
+        }
+        if (dto.getAge() != null) {
+            candidate.setAge(dto.getAge());
+        }
+        if (dto.getEducation() != null) {
+            candidate.setEducation(requireText(dto.getEducation(), "学历"));
+        }
+        if (dto.getSchool() != null) {
+            candidate.setSchool(requireText(dto.getSchool(), "学校"));
+        }
+        if (dto.getMajor() != null) {
+            candidate.setMajor(requireText(dto.getMajor(), "专业"));
+        }
+        if (dto.getYearsOfExperience() != null) {
+            candidate.setYearsOfExperience(dto.getYearsOfExperience());
         }
 
         candidateMapper.updateById(candidate);
@@ -247,5 +304,71 @@ public class CandidateServiceImpl implements CandidateService {
         vo.setCreatedAt(candidate.getCreatedAt());
         vo.setHasAccount(candidate.getUserId() != null);
         return vo;
+    }
+
+    private Candidate getCurrentCandidateEntity() {
+        Candidate candidate = candidateMapper.selectOne(
+                new LambdaQueryWrapper<Candidate>()
+                        .eq(Candidate::getUserId, UserContext.getUserId())
+        );
+        if (candidate == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "当前账号未绑定候选人档案");
+        }
+        return candidate;
+    }
+
+    private CandidateDetailVO toDetailVO(Candidate candidate) {
+        CandidateDetailVO vo = new CandidateDetailVO();
+        vo.setId(candidate.getId());
+        vo.setName(candidate.getName());
+        vo.setGender(candidate.getGender());
+        vo.setAge(candidate.getAge());
+        vo.setPhone(candidate.getPhone());
+        vo.setEmail(candidate.getEmail());
+        vo.setEducation(candidate.getEducation());
+        vo.setSchool(candidate.getSchool());
+        vo.setMajor(candidate.getMajor());
+        vo.setYearsOfExperience(candidate.getYearsOfExperience());
+        vo.setCurrentStatus(candidate.getCurrentStatus());
+        vo.setSource(candidate.getSource());
+        vo.setHasAccount(candidate.getUserId() != null);
+        vo.setCreatedAt(candidate.getCreatedAt());
+        vo.setUpdatedAt(candidate.getUpdatedAt());
+
+        List<ResumeSummaryVO> resumes = resumeMapper.selectList(
+                        new LambdaQueryWrapper<Resume>()
+                                .eq(Resume::getCandidateId, candidate.getId())
+                                .orderByDesc(Resume::getIsDefault)
+                                .orderByDesc(Resume::getCreatedAt)
+                ).stream()
+                .map(this::toResumeSummaryVO)
+                .toList();
+        vo.setResumes(resumes);
+        return vo;
+    }
+
+    private ResumeSummaryVO toResumeSummaryVO(Resume resume) {
+        ResumeSummaryVO vo = new ResumeSummaryVO();
+        vo.setId(resume.getId());
+        vo.setResumeName(resume.getResumeName());
+        vo.setFileUrl(resume.getFileUrl());
+        vo.setFileType(resume.getFileType());
+        vo.setIsDefault(resume.getIsDefault());
+        vo.setCreatedAt(resume.getCreatedAt());
+        vo.setParseStatus(resume.getParseStatus());
+        ResumeParseStatus status =ResumeParseStatus.fromCode(resume.getParseStatus());
+        if(status!=null){
+            vo.setParseStatusText(status.getDescription());
+        }else{
+            vo.setParseStatusText("未知状态");
+        }
+        return vo;
+    }
+
+    private String requireText(String value, String fieldName) {
+        if (!StringUtils.hasText(value)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, fieldName + "不能为空");
+        }
+        return value.trim();
     }
 }
