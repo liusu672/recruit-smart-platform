@@ -6,8 +6,10 @@ import OnboardingDetailDrawer from '@/components/onboardings/OnboardingDetailDra
 import OnboardingTable from '@/components/onboardings/OnboardingTable.vue'
 import { useOnboardingManagement } from '@/composables/useOnboardingManagement'
 import { onboardingStatusOptions } from '@/config/onboardings'
+import { useSessionStore } from '@/stores/session'
 import type { OnboardingRecord, OnboardingStatus } from '@/types/onboarding'
 
+const session = useSessionStore()
 const state = useOnboardingManagement()
 const filterForm = reactive<{ keyword: string; status: OnboardingStatus | '' }>({
   keyword: '',
@@ -23,6 +25,8 @@ const detailVisible = computed({
     if (!value) state.closeDetail()
   },
 })
+const operatorId = computed(() => Number(session.user?.id ?? 0))
+
 function submitFilters() {
   state.applyFilters({ keyword: filterForm.keyword.trim(), status: filterForm.status })
 }
@@ -39,7 +43,7 @@ async function startReview(record: OnboardingRecord) {
     )
     await state.startReviewMutation.mutateAsync({
       id: record.id,
-      data: { note: 'HR 已接收入职材料并开始审核。' },
+      data: { operatorId: operatorId.value, note: 'HR 已接收入职材料并开始审核。' },
     })
     ElMessage.success('已进入材料审核')
   } catch (error) {
@@ -61,7 +65,7 @@ async function reviewMaterial(record: OnboardingRecord, decision: 'APPROVE' | 'R
     )
     await state.materialReviewMutation.mutateAsync({
       id: record.id,
-      data: { decision, note: result.value.trim() },
+      data: { operatorId: operatorId.value, decision, note: result.value.trim() },
     })
     ElMessage.success(decision === 'APPROVE' ? '材料已通过' : '已退回补充')
   } catch (error) {
@@ -71,14 +75,30 @@ async function reviewMaterial(record: OnboardingRecord, decision: 'APPROVE' | 'R
 }
 async function complete(record: OnboardingRecord) {
   try {
+    const numberResult = await ElMessageBox.prompt(
+      '员工编号将写入新员工档案，请核对后填写。',
+      '确认入职',
+      {
+        confirmButtonText: '下一步',
+        cancelButtonText: '取消',
+        inputPlaceholder: '例如：EMP20260728012',
+        inputValidator: (value) => /^EMP\d{11}$/.test(value.trim()) || '请输入 EMP 加 11 位数字',
+        type: 'warning',
+      },
+    )
     await ElMessageBox.confirm(
-      `确认“${record.candidateName}”已于 ${record.entryDate} 入职？后端会自动生成员工编号并创建员工档案。`,
+      `确认“${record.candidateName}”已于 ${record.entryDate} 入职，并生成员工档案 ${numberResult.value.trim()}？`,
       '生成员工档案',
       { confirmButtonText: '确认生成', cancelButtonText: '返回检查', type: 'warning' },
     )
     await state.completeMutation.mutateAsync({
       id: record.id,
       data: {
+        operatorId: operatorId.value,
+        employeeNo: numberResult.value.trim(),
+        department: record.department,
+        position: record.jobTitle,
+        entryDate: record.entryDate,
         note: 'HR 已核对到岗信息并确认入职。',
       },
     })
@@ -130,8 +150,8 @@ async function complete(record: OnboardingRecord) {
     </section>
     <section v-if="listError && !state.demoMode.value" class="error">
       <div>
-        <h3>入职接口暂不可用</h3>
-        <p>{{ listError.message }}。请确认 Gateway、业务服务和当前账号权限正常。</p>
+        <h3>入职接口尚不可用</h3>
+        <p>{{ listError.message }}。后端目前只有 Onboarding 实体与 Mapper。</p>
       </div>
       <div>
         <el-button @click="state.listQuery.refetch()">重试接口</el-button

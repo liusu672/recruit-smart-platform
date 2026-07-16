@@ -10,7 +10,7 @@ import {
 } from '@/config/candidates'
 import type { CandidateCreateRequest } from '@/types/candidate'
 
-type CandidateFormValue = CandidateCreateRequest
+type CandidateFormValue = Omit<CandidateCreateRequest, 'createdBy'>
 
 const props = defineProps<{
   visible: boolean
@@ -39,18 +39,29 @@ const form = reactive<CandidateFormValue>({
 
 const isDirty = computed(() => JSON.stringify(form) !== initialSnapshot.value)
 
+function validateContact(_rule: unknown, _value: string, callback: (error?: Error) => void) {
+  if (!form.phone.trim() && !form.email.trim()) {
+    callback(new Error('手机号和邮箱至少填写一项，用于识别重复候选人'))
+    return
+  }
+  callback()
+}
+
 const rules: FormRules<CandidateFormValue> = {
   name: [{ required: true, message: '请输入候选人姓名', trigger: 'blur' }],
   phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { validator: validateContact, trigger: 'blur' },
     {
       validator: (_rule, value: string, callback) => {
-        callback(!value || /^1[3-9]\d{9}$/.test(value) ? undefined : new Error('手机号格式不正确'))
+        callback(!value || /^1\d{10}$/.test(value) ? undefined : new Error('请输入 11 位手机号'))
       },
       trigger: 'blur',
     },
   ],
-  email: [{ type: 'email', message: '请输入有效邮箱地址', trigger: 'blur' }],
+  email: [
+    { validator: validateContact, trigger: 'blur' },
+    { type: 'email', message: '请输入有效邮箱地址', trigger: 'blur' },
+  ],
   education: [{ required: true, message: '请选择最高学历', trigger: 'change' }],
   yearsOfExperience: [
     { required: true, message: '请输入工作年限', trigger: 'change' },
@@ -133,7 +144,7 @@ async function submit() {
     @update:model-value="emit('update:visible', $event)"
   >
     <el-alert
-      title="手机号为后端必填字段，也用于重复候选人识别。"
+      title="手机号或邮箱用于重复候选人识别，请录入真实业务系统中的唯一联系方式。"
       type="info"
       :closable="false"
       show-icon

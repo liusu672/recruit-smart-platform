@@ -9,6 +9,7 @@ import OfferTable from '@/components/offers/OfferTable.vue'
 import { useOfferManagement } from '@/composables/useOfferManagement'
 import { demoEligibleOfferApplications } from '@/config/demoOffers'
 import { formatOfferSalary, offerStatusOptions, validateOfferForSend } from '@/config/offers'
+import { useSessionStore } from '@/stores/session'
 import type {
   OfferFormSubmitValue,
   OfferRecord,
@@ -16,6 +17,7 @@ import type {
   OfferUpdateRequest,
 } from '@/types/offer'
 
+const session = useSessionStore()
 const {
   query,
   demoMode,
@@ -84,7 +86,10 @@ async function submitOfferForm(value: OfferFormSubmitValue) {
       await updateMutation.mutateAsync({ id: editingOffer.value.id, data })
       ElMessage.success('Offer 草稿已更新')
     } else {
-      const id = await createMutation.mutateAsync(value)
+      const id = await createMutation.mutateAsync({
+        ...value,
+        createdBy: Number(session.user?.id ?? 0),
+      })
       ElMessage.success('Offer 草稿已创建')
       openDetail(id)
     }
@@ -115,6 +120,7 @@ async function confirmSend(offer: OfferRecord) {
     await sendMutation.mutateAsync({
       id: offer.id,
       data: {
+        operatorId: Number(session.user?.id ?? 0),
         note: 'HR 已复核薪资、入职日期与工作地点。',
       },
     })
@@ -127,22 +133,25 @@ async function confirmSend(offer: OfferRecord) {
 
 async function confirmRevoke(offer: OfferRecord) {
   try {
-    await ElMessageBox.confirm(
-      `确认撤回“${offer.candidateName}”的 Offer？撤回后该录用沟通会终止。`,
+    const result = await ElMessageBox.prompt(
+      `撤回“${offer.candidateName}”的 Offer 会终止当前录用沟通，请填写可审计原因。`,
       '撤回 Offer',
       {
         confirmButtonText: '确认撤回',
         cancelButtonText: '取消',
+        inputPlaceholder: '例如：录用方案调整，需重新审批',
+        inputValidator: (value) => value.trim().length >= 5 || '撤回原因至少填写 5 个字',
         type: 'warning',
       },
     )
     await revokeMutation.mutateAsync({
       id: offer.id,
       data: {
-        reason: 'HR 已确认撤回该 Offer。',
+        operatorId: Number(session.user?.id ?? 0),
+        reason: result.value.trim(),
       },
     })
-    ElMessage.success('Offer 已撤回')
+    ElMessage.success('Offer 已撤回并记录原因')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     ElMessage.error(error instanceof Error ? error.message : 'Offer 撤回失败')
@@ -197,10 +206,10 @@ async function confirmRevoke(offer: OfferRecord) {
 
     <section v-if="listError && !demoMode" class="offer-error" role="alert">
       <div>
-        <h3>Offer 接口暂不可用</h3>
+        <h3>Offer 接口尚不可用</h3>
         <p>
-          {{ listError.message }}。请确认
-          Gateway、业务服务和当前账号权限正常，也可以使用演示数据继续评审。
+          {{ listError.message }}。后端目前只有 Offer 实体与
+          Mapper，可使用明确标识的演示数据继续开发。
         </p>
       </div>
       <div>

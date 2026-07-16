@@ -12,14 +12,16 @@ import {
   getCandidateStatusTone,
 } from '@/config/candidates'
 import { useCandidateManagement } from '@/composables/useCandidateManagement'
+import { useSessionStore } from '@/stores/session'
 import type { CandidateCreateRequest, CandidateQuery, CandidateSummary } from '@/types/candidate'
 
-type CandidateFormValue = CandidateCreateRequest
+type CandidateFormValue = Omit<CandidateCreateRequest, 'createdBy'>
 
 interface CandidateTableRef {
   clearSelection: () => void
 }
 
+const session = useSessionStore()
 const {
   query,
   demoMode,
@@ -94,7 +96,15 @@ function showError(error: unknown) {
 
 async function submitCandidate(data: CandidateFormValue) {
   try {
-    const id = await createMutation.mutateAsync(data)
+    const createdBy = Number(session.user?.id)
+    if (!demoMode.value && !Number.isFinite(createdBy)) {
+      throw new Error('当前登录用户缺少有效 ID，无法录入候选人')
+    }
+
+    const id = await createMutation.mutateAsync({
+      ...data,
+      createdBy: Number.isFinite(createdBy) ? createdBy : 0,
+    })
     formVisible.value = false
     selectCandidate(id)
     ElMessage.success(demoMode.value ? '演示候选人已保存' : '候选人已保存')
@@ -178,10 +188,11 @@ async function submitCandidate(data: CandidateFormValue) {
 
     <section v-if="listError && !demoMode" class="candidates-error" role="alert">
       <div>
-        <h3>候选人接口暂不可用</h3>
+        <h3>候选人接口尚不可用</h3>
         <p>
-          {{ listError.message }}。请确认
-          Gateway、业务服务和当前账号权限正常，也可以切换到明确标识的演示数据继续评审。
+          {{
+            listError.message
+          }}。后端目前还没有候选人控制器，可以切换到明确标识的演示数据继续开发和评审。
         </p>
       </div>
       <div class="candidates-error__actions">

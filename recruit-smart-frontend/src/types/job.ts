@@ -42,9 +42,10 @@ export interface JobCreateRequest {
   headcount: number
   responsibilities: string
   requirements: string
+  createdBy: number
 }
 
-export type JobUpdateRequest = JobCreateRequest
+export type JobUpdateRequest = Omit<JobCreateRequest, 'createdBy'>
 
 export interface JobUpdateCommand {
   id: number

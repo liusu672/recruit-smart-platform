@@ -11,17 +11,10 @@ import { getPipelineStageKey } from '@/config/pipeline'
 
 describe('pipeline API adaptation', () => {
   it('maps aggregation records to the frontend pagination contract', () => {
-    const summary = getDemoPipelinePage(initialDemoPipeline, {
-      keyword: '林一凡',
-      jobId: 103,
-      status: 'SCREENING',
-      page: 1,
-      pageSize: 20,
-    }).items[0]!
-    const page = adaptPipelinePage({ total: 1, records: [summary] }, 2, 20)
+    const page = adaptPipelinePage({ total: 1, records: [initialDemoPipeline[0]!] }, 2, 20)
 
     expect(page).toEqual({
-      items: [summary],
+      items: [initialDemoPipeline[0]],
       page: 2,
       pageSize: 20,
       total: 1,
@@ -32,8 +25,8 @@ describe('pipeline API adaptation', () => {
 describe('pipeline stages and demo operations', () => {
   it('groups detailed application statuses into collaboration stages', () => {
     expect(getPipelineStageKey('SUBMITTED')).toBe('NEW')
-    expect(getPipelineStageKey('SCREEN_PASSED')).toBe('INTERVIEW')
-    expect(getPipelineStageKey('OFFERED')).toBe('OFFER')
+    expect(getPipelineStageKey('SCREEN_PASS')).toBe('INTERVIEW')
+    expect(getPipelineStageKey('OFFER')).toBe('OFFER')
     expect(getPipelineStageKey('SCREEN_REJECT')).toBe('CLOSED')
   })
 
@@ -52,7 +45,11 @@ describe('pipeline stages and demo operations', () => {
 
   it('starts screening only from a newly submitted application', () => {
     const submitted = initialDemoPipeline.find((item) => item.status === 'SUBMITTED')!
-    const updated = applyDemoStatusUpdate(submitted, { status: 'SCREENING' }, '2026-07-15T12:00:00')
+    const updated = applyDemoStatusUpdate(
+      submitted,
+      { toStatus: 'SCREENING', note: '开始审核', operatorId: 2 },
+      '2026-07-15T12:00:00',
+    )
 
     expect(updated).toMatchObject({ status: 'SCREENING', ownerName: '当前 HR' })
     expect(updated.timeline.at(-1)?.title).toBe('进入 HR 筛选')
@@ -62,12 +59,12 @@ describe('pipeline stages and demo operations', () => {
     const screening = initialDemoPipeline.find((item) => item.status === 'SCREENING')!
     const updated = applyDemoScreeningDecision(
       screening,
-      { decision: 'PASS', rejectReasonCode: '', note: '作品集符合岗位重点' },
+      { decision: 'PASS', rejectReasonCode: '', note: '作品集符合岗位重点', reviewedBy: 2 },
       '2026-07-15T12:10:00',
     )
 
     expect(updated).toMatchObject({
-      status: 'SCREEN_PASSED',
+      status: 'SCREEN_PASS',
       reviewDecision: 'PASS',
       hrNote: '作品集符合岗位重点',
     })
@@ -82,6 +79,7 @@ describe('pipeline stages and demo operations', () => {
         decision: 'REJECT',
         rejectReasonCode: '',
         note: '',
+        reviewedBy: 2,
       }),
     ).toThrow('必须选择原因并填写说明')
   })

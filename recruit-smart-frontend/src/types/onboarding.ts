@@ -46,6 +46,7 @@ export interface OnboardingPageResponse {
 }
 
 export interface OnboardingActionRequest {
+  operatorId: number
   note: string
 }
 
@@ -53,8 +54,11 @@ export interface MaterialReviewRequest extends OnboardingActionRequest {
   decision: 'APPROVE' | 'REJECT'
 }
 
-export interface CompleteOnboardingRequest {
-  note?: string
+export interface CompleteOnboardingRequest extends OnboardingActionRequest {
+  employeeNo: string
+  department: string
+  position: string
+  entryDate: string
 }
 
 export type OnboardingPagedData = PagedData<OnboardingRecord>
