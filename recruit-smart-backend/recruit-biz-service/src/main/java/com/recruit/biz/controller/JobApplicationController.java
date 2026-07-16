@@ -3,11 +3,16 @@ package com.recruit.biz.controller;
 import com.recruit.biz.dto.JobApplicationCreateDTO;
 import com.recruit.biz.dto.JobApplicationQueryDTO;
 import com.recruit.biz.dto.JobApplicationRejectDTO;
+import com.recruit.biz.dto.JobApplicationScreeningDTO;
 import com.recruit.biz.dto.JobApplicationStatusUpdateDTO;
+import com.recruit.biz.dto.PipelineApplicationQueryDTO;
 import com.recruit.biz.security.RequireRoles;
 import com.recruit.biz.service.JobApplicationService;
+import com.recruit.biz.service.PipelineService;
 import com.recruit.biz.vo.JobApplicationSummaryVO;
 import com.recruit.biz.vo.JobApplicationDetailVO;
+import com.recruit.biz.vo.PipelineApplicationDetailVO;
+import com.recruit.biz.vo.PipelineApplicationSummaryVO;
 import com.recruit.common.result.PageResult;
 import com.recruit.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +28,8 @@ public class JobApplicationController {
 
     @Resource
     private JobApplicationService jobApplicationService;
+    @Resource
+    private PipelineService pipelineService;
 
     @PostMapping
     @RequireRoles({"CANDIDATE"})
@@ -46,6 +53,24 @@ public class JobApplicationController {
         );
     }
 
+    @GetMapping("/pipeline")
+    @RequireRoles({"HR", "ADMIN"})
+    @Operation(summary = "查询招聘流程看板")
+    public Result<PageResult<PipelineApplicationSummaryVO>> listPipeline(
+            @Valid @ModelAttribute PipelineApplicationQueryDTO dto
+    ) {
+        return Result.success(pipelineService.listPipeline(dto));
+    }
+
+    @GetMapping("/{id}/pipeline")
+    @RequireRoles({"HR", "ADMIN"})
+    @Operation(summary = "查询招聘流程详情")
+    public Result<PipelineApplicationDetailVO> getPipelineDetail(
+            @PathVariable Long id
+    ) {
+        return Result.success(pipelineService.getPipelineDetail(id));
+    }
+
     @GetMapping("/{id}")
     @RequireRoles({"CANDIDATE", "HR", "ADMIN", "INTERVIEWER"})
     @Operation(summary = "查询投递详情")
@@ -63,14 +88,6 @@ public class JobApplicationController {
         return Result.success();
     }
 
-    @PutMapping("/{id}/screen-pass")
-    @RequireRoles({"ADMIN", "HR"})
-    @Operation(summary = "筛选通过投递")
-    public Result<Void> passScreen(@PathVariable Long id) {
-        jobApplicationService.passScreen(id);
-        return Result.success();
-    }
-
     @PutMapping("/{id}/reject")
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "拒绝投递")
@@ -79,6 +96,17 @@ public class JobApplicationController {
             @Valid @RequestBody JobApplicationRejectDTO dto
     ) {
         jobApplicationService.reject(id, dto);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/screening")
+    @RequireRoles({"ADMIN", "HR"})
+    @Operation(summary = "提交简历筛选结论")
+    public Result<Void> reviewScreening(
+            @PathVariable Long id,
+            @Valid @RequestBody JobApplicationScreeningDTO dto
+    ) {
+        jobApplicationService.reviewScreening(id, dto);
         return Result.success();
     }
 

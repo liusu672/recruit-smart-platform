@@ -7,6 +7,7 @@ import com.recruit.biz.dto.JobApplicationCreateDTO;
 import com.recruit.biz.dto.JobApplicationHRQueryDTO;
 import com.recruit.biz.dto.JobApplicationQueryDTO;
 import com.recruit.biz.dto.JobApplicationRejectDTO;
+import com.recruit.biz.dto.JobApplicationScreeningDTO;
 import com.recruit.biz.dto.JobApplicationStatusUpdateDTO;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.JobApplication;
@@ -30,6 +31,7 @@ import jakarta.annotation.Resource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -452,32 +454,6 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void passScreen(Long id) {
-        JobApplication application = requireApplication(id);
-        String currentStatus = application.getStatus();
-
-        if (JobApplicationStatus.SCREEN_PASSED.name()
-                .equals(currentStatus)) {
-            return;
-        }
-
-        if (!JobApplicationStatus.SUBMITTED.name().equals(currentStatus)
-                && !JobApplicationStatus.SCREENING.name()
-                .equals(currentStatus)) {
-            throw new BusinessException(
-                    ErrorCode.PARAM_ERROR,
-                    "当前投递状态不能筛选通过"
-            );
-        }
-
-        updateStatusInternal(
-                application,
-                JobApplicationStatus.SCREEN_PASSED.name()
-        );
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, JobApplicationRejectDTO dto) {
         JobApplication application = requireApplication(id);
         String currentStatus = application.getStatus();
@@ -535,6 +511,96 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void reviewScreening(
+            Long id,
+            JobApplicationScreeningDTO dto
+    ) {
+        JobApplication application = requireApplication(id);
+        if (!JobApplicationStatus.SCREENING.name()
+                .equals(application.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "只有筛选中的投递可以提交筛选结论"
+            );
+        }
+
+        String decision = dto.getDecision().trim();
+        String note = StringUtils.hasText(dto.getNote())
+                ? dto.getNote().trim()
+                : null;
+        LambdaUpdateWrapper<JobApplication> wrapper =
+                new LambdaUpdateWrapper<JobApplication>()
+                        .eq(JobApplication::getId, id)
+                        .eq(
+                                JobApplication::getStatus,
+                                JobApplicationStatus.SCREENING.name()
+                        )
+                        .set(
+                                JobApplication::getReviewedBy,
+                                UserContext.getUserId()
+                        )
+                        .set(
+                                JobApplication::getReviewedAt,
+                                LocalDateTime.now()
+                        );
+
+        switch (decision) {
+            case "PASS" -> wrapper
+                    .set(
+                            JobApplication::getStatus,
+                            JobApplicationStatus.SCREEN_PASSED.name()
+                    )
+                    .set(
+                            StringUtils.hasText(note),
+                            JobApplication::getHrNote,
+                            note
+                    );
+            case "REJECT" -> {
+                if (!StringUtils.hasText(dto.getRejectReasonCode())
+                        || !StringUtils.hasText(note)) {
+                    throw new BusinessException(
+                            ErrorCode.PARAM_ERROR,
+                            "拒绝时必须填写拒绝原因和说明"
+                    );
+                }
+                wrapper
+                        .set(
+                                JobApplication::getStatus,
+                                JobApplicationStatus.SCREEN_REJECT.name()
+                        )
+                        .set(
+                                JobApplication::getRejectReasonCode,
+                                dto.getRejectReasonCode().trim()
+                        )
+                        .set(JobApplication::getRejectReason, note)
+                        .set(JobApplication::getHrNote, note);
+            }
+            case "PENDING" -> {
+                if (!StringUtils.hasText(note)) {
+                    throw new BusinessException(
+                            ErrorCode.PARAM_ERROR,
+                            "保留待定时必须填写待核实事项"
+                    );
+                }
+                wrapper.set(JobApplication::getHrNote, note);
+            }
+            default -> throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "筛选结论不正确"
+            );
+        }
+
+        int updated = jobApplicationMapper.update(null, wrapper);
+        if (updated != 1) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "提交筛选结论失败，记录可能已被其他人处理"
+            );
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateStatus(
             Long id,
             JobApplicationStatusUpdateDTO dto
@@ -561,20 +627,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             String currentStatus,
             String targetStatus
     ) {
-        if (JobApplicationStatus.SUBMITTED.name().equals(currentStatus)) {
-            return JobApplicationStatus.SCREENING.name()
-                    .equals(targetStatus);
-        }
-        if (JobApplicationStatus.SCREENING.name().equals(currentStatus)) {
-            return JobApplicationStatus.SCREEN_PASSED.name()
-                    .equals(targetStatus);
-        }
-        if (JobApplicationStatus.SCREEN_PASSED.name()
-                .equals(currentStatus)) {
-            return JobApplicationStatus.INTERVIEWING.name()
-                    .equals(targetStatus);
-        }
-        return false;
+        return JobApplicationStatus.SUBMITTED.name().equals(currentStatus)
+                && JobApplicationStatus.SCREENING.name()
+                .equals(targetStatus);
     }
 
     private void updateStatusInternal(

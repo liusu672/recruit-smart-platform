@@ -24,4 +24,5 @@ public class CandidateDetailVO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<ResumeSummaryVO> resumes;
+    private List<CandidateApplicationVO> applications;
 }

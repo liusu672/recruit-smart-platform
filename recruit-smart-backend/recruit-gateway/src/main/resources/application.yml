@@ -1,0 +1,41 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: recruit-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+    gateway:
+      routes:
+        - id: ai-service
+          order: -1
+          uri: lb://recruit-ai-service
+          predicates:
+            - Path=/api/ai/**
+
+        - id: biz-service
+          order: 0
+          uri: lb://service-biz
+          predicates:
+            - Path=/api/**
+          filters:
+            - StripPrefix=1
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - http://localhost:5173
+              - http://localhost:3000
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowed-headers: '*'
+            allow-credentials: true
+            max-age: 3600

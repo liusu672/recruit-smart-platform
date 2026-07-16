@@ -6,14 +6,14 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
-@Schema(description = "修改投递状态参数")
+@Schema(description = "开始筛选参数")
 public class JobApplicationStatusUpdateDTO {
 
     @NotBlank(message = "投递状态不能为空")
     @Pattern(
-            regexp = "^(SCREENING|SCREEN_PASSED|INTERVIEWING)$",
-            message = "该状态不允许通过通用接口修改"
+            regexp = "^SCREENING$",
+            message = "通用状态接口仅用于开始筛选"
     )
-    @Schema(description = "目标投递状态", example = "INTERVIEWING")
+    @Schema(description = "目标投递状态", example = "SCREENING")
     private String status;
 }

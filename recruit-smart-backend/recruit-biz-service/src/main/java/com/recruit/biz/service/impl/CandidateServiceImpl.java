@@ -6,13 +6,22 @@ import com.recruit.biz.dto.CandidateCreateDTO;
 import com.recruit.biz.dto.CandidateQueryDTO;
 import com.recruit.biz.dto.CandidateSelfUpdateDTO;
 import com.recruit.biz.dto.CandidateUpdateDTO;
+import com.recruit.biz.entity.AiMatchResult;
 import com.recruit.biz.entity.Candidate;
+import com.recruit.biz.entity.JobApplication;
+import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
+import com.recruit.biz.enums.JobApplicationStatus;
 import com.recruit.biz.enums.ResumeParseStatus;
+import com.recruit.biz.mapper.AiMatchResultMapper;
 import com.recruit.biz.mapper.CandidateMapper;
+import com.recruit.biz.mapper.JobApplicationMapper;
+import com.recruit.biz.mapper.JobPositionMapper;
 import com.recruit.biz.mapper.ResumeMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.CandidateService;
+import com.recruit.biz.vo.AiMatchSummaryVO;
+import com.recruit.biz.vo.CandidateApplicationVO;
 import com.recruit.biz.vo.CandidateDetailVO;
 import com.recruit.biz.vo.CandidateVO;
 import com.recruit.biz.vo.ResumeSummaryVO;
@@ -24,6 +33,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class CandidateServiceImpl implements CandidateService {
@@ -31,6 +44,12 @@ public class CandidateServiceImpl implements CandidateService {
     private CandidateMapper candidateMapper;
     @Resource
     private ResumeMapper resumeMapper;
+    @Resource
+    private JobApplicationMapper jobApplicationMapper;
+    @Resource
+    private JobPositionMapper jobPositionMapper;
+    @Resource
+    private AiMatchResultMapper aiMatchResultMapper;
     @Override
     public Long createCandidate(CandidateCreateDTO dto) {
         Long phoneCount = candidateMapper.selectCount(
@@ -146,12 +165,12 @@ public class CandidateServiceImpl implements CandidateService {
         if (candidate == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "候选人不存在");
         }
-        return toDetailVO(candidate);
+        return toDetailVO(candidate, true);
     }
 
     @Override
     public CandidateDetailVO getCurrentCandidate() {
-        return toDetailVO(getCurrentCandidateEntity());
+        return toDetailVO(getCurrentCandidateEntity(), false);
     }
 
     @Override
@@ -317,7 +336,10 @@ public class CandidateServiceImpl implements CandidateService {
         return candidate;
     }
 
-    private CandidateDetailVO toDetailVO(Candidate candidate) {
+    private CandidateDetailVO toDetailVO(
+            Candidate candidate,
+            boolean includeInternalFields
+    ) {
         CandidateDetailVO vo = new CandidateDetailVO();
         vo.setId(candidate.getId());
         vo.setName(candidate.getName());
@@ -344,6 +366,112 @@ public class CandidateServiceImpl implements CandidateService {
                 .map(this::toResumeSummaryVO)
                 .toList();
         vo.setResumes(resumes);
+        vo.setApplications(loadCandidateApplications(
+                candidate.getId(),
+                includeInternalFields
+        ));
+        return vo;
+    }
+
+    private List<CandidateApplicationVO> loadCandidateApplications(
+            Long candidateId,
+            boolean includeInternalFields
+    ) {
+        List<JobApplication> applications = jobApplicationMapper.selectList(
+                new LambdaQueryWrapper<JobApplication>()
+                        .eq(JobApplication::getCandidateId, candidateId)
+                        .orderByDesc(JobApplication::getAppliedAt)
+                        .orderByDesc(JobApplication::getId)
+        );
+        if (applications.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> jobIds = applications.stream()
+                .map(JobApplication::getJobId)
+                .collect(Collectors.toSet());
+        Map<Long, JobPosition> jobMap = jobPositionMapper
+                .selectBatchIds(jobIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        JobPosition::getId,
+                        Function.identity()
+                ));
+
+        Map<Long, AiMatchResult> aiMatchMap = Map.of();
+        if (includeInternalFields) {
+            Set<Long> applicationIds = applications.stream()
+                    .map(JobApplication::getId)
+                    .collect(Collectors.toSet());
+            aiMatchMap = aiMatchResultMapper.selectList(
+                            new LambdaQueryWrapper<AiMatchResult>()
+                                    .in(
+                                            AiMatchResult::getApplicationId,
+                                            applicationIds
+                                    )
+                    )
+                    .stream()
+                    .collect(Collectors.toMap(
+                            AiMatchResult::getApplicationId,
+                            Function.identity()
+                    ));
+        }
+
+        Map<Long, AiMatchResult> finalAiMatchMap = aiMatchMap;
+        return applications.stream()
+                .map(application -> toCandidateApplicationVO(
+                        application,
+                        jobMap.get(application.getJobId()),
+                        finalAiMatchMap.get(application.getId()),
+                        includeInternalFields
+                ))
+                .toList();
+    }
+
+    private CandidateApplicationVO toCandidateApplicationVO(
+            JobApplication application,
+            JobPosition job,
+            AiMatchResult aiMatch,
+            boolean includeInternalFields
+    ) {
+        CandidateApplicationVO vo = new CandidateApplicationVO();
+        vo.setId(application.getId());
+        vo.setJobId(application.getJobId());
+        vo.setJobTitle(job == null ? null : job.getTitle());
+        vo.setDepartment(job == null ? null : job.getDepartment());
+        vo.setResumeId(application.getResumeId());
+        vo.setStatus(application.getStatus());
+        vo.setAllowAdjustment(application.getAllowAdjustment() != null
+                && application.getAllowAdjustment() == 1);
+        vo.setSource(application.getSource());
+        vo.setAppliedAt(application.getAppliedAt());
+
+        JobApplicationStatus status = JobApplicationStatus.fromCode(
+                application.getStatus()
+        );
+        vo.setStatusText(
+                status == null ? "未知状态" : status.getDescription()
+        );
+
+        if (includeInternalFields) {
+            vo.setHrNote(application.getHrNote());
+            vo.setAiMatch(toAiMatchSummaryVO(aiMatch));
+        }
+        return vo;
+    }
+
+    private AiMatchSummaryVO toAiMatchSummaryVO(AiMatchResult aiMatch) {
+        if (aiMatch == null) {
+            return null;
+        }
+        AiMatchSummaryVO vo = new AiMatchSummaryVO();
+        vo.setMatchScore(aiMatch.getMatchScore());
+        vo.setRecommendLevel(aiMatch.getRecommendLevel());
+        vo.setRecommendReason(aiMatch.getRecommendReason());
+        vo.setHighlightSummary(aiMatch.getHighlightSummary());
+        vo.setRiskSummary(aiMatch.getRiskSummary());
+        vo.setModelName(aiMatch.getModelName());
+        vo.setGeneratedAt(aiMatch.getGeneratedAt());
         return vo;
     }
 

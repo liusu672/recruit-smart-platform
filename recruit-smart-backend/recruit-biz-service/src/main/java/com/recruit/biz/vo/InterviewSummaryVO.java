@@ -22,4 +22,6 @@ public class InterviewSummaryVO {
     private String location;
     private String status;
     private String statusText;
+    private Integer feedbackScore;
+    private String feedbackSuggestion;
 }

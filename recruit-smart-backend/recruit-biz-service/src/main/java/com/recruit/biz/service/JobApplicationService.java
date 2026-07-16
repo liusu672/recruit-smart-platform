@@ -4,6 +4,7 @@ import com.recruit.biz.dto.JobApplicationCreateDTO;
 import com.recruit.biz.dto.JobApplicationHRQueryDTO;
 import com.recruit.biz.dto.JobApplicationQueryDTO;
 import com.recruit.biz.dto.JobApplicationRejectDTO;
+import com.recruit.biz.dto.JobApplicationScreeningDTO;
 import com.recruit.biz.dto.JobApplicationStatusUpdateDTO;
 import com.recruit.biz.vo.JobApplicationSummaryVO;
 import com.recruit.biz.vo.JobApplicationDetailVO;
@@ -21,7 +22,7 @@ public interface JobApplicationService {
             Long jobId,
             JobApplicationHRQueryDTO dto
     );
-    void passScreen(Long id);
     void reject(Long id, JobApplicationRejectDTO dto);
+    void reviewScreening(Long id, JobApplicationScreeningDTO dto);
     void updateStatus(Long id, JobApplicationStatusUpdateDTO dto);
 }
