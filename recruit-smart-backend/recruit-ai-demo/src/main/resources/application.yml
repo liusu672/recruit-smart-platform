@@ -10,8 +10,22 @@ spring:
       api-key: ${DEEPSEEK_API_KEY}
       base-url: https://api.deepseek.com
       chat:
+        api-key: ${DEEPSEEK_API_KEY}
         options:
           model: deepseek-v4-pro
+      embedding:
+        base-url: https://dashscope.aliyuncs.com/compatible-mode
+        api-key: ${DASHSCOPE_API_KEY}
+        options:
+          model: text-embedding-v2
+    vectorstore:
+      milvus:
+        client:
+          host: localhost
+          port: 19530
+        collectionName: recruit_knowledge_base
+        embeddingDimension: 1536
+        initialize-schema: true
 
 logging:
   level:
