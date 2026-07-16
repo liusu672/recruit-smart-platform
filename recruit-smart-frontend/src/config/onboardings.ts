@@ -30,7 +30,8 @@ export function getMaterialStatusText(status: MaterialStatus) {
 }
 
 export function canStartOnboardingReview(status: OnboardingStatus) {
-  return status === 'PENDING'
+  void status
+  return false
 }
 
 export function canReviewOnboardingMaterial(status: OnboardingStatus) {

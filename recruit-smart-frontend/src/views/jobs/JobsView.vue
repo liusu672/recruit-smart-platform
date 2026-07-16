@@ -7,10 +7,8 @@ import JobDetailDrawer from '@/components/jobs/JobDetailDrawer.vue'
 import JobFormDrawer from '@/components/jobs/JobFormDrawer.vue'
 import { jobDepartmentOptions, jobStatusOptions, getJobStatusTone } from '@/config/jobs'
 import { useJobManagement } from '@/composables/useJobManagement'
-import { useSessionStore } from '@/stores/session'
 import type { JobPosition, JobQuery, JobUpdateRequest } from '@/types/job'
 
-const session = useSessionStore()
 const {
   query,
   demoMode,
@@ -87,14 +85,7 @@ async function submitJob(data: JobUpdateRequest) {
       await updateMutation.mutateAsync({ id: editingJob.value.id, data })
       ElMessage.success('职位信息已更新')
     } else {
-      const createdBy = Number(session.user?.id)
-      if (!demoMode.value && !Number.isFinite(createdBy)) {
-        throw new Error('当前登录用户缺少有效 ID，无法创建职位')
-      }
-      await createMutation.mutateAsync({
-        ...data,
-        createdBy: Number.isFinite(createdBy) ? createdBy : 0,
-      })
+      await createMutation.mutateAsync(data)
       ElMessage.success(demoMode.value ? '演示职位草稿已创建' : '职位草稿已创建')
     }
     formVisible.value = false

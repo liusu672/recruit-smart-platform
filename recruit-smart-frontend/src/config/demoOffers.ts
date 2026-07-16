@@ -273,7 +273,7 @@ export function sendDemoOffer(
       {
         id: `${offer.id}-sent-${sentAt}`,
         title: '发送 Offer',
-        description: request.note.trim() || 'Offer 已发送给候选人。',
+        description: request.note?.trim() || 'Offer 已发送给候选人。',
         actorName: '当前 HR',
         occurredAt: sentAt,
       },
@@ -287,19 +287,19 @@ export function revokeDemoOffer(
   revokedAt = new Date().toISOString(),
 ) {
   if (offer.status !== 'SENT') throw new Error('只有已发送 Offer 可以撤回')
-  if (!request.reason.trim()) throw new Error('撤回 Offer 必须填写原因')
+  const reason = request.reason?.trim() || 'HR 已确认撤回该 Offer。'
   return {
     ...offer,
     status: 'REVOKED' as const,
     statusText: getOfferStatusText('REVOKED'),
-    remark: request.reason.trim(),
+    remark: reason,
     updatedAt: revokedAt,
     timeline: [
       ...offer.timeline,
       {
         id: `${offer.id}-revoked-${revokedAt}`,
         title: '撤回 Offer',
-        description: request.reason.trim(),
+        description: reason,
         actorName: '当前 HR',
         occurredAt: revokedAt,
       },

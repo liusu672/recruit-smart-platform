@@ -1,4 +1,5 @@
 # IDE
+.vscode/
 .idea/
 *.iml
 
@@ -11,6 +12,17 @@ target/
 node_modules/
 dist/
 .vite/
+recruit-smart-frontend/archive/
+recruit-smart-frontend/design.md
+recruit-smart-frontend/prototype-images/
+recruit-smart-frontend/reference-images/
+
+# Local design/doc artifacts
+assets/design-doc/
+/*.doc
+/*.docx
+/设计文档*.md
+/招聘与人才管理平台-需求规格说明书.md
 
 # Environment
 .env
