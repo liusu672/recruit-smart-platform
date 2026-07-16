@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, CheckCircle2, LockKeyhole, Mail, UserRound } from 'lucide-vue-next'
+import { CheckCircle2, LockKeyhole, Mail, UserRound } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
 import candidateRocketImage from '@/assets/login-candidate-rocket.png'
@@ -18,11 +18,6 @@ const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
           <div class="brand-mark">RS</div>
           <span>Recruit Smart</span>
         </div>
-
-        <RouterLink class="button secondary register-back-link" to="/login">
-          <ArrowLeft class="icon small" :stroke-width="1.75" aria-hidden="true" />
-          返回登录
-        </RouterLink>
       </header>
 
       <section class="login-main register-main" aria-label="候选人注册">

@@ -1,5 +1,7 @@
 @use './tokens';
 @use './element-plus';
+@use './workspace-shell';
+@use './portal';
 
 * {
   box-sizing: border-box;

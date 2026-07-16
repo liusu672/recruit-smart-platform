@@ -28,6 +28,12 @@ describe('session store', () => {
     store.clearSession()
 
     expect(store.isAuthenticated).toBe(false)
+    expect(store.currentRole).toBeNull()
     expect(sessionStorage.getItem('recruit-smart-token')).toBeNull()
+  })
+
+  it('does not grant HR before a valid session is created', () => {
+    const store = useSessionStore()
+    expect(store.currentRole).toBeNull()
   })
 })
