@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recruit Smart Prototype</title>
+  <style>
+    :root {
+      --primary: #3183d8;
+      --primary-hover: #2874c4;
+      --primary-soft: #eaf4fd;
+      --canvas: #f5f7fa;
+      --surface: #ffffff;
+      --surface-subtle: #f8f9fb;
+      --surface-muted: #f0f2f6;
+      --surface-selected: #f0f2ff;
+      --ink: #15171c;
+      --ink-muted: #454b57;
+      --ink-subtle: #717784;
+      --ink-tertiary: #9aa1ad;
+      --hairline: #e3e7ee;
+      --hairline-strong: #cdd4df;
+      --success: #16833a;
+      --success-soft: #eaf7ee;
+      --warning: #a86500;
+      --warning-soft: #fff5df;
+      --danger: #c2413a;
+      --danger-soft: #fdecec;
+      --info: #0a66c2;
+      --info-soft: #eaf3fc;
+      --shadow: 0 8px 30px rgba(21, 23, 28, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      display: grid;
+      grid-template-columns: 232px 1fr;
+      width: 1600px;
+      height: 1000px;
+      background: var(--canvas);
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 18px 14px;
+      background: #f1f3f7;
+      border-right: 1px solid var(--hairline);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 40px;
+      padding: 0 10px;
+      margin-bottom: 22px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      color: white;
+      background: var(--primary);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .nav-section {
+      margin: 14px 10px 7px;
+      color: var(--ink-tertiary);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      color: var(--ink-muted);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .nav-item .icon {
+      display: grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      color: var(--ink-subtle);
+      font-size: 15px;
+    }
+
+    body[data-screen="dashboard"] .nav-item[data-target="dashboard"],
+    body[data-screen="candidates"] .nav-item[data-target="candidates"],
+    body[data-screen="candidate"] .nav-item[data-target="candidates"],
+    body[data-screen="pipeline"] .nav-item[data-target="pipeline"],
+    body[data-screen="interview"] .nav-item[data-target="interview"] {
+      color: var(--primary);
+      background: var(--surface-selected);
+      font-weight: 650;
+    }
+
+    .sidebar-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: auto;
+      padding: 12px 10px 2px;
+      border-top: 1px solid var(--hairline);
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 34px;
+      height: 34px;
+      color: white;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: 56px 1fr;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 24px;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .workspace {
+      min-width: 190px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .global-search {
+      display: flex;
+      align-items: center;
+      width: 460px;
+      height: 36px;
+      padding: 0 13px;
+      color: var(--ink-subtle);
+      background: var(--surface-subtle);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .top-spacer { flex: 1; }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      color: var(--ink-muted);
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .tertiary-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .primary-button {
+      color: white;
+      background: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .secondary-button {
+      color: var(--ink-muted);
+      background: white;
+      border: 1px solid var(--hairline-strong);
+    }
+
+    .tertiary-button {
+      color: var(--ink-muted);
+      background: transparent;
+      border: 1px solid transparent;
+    }
+
+    .content {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 26px 28px 28px;
+    }
+
+    .screen.active { display: block; }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .page-title {
+      margin: 0 0 6px;
+      font-size: 28px;
+      line-height: 1.2;
+      font-weight: 650;
+    }
+
+    .page-description {
+      margin: 0;
+      color: var(--ink-subtle);
+      font-size: 14px;
+    }
+
+    .actions { display: flex; gap: 8px; }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    .muted { color: var(--ink-subtle); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .badge.primary { color: var(--primary); background: var(--primary-soft); }
+    .badge.success { color: var(--success); background: var(--success-soft); }
+    .badge.warning { color: var(--warning); background: var(--warning-soft); }
+    .badge.danger { color: var(--danger); background: var(--danger-soft); }
+    .badge.info { color: var(--info); background: var(--info-soft); }
+    .badge.neutral { color: var(--ink-muted); background: var(--surface-muted); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      min-height: 112px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+    }
+
+    .metric-label { color: var(--ink-subtle); font-size: 12px; font-weight: 600; }
+    .metric-value { margin-top: 10px; font-size: 30px; line-height: 1.1; font-weight: 650; }
+    .metric-meta { margin-top: 7px; color: var(--ink-subtle); font-size: 12px; }
+    .metric-meta.positive { color: var(--success); }
+    .metric-meta.attention { color: var(--warning); }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(330px, 0.8fr);
+      gap: 16px;
+      height: 664px;
+    }
+
+    .priority-list { padding: 4px 0; }
+
+    .priority-row {
+      display: grid;
+      grid-template-columns: 44px minmax(180px, 1fr) 150px 112px 130px;
+      align-items: center;
+      min-height: 70px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .priority-row:last-child { border-bottom: 0; }
+
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+
+    .person-avatar {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      color: white;
+      background: var(--primary);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .person-name { font-size: 13px; font-weight: 650; }
+    .person-meta { margin-top: 3px; color: var(--ink-subtle); font-size: 11px; }
+    .cell-label { color: var(--ink-muted); font-size: 12px; }
+    .score { color: var(--success); font-size: 14px; font-weight: 700; }
+
+    .ai-brief {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: #fcfcfe;
+    }
+
+    .ai-symbol {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      color: white;
+      background: var(--primary);
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .ai-intro {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .ai-card {
+      margin: 12px 14px 0;
+      padding: 14px;
+      background: white;
+      border: 1px solid var(--hairline);
+      border-radius: 10px;
+    }
+
+    .ai-card-title { margin-bottom: 7px; font-size: 13px; font-weight: 650; }
+    .ai-card-copy { color: var(--ink-muted); font-size: 12px; line-height: 1.55; }
+    .ai-source { margin-top: 10px; color: var(--ink-subtle); font-size: 11px; }
+
+    .ai-composer {
+      margin: auto 14px 14px;
+      padding: 10px 11px;
+      color: var(--ink-subtle);
+      background: white;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 54px;
+      padding: 9px 12px;
+      background: var(--surface);
+      border: 1px solid var(--hairline);
+      border-radius: 12px 12px 0 0;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      height: 36px;
+      padding: 0 12px;
+      color: var(--ink-subtle);
+      background: var(--surface-subtle);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 10px;
+      color: var(--ink-muted);
+      background: white;
+      border: 1px solid var(--hairline-strong);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .candidate-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      height: calc(100% - 84px);
+    }
+
+    .table {
+      height: 100%;
+      background: white;
+      border: 1px solid var(--hairline);
+      border-top: 0;
+      border-radius: 0 0 12px 12px;
+      overflow: hidden;
+    }
+
+    .table-head,
+    .table-row {
+      display: grid;
+      grid-template-columns: 42px 1.4fr 1.1fr 110px 120px 110px 120px;
+      align-items: center;
+      padding: 0 14px;
+    }
+
+    .table-head {
+      height: 42px;
+      color: var(--ink-subtle);
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--hairline);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .table-row {
+      min-height: 66px;
+      border-bottom: 1px solid var(--hairline);
+      font-size: 12px;
+    }
+
+    .table-row.selected { background: var(--surface-selected); }
+    .checkbox { width: 15px; height: 15px; border: 1px solid var(--hairline-strong); border-radius: 4px; }
+
+    .preview-panel {
+      margin-left: 14px;
+      overflow: hidden;
+    }
+
+    .preview-cover {
+      height: 94px;
+      background: var(--primary-soft);
+      border-bottom: 1px solid #cde5fa;
+    }
+
+    .preview-content { padding: 0 20px 20px; }
+
+    .preview-avatar {
+      display: grid;
+      place-items: center;
+      width: 70px;
+      height: 70px;
+      margin-top: -35px;
+      color: white;
+      background: var(--primary);
+      border: 5px solid white;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .preview-name { margin: 12px 0 4px; font-size: 21px; font-weight: 650; }
+    .preview-role { color: var(--ink-muted); font-size: 13px; }
+    .preview-meta { margin-top: 4px; color: var(--ink-subtle); font-size: 12px; }
+
+    .fact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .fact {
+      padding: 10px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+    }
+
+    .fact-label { color: var(--ink-subtle); font-size: 10px; }
+    .fact-value { margin-top: 4px; font-size: 13px; font-weight: 650; }
+
+    .detail-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 410px;
+      gap: 16px;
+      height: calc(100% - 84px);
+    }
+
+    .profile-panel { overflow: hidden; }
+    .profile-hero { display: flex; gap: 18px; padding: 22px; border-bottom: 1px solid var(--hairline); }
+    .profile-avatar { display: grid; place-items: center; width: 72px; height: 72px; color: white; background: var(--primary); border-radius: 18px; font-size: 20px; font-weight: 700; }
+    .profile-name { margin: 0 0 5px; font-size: 23px; font-weight: 650; }
+    .profile-role { margin: 0 0 8px; color: var(--ink-muted); font-size: 14px; }
+    .profile-tags { display: flex; gap: 6px; }
+
+    .tabs {
+      display: flex;
+      gap: 22px;
+      height: 46px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      color: var(--ink-subtle);
+      border-bottom: 2px solid transparent;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tab.active { color: var(--primary); border-color: var(--primary); }
+
+    .profile-body { padding: 18px 22px; }
+    .section-heading { margin: 0 0 12px; font-size: 15px; font-weight: 650; }
+
+    .experience {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .company-logo { display: grid; place-items: center; width: 40px; height: 40px; color: var(--ink-muted); background: var(--surface-muted); border-radius: 9px; font-size: 12px; font-weight: 700; }
+    .experience-title { font-size: 13px; font-weight: 650; }
+    .experience-meta { margin-top: 4px; color: var(--ink-subtle); font-size: 11px; }
+
+    .ai-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .ai-context {
+      padding: 14px 16px;
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .source-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+    .source-chip { padding: 5px 8px; color: var(--info); background: var(--info-soft); border-radius: 999px; font-size: 10px; font-weight: 650; }
+
+    .messages { flex: 1; padding: 14px; overflow: hidden; }
+
+    .message {
+      max-width: 92%;
+      margin-bottom: 11px;
+      padding: 11px 12px;
+      border-radius: 11px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .message.user { margin-left: auto; color: white; background: var(--primary); }
+    .message.ai { color: var(--ink-muted); background: var(--surface-subtle); border: 1px solid var(--hairline); }
+
+    .approval {
+      margin: 0 14px 12px;
+      padding: 12px;
+      background: var(--warning-soft);
+      border: 1px solid #f2d69c;
+      border-radius: 10px;
+    }
+
+    .approval-title { color: var(--warning); font-size: 12px; font-weight: 700; }
+    .approval-copy { margin-top: 5px; color: var(--ink-muted); font-size: 11px; line-height: 1.45; }
+    .approval-actions { display: flex; gap: 7px; margin-top: 10px; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(210px, 1fr));
+      gap: 12px;
+      height: calc(100% - 92px);
+      overflow: hidden;
+    }
+
+    .column {
+      min-width: 0;
+      padding: 10px;
+      background: var(--surface-muted);
+      border: 1px solid var(--hairline);
+      border-radius: 12px;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 34px;
+      padding: 0 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .candidate-card {
+      margin-bottom: 9px;
+      padding: 12px;
+      background: white;
+      border: 1px solid var(--hairline);
+      border-radius: 10px;
+    }
+
+    .candidate-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .candidate-card-name { font-size: 12px; font-weight: 700; }
+    .candidate-card-role { margin-top: 4px; color: var(--ink-subtle); font-size: 10px; }
+    .candidate-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; color: var(--ink-subtle); font-size: 10px; }
+
+    .interview-layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr) 390px;
+      gap: 14px;
+      height: calc(100% - 84px);
+    }
+
+    .brief { padding: 18px; }
+    .brief-name { margin: 13px 0 5px; font-size: 19px; font-weight: 650; }
+    .brief-line { margin-top: 8px; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+
+    .scorecard { overflow: hidden; }
+    .criterion {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) 1fr 120px;
+      gap: 14px;
+      align-items: center;
+      min-height: 78px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .criterion-title { font-size: 13px; font-weight: 650; }
+    .criterion-desc { margin-top: 4px; color: var(--ink-subtle); font-size: 10px; line-height: 1.45; }
+    .rating { display: flex; gap: 5px; }
+    .rating-dot { display: grid; place-items: center; width: 28px; height: 28px; color: var(--ink-subtle); background: var(--surface-subtle); border: 1px solid var(--hairline); border-radius: 7px; font-size: 10px; }
+    .rating-dot.active { color: white; background: var(--primary); border-color: var(--primary); }
+
+    .notes {
+      height: 74px;
+      padding: 11px;
+      color: var(--ink-tertiary);
+      background: var(--surface-subtle);
+      border: 1px solid var(--hairline);
+      border-radius: 8px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">RS</div><span>Recruit Smart</span></div>
+      <div class="nav-section">招聘</div>
+      <div class="nav-item" data-target="dashboard"><span class="icon">⌂</span>仪表盘</div>
+      <div class="nav-item"><span class="icon">▣</span>职位</div>
+      <div class="nav-item" data-target="candidates"><span class="icon">◎</span>候选人</div>
+      <div class="nav-item" data-target="pipeline"><span class="icon">▥</span>招聘 Pipeline</div>
+      <div class="nav-item" data-target="interview"><span class="icon">◫</span>面试</div>
+      <div class="nav-item"><span class="icon">◇</span>Offer</div>
+      <div class="nav-section">人才运营</div>
+      <div class="nav-item"><span class="icon">✓</span>入职</div>
+      <div class="nav-item"><span class="icon">♙</span>员工档案</div>
+      <div class="nav-section">智能与系统</div>
+      <div class="nav-item"><span class="icon">✦</span>AI 工作区</div>
+      <div class="nav-item"><span class="icon">▤</span>报表</div>
+      <div class="nav-item"><span class="icon">⚙</span>系统管理</div>
+      <div class="sidebar-footer">
+        <div class="avatar">RB</div>
+        <div><div class="person-name">Robert Brown</div><div class="person-meta">招聘负责人</div></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="workspace">Recruit Smart · 企业空间</div>
+        <div class="global-search">搜索候选人、职位、面试或员工</div>
+        <div class="top-spacer"></div>
+        <button class="secondary-button">✦ Ask AI</button>
+        <button class="icon-button">◷</button>
+        <button class="icon-button">●</button>
+        <div class="avatar">RB</div>
+      </header>
+
+      <div class="content">
+        <section class="screen" data-screen="dashboard">
+          <div class="page-header">
+            <div><h1 class="page-title">招聘指挥中心</h1><p class="page-description">聚焦今天需要推进的候选人、面试反馈和招聘风险。</p></div>
+            <div class="actions"><button class="secondary-button">导出周报</button><button class="primary-button">新建职位</button></div>
+          </div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-label">开放职位</div><div class="metric-value">42</div><div class="metric-meta positive">本周新增 8 个</div></div>
+            <div class="metric"><div class="metric-label">合格候选人</div><div class="metric-value">1,284</div><div class="metric-meta">72% 已完成 AI 匹配</div></div>
+            <div class="metric"><div class="metric-label">待补充反馈</div><div class="metric-value">23</div><div class="metric-meta attention">其中 7 项已超过 SLA</div></div>
+            <div class="metric"><div class="metric-label">Offer 接受率</div><div class="metric-value">81%</div><div class="metric-meta positive">较上季度提升 6.4%</div></div>
+          </div>
+          <div class="dashboard-grid">
+            <div class="panel">
+              <div class="panel-header"><span class="panel-title">今日优先候选人</span><span class="badge primary">AI 已排序</span></div>
+              <div class="priority-list">
+                <div class="priority-row"><div class="person-avatar">陈</div><div><div class="person-name">陈思悦</div><div class="person-meta">高级产品设计师 · 上海</div></div><div class="cell-label">终面准备</div><div class="score">94% 匹配</div><div><span class="badge warning">竞争 Offer</span></div></div>
+                <div class="priority-row"><div class="person-avatar">张</div><div><div class="person-name">张伟</div><div class="person-meta">Java 架构师 · 杭州</div></div><div class="cell-label">技术面试</div><div class="score">92% 匹配</div><div><span class="badge info">今天 15:00</span></div></div>
+                <div class="priority-row"><div class="person-avatar">王</div><div><div class="person-name">王雨婷</div><div class="person-meta">招聘运营负责人 · 北京</div></div><div class="cell-label">Offer 审批</div><div class="score">89% 匹配</div><div><span class="badge success">薪酬已确认</span></div></div>
+                <div class="priority-row"><div class="person-avatar">林</div><div><div class="person-name">林子涵</div><div class="person-meta">前端技术负责人 · 深圳</div></div><div class="cell-label">初步沟通</div><div class="score">86% 匹配</div><div><span class="badge neutral">等待回复</span></div></div>
+                <div class="priority-row"><div class="person-avatar">周</div><div><div class="person-name">周宁</div><div class="person-meta">数据工程师 · 苏州</div></div><div class="cell-label">面试反馈</div><div class="score">83% 匹配</div><div><span class="badge danger">超过 SLA</span></div></div>
+                <div class="priority-row"><div class="person-avatar">赵</div><div><div class="person-name">赵可欣</div><div class="person-meta">AI 产品经理 · 上海</div></div><div class="cell-label">HR 筛选</div><div class="score">81% 匹配</div><div><span class="badge primary">建议推进</span></div></div>
+              </div>
+            </div>
+            <div class="panel ai-brief">
+              <div class="ai-intro"><div class="ai-symbol">AI</div><div><div class="panel-title">今日招聘简报</div><div class="person-meta">基于职位、候选人和面试反馈生成</div></div></div>
+              <div class="ai-card"><div class="ai-card-title">需要优先处理</div><div class="ai-card-copy">高级产品设计师 Pipeline 质量较高，但 Java 架构师职位缺少具有大型系统经验的候选人。</div><div class="ai-source">来源：2 个职位 · 47 份简历</div></div>
+              <div class="ai-card"><div class="ai-card-title">建议下一步</div><div class="ai-card-copy">建议将陈思悦推进终面。她在设计系统和企业工作流方面满足 4/5 项核心要求。</div><div class="ai-source">来源：简历 · 作品集 · 一面反馈</div></div>
+              <div class="ai-card"><div class="ai-card-title">风险提醒</div><div class="ai-card-copy">7 位面试官尚未在 SLA 内提交反馈，可能影响 3 位候选人的流程体验。</div><div class="ai-source">来源：面试计划 · 反馈任务</div></div>
+              <div class="ai-composer">询问招聘进展、候选人风险或生成行动清单…</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="candidates">
+          <div class="page-header">
+            <div><h1 class="page-title">候选人搜索</h1><p class="page-description">用结构化筛选和语义搜索发现、比较并管理人才。</p></div>
+            <div class="actions"><button class="secondary-button">保存搜索</button><button class="primary-button">添加候选人</button></div>
+          </div>
+          <div class="toolbar">
+            <div class="search-box">高级产品设计师，具备 B2B SaaS 和设计系统经验</div>
+            <span class="filter-chip">上海或远程</span><span class="filter-chip">8 年以上</span><span class="filter-chip">匹配度 ≥ 80%</span>
+            <button class="secondary-button">筛选 12</button>
+          </div>
+          <div class="candidate-layout">
+            <div class="table">
+              <div class="table-head"><span></span><span>候选人</span><span>当前职位</span><span>匹配度</span><span>阶段</span><span>负责人</span><span>最近活动</span></div>
+              <div class="table-row selected"><div class="checkbox"></div><div class="person"><div class="person-avatar">陈</div><div><div class="person-name">陈思悦</div><div class="person-meta">上海 · 可远程</div></div></div><span>高级产品设计师</span><span class="score">94%</span><span><span class="badge primary">面试</span></span><span>Robert</span><span>12 分钟前</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">林</div><div><div class="person-name">林一凡</div><div class="person-meta">杭州 · 2 周内到岗</div></div></div><span>设计系统负责人</span><span class="score">91%</span><span><span class="badge info">筛选</span></span><span>Monica</span><span>2 小时前</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">苏</div><div><div class="person-name">苏雅</div><div class="person-meta">北京 · 可远程</div></div></div><span>产品设计 Lead</span><span class="score">88%</span><span><span class="badge neutral">人才库</span></span><span>Robert</span><span>昨天</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">郑</div><div><div class="person-name">郑凯</div><div class="person-meta">深圳 · 在职</div></div></div><span>高级 UX 设计师</span><span class="score">86%</span><span><span class="badge warning">等待反馈</span></span><span>Helen</span><span>昨天</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">周</div><div><div class="person-name">周雯</div><div class="person-meta">上海 · 可立即到岗</div></div></div><span>体验设计负责人</span><span class="score">84%</span><span><span class="badge success">Offer</span></span><span>Monica</span><span>3 天前</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">唐</div><div><div class="person-name">唐泽宇</div><div class="person-meta">成都 · 可远程</div></div></div><span>产品设计师</span><span class="score">82%</span><span><span class="badge neutral">已联系</span></span><span>Robert</span><span>4 天前</span></div>
+              <div class="table-row"><div class="checkbox"></div><div class="person"><div class="person-avatar">韩</div><div><div class="person-name">韩雪</div><div class="person-meta">苏州 · 在职</div></div></div><span>设计运营经理</span><span class="score">80%</span><span><span class="badge info">初面</span></span><span>Helen</span><span>5 天前</span></div>
+            </div>
+            <aside class="panel preview-panel">
+              <div class="preview-cover"></div>
+              <div class="preview-content">
+                <div class="preview-avatar">陈</div>
+                <div class="preview-name">陈思悦</div>
+                <div class="preview-role">高级产品设计师 · FinTech SaaS</div>
+                <div class="preview-meta">上海 · 8 年经验 · 2 周内可入职</div>
+                <div class="actions" style="margin-top:14px"><button class="primary-button">推进流程</button><button class="secondary-button">发送消息</button></div>
+                <div class="fact-grid">
+                  <div class="fact"><div class="fact-label">职位匹配</div><div class="fact-value" style="color:var(--success)">94%</div></div>
+                  <div class="fact"><div class="fact-label">Pipeline 阶段</div><div class="fact-value">一面完成</div></div>
+                  <div class="fact"><div class="fact-label">设计系统</div><div class="fact-value">强</div></div>
+                  <div class="fact"><div class="fact-label">B2B SaaS</div><div class="fact-value">6 年</div></div>
+                </div>
+                <h3 class="section-heading" style="margin-top:20px">AI 摘要</h3>
+                <div class="ai-card-copy">具备复杂企业产品与跨团队设计系统经验。优势是系统化表达和产品判断，风险点是当前存在竞争 Offer。</div>
+                <div class="source-chips"><span class="source-chip">简历</span><span class="source-chip">作品集</span><span class="source-chip">面试反馈</span></div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="candidate">
+          <div class="page-header">
+            <div><h1 class="page-title">候选人详情</h1><p class="page-description">完整候选人上下文与可审计的 AI 招聘辅助。</p></div>
+            <div class="actions"><button class="secondary-button">拒绝</button><button class="secondary-button">发送消息</button><button class="primary-button">推进到终面</button></div>
+          </div>
+          <div class="detail-layout">
+            <div class="panel profile-panel">
+              <div class="profile-hero">
+                <div class="profile-avatar">陈</div>
+                <div><h2 class="profile-name">陈思悦</h2><p class="profile-role">高级产品设计师 · FinTech SaaS · 上海 / 远程</p><div class="profile-tags"><span class="badge success">94% 职位匹配</span><span class="badge primary">一面通过</span><span class="badge warning">竞争 Offer</span></div></div>
+              </div>
+              <div class="tabs"><div class="tab active">概览</div><div class="tab">简历</div><div class="tab">投递记录</div><div class="tab">面试</div><div class="tab">活动记录</div></div>
+              <div class="profile-body">
+                <h3 class="section-heading">职业经历</h3>
+                <div class="experience"><div class="company-logo">FX</div><div><div class="experience-title">产品设计负责人 · FinX Cloud</div><div class="experience-meta">负责企业支付与风控产品设计系统，带领 6 人设计团队</div></div><div class="person-meta">2022—至今</div></div>
+                <div class="experience"><div class="company-logo">MK</div><div><div class="experience-title">高级 UX 设计师 · MarketHub</div><div class="experience-meta">构建多角色商家后台，推动核心流程完成率提升 18%</div></div><div class="person-meta">2019—2022</div></div>
+                <div class="experience"><div class="company-logo">LS</div><div><div class="experience-title">产品设计师 · Loop Studio</div><div class="experience-meta">负责数据分析工具与设计组件库</div></div><div class="person-meta">2017—2019</div></div>
+                <h3 class="section-heading" style="margin-top:22px">核心能力</h3>
+                <div class="fact-grid">
+                  <div class="fact"><div class="fact-label">企业产品设计</div><div class="fact-value">优秀</div></div>
+                  <div class="fact"><div class="fact-label">设计系统</div><div class="fact-value">优秀</div></div>
+                  <div class="fact"><div class="fact-label">用户研究</div><div class="fact-value">良好</div></div>
+                  <div class="fact"><div class="fact-label">团队领导力</div><div class="fact-value">良好</div></div>
+                </div>
+              </div>
+            </div>
+            <aside class="panel ai-panel">
+              <div class="panel-header"><div style="display:flex;align-items:center;gap:9px"><div class="ai-symbol">AI</div><span class="panel-title">候选人 AI 助手</span></div><span class="badge success">数据已同步</span></div>
+              <div class="ai-context"><div class="person-name">当前上下文：陈思悦 × 高级产品设计师</div><div class="source-chips"><span class="source-chip">简历</span><span class="source-chip">职位要求</span><span class="source-chip">一面反馈</span><span class="source-chip">作品集</span></div></div>
+              <div class="messages">
+                <div class="message user">总结她适合这个职位的原因，并指出终面需要验证的风险。</div>
+                <div class="message ai"><strong>结论：</strong>建议进入终面。她在企业工作流、设计系统和跨团队协作方面证据充分。<br><br><strong>需要验证：</strong>商业指标归因、团队冲突处理，以及当前竞争 Offer 的决策时间。</div>
+                <div class="message user">生成一个 45 分钟终面计划。</div>
+                <div class="message ai">已生成 4 个环节：产品判断、系统设计、利益相关者冲突、案例复盘。建议由产品负责人和设计负责人共同参与。</div>
+              </div>
+              <div class="approval"><div class="approval-title">需要人工确认</div><div class="approval-copy">AI 建议将候选人推进终面并创建面试计划。此操作会修改候选人流程状态。</div><div class="approval-actions"><button class="primary-button">确认并编辑</button><button class="secondary-button">暂不处理</button></div></div>
+              <div class="ai-composer">继续询问、生成内容或附加新的上下文…</div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="pipeline">
+          <div class="page-header">
+            <div><h1 class="page-title">高级产品设计师 · Pipeline</h1><p class="page-description">表格用于精确操作，看板用于团队协同和状态推进。</p></div>
+            <div class="actions"><button class="secondary-button">表格视图</button><button class="secondary-button">筛选</button><button class="primary-button">添加候选人</button></div>
+          </div>
+          <div class="toolbar" style="border-radius:12px;margin-bottom:14px">
+            <span class="filter-chip">职位：高级产品设计师</span><span class="filter-chip">负责人：全部</span><span class="filter-chip">最近 30 天</span>
+            <div class="top-spacer"></div><span class="muted" style="font-size:12px">共 46 位候选人</span><button class="secondary-button">✦ 分析 Pipeline</button>
+          </div>
+          <div class="board">
+            <div class="column"><div class="column-header"><span>人才库</span><span class="badge neutral">18</span></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">苏雅</span><span class="score">88%</span></div><div class="candidate-card-role">产品设计 Lead · 北京</div><div class="candidate-card-footer"><span>Robert</span><span>昨天</span></div></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">唐泽宇</span><span class="score">82%</span></div><div class="candidate-card-role">产品设计师 · 成都</div><div class="candidate-card-footer"><span>Monica</span><span>4 天前</span></div></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">李梦</span><span class="score">79%</span></div><div class="candidate-card-role">UX 设计师 · 深圳</div><div class="candidate-card-footer"><span>Robert</span><span>5 天前</span></div></div></div>
+            <div class="column"><div class="column-header"><span>HR 筛选</span><span class="badge info">12</span></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">林一凡</span><span class="score">91%</span></div><div class="candidate-card-role">设计系统负责人 · 杭州</div><div class="candidate-card-footer"><span>Monica</span><span>2 小时前</span></div></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">赵可欣</span><span class="score">81%</span></div><div class="candidate-card-role">AI 产品经理 · 上海</div><div class="candidate-card-footer"><span>Robert</span><span>今天</span></div></div></div>
+            <div class="column"><div class="column-header"><span>面试</span><span class="badge primary">9</span></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">陈思悦</span><span class="score">94%</span></div><div class="candidate-card-role">高级产品设计师 · 上海</div><div class="candidate-card-footer"><span class="badge warning">终面准备</span><span>12 分钟前</span></div></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">郑凯</span><span class="score">86%</span></div><div class="candidate-card-role">高级 UX 设计师 · 深圳</div><div class="candidate-card-footer"><span class="badge danger">等待反馈</span><span>昨天</span></div></div></div>
+            <div class="column"><div class="column-header"><span>Offer</span><span class="badge success">4</span></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">周雯</span><span class="score">84%</span></div><div class="candidate-card-role">体验设计负责人 · 上海</div><div class="candidate-card-footer"><span class="badge success">等待签署</span><span>今天</span></div></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">王雨婷</span><span class="score">89%</span></div><div class="candidate-card-role">招聘运营负责人 · 北京</div><div class="candidate-card-footer"><span>Helen</span><span>昨天</span></div></div></div>
+            <div class="column"><div class="column-header"><span>已录用</span><span class="badge success">3</span></div><div class="candidate-card"><div class="candidate-card-top"><span class="candidate-card-name">顾然</span><span class="score">90%</span></div><div class="candidate-card-role">高级交互设计师 · 上海</div><div class="candidate-card-footer"><span class="badge success">入职中</span><span>7 月 15 日</span></div></div></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="interview">
+          <div class="page-header">
+            <div><h1 class="page-title">面试工作台</h1><p class="page-description">结构化评价、候选人上下文与 AI 问题建议集中在一个工作区。</p></div>
+            <div class="actions"><button class="secondary-button">保存草稿</button><button class="primary-button">提交反馈</button></div>
+          </div>
+          <div class="interview-layout">
+            <aside class="panel brief">
+              <div class="profile-avatar">陈</div><div class="brief-name">陈思悦</div><div class="person-meta">高级产品设计师 · 终面</div>
+              <div class="brief-line"><strong>面试时间</strong><br>今天 15:00—15:45</div>
+              <div class="brief-line"><strong>面试目标</strong><br>验证产品判断、设计系统深度与利益相关者管理。</div>
+              <div class="brief-line"><strong>候选人风险</strong><br>竞争 Offer，预计本周做出决定。</div>
+              <div class="source-chips"><span class="source-chip">查看简历</span><span class="source-chip">一面反馈</span><span class="source-chip">作品集</span></div>
+            </aside>
+            <div class="panel scorecard">
+              <div class="panel-header"><span class="panel-title">结构化面试评分卡</span><span class="badge neutral">4 项能力</span></div>
+              <div class="criterion"><div><div class="criterion-title">产品判断</div><div class="criterion-desc">能否识别关键问题、权衡用户与商业目标。</div></div><div class="notes">记录候选人的案例、判断依据和结果指标…</div><div class="rating"><span class="rating-dot">1</span><span class="rating-dot">2</span><span class="rating-dot active">3</span><span class="rating-dot">4</span></div></div>
+              <div class="criterion"><div><div class="criterion-title">设计系统</div><div class="criterion-desc">系统化思维、组件治理和跨团队落地能力。</div></div><div class="notes">记录系统范围、治理方式和实际采用情况…</div><div class="rating"><span class="rating-dot">1</span><span class="rating-dot">2</span><span class="rating-dot">3</span><span class="rating-dot active">4</span></div></div>
+              <div class="criterion"><div><div class="criterion-title">协作与影响力</div><div class="criterion-desc">处理冲突、推动共识和影响决策的能力。</div></div><div class="notes">记录与产品、研发或管理层协作的具体情境…</div><div class="rating"><span class="rating-dot">1</span><span class="rating-dot">2</span><span class="rating-dot active">3</span><span class="rating-dot">4</span></div></div>
+              <div class="criterion"><div><div class="criterion-title">结果与复盘</div><div class="criterion-desc">能否用指标说明设计效果，并从失败中学习。</div></div><div class="notes">记录指标变化、归因方式和复盘结论…</div><div class="rating"><span class="rating-dot">1</span><span class="rating-dot active">2</span><span class="rating-dot">3</span><span class="rating-dot">4</span></div></div>
+            </div>
+            <aside class="panel ai-panel">
+              <div class="panel-header"><div style="display:flex;align-items:center;gap:9px"><div class="ai-symbol">AI</div><span class="panel-title">面试 Copilot</span></div><span class="badge info">仅供参考</span></div>
+              <div class="ai-context"><div class="person-name">问题建议基于职位要求和候选人经历</div><div class="source-chips"><span class="source-chip">职位画像</span><span class="source-chip">简历</span><span class="source-chip">一面反馈</span></div></div>
+              <div class="messages">
+                <div class="message ai"><strong>产品判断</strong><br>请讲一个你主动推翻原设计方向的案例。你观察到了什么信号，如何说服团队，最终结果是什么？</div>
+                <div class="message ai"><strong>设计系统</strong><br>当业务团队认为设计系统拖慢交付时，你如何判断是规范问题、工具问题还是协作问题？</div>
+                <div class="message ai"><strong>风险追问</strong><br>她的一面反馈缺少对商业结果的量化。建议追问指标归因和上线后的持续验证。</div>
+                <div class="message user">根据当前评分，生成一个需要继续追问的问题。</div>
+                <div class="message ai">你提到项目使转化率提升 18%。哪些变化可以归因于设计决策，哪些来自运营或产品策略？你如何验证？</div>
+              </div>
+              <div class="ai-composer">记录面试观察或让 AI 生成追问…</div>
+            </aside>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const screen = params.get("screen") || "dashboard";
+    document.body.dataset.screen = screen;
+    document.querySelectorAll(".screen").forEach((el) => {
+      el.classList.toggle("active", el.dataset.screen === screen);
+    });
+  </script>
+</body>
+</html>

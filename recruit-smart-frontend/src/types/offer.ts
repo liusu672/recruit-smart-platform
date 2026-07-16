@@ -83,19 +83,16 @@ export interface OfferCreateRequest {
   probationMonths: number
   workLocation: string
   remark: string
-  createdBy: number
 }
 
-export type OfferUpdateRequest = Omit<OfferCreateRequest, 'applicationId' | 'createdBy'>
+export type OfferUpdateRequest = Omit<OfferCreateRequest, 'applicationId'>
 
 export interface OfferSendRequest {
-  operatorId: number
-  note: string
+  note?: string
 }
 
 export interface OfferRevokeRequest {
-  operatorId: number
-  reason: string
+  reason?: string
 }
 
 export type OfferPagedData = PagedData<OfferRecord>

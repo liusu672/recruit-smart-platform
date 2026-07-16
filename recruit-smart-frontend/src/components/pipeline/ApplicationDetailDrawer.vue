@@ -3,12 +3,12 @@ import { CalendarClock, FileText, ShieldCheck, Sparkles, UserRound } from 'lucid
 import { ref, watch } from 'vue'
 
 import { getApplicationStatusTone } from '@/config/pipeline'
-import type { PipelineApplication, ScreeningDecision } from '@/types/pipeline'
+import type { PipelineApplicationDetail, ScreeningDecision } from '@/types/pipeline'
 
 const visible = defineModel<boolean>('visible', { required: true })
 
 defineProps<{
-  application: PipelineApplication | undefined
+  application: PipelineApplicationDetail | undefined
   loading: boolean
   error: Error | null
   canManage: boolean
@@ -16,8 +16,8 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  startScreening: [application: PipelineApplication]
-  review: [decision: ScreeningDecision, application: PipelineApplication]
+  startScreening: [application: PipelineApplicationDetail]
+  review: [decision: ScreeningDecision, application: PipelineApplicationDetail]
 }>()
 
 const activeTab = ref('summary')
@@ -86,10 +86,10 @@ function formatDate(value: string | null | undefined) {
             </div>
             <div>
               <dt>投递简历</dt>
-              <dd>{{ application.resumeName }}</dd>
+              <dd>{{ application.resumeName || '待补充' }}</dd>
             </div>
             <div>
-              <dt>负责人</dt>
+              <dt>处理人</dt>
               <dd>{{ application.ownerName || '待分配' }}</dd>
             </div>
             <div>
@@ -133,23 +133,21 @@ function formatDate(value: string | null | undefined) {
             <header>
               <div>
                 <Sparkles :size="18" :stroke-width="1.75" aria-hidden="true" />
-                <strong>岗位匹配参考 {{ application.aiMatch.score }} 分</strong>
+                <strong>岗位匹配参考 {{ application.aiMatch.matchScore }} 分</strong>
               </div>
               <span
                 >{{ application.aiMatch.modelName }} ·
                 {{ formatDate(application.aiMatch.generatedAt) }}</span
               >
             </header>
-            <p>{{ application.aiMatch.summary }}</p>
+            <p>{{ application.aiMatch.recommendReason }}</p>
             <h3>匹配亮点</h3>
-            <ul>
-              <li v-for="item in application.aiMatch.highlights" :key="item">{{ item }}</li>
-            </ul>
+            <p>{{ application.aiMatch.highlightSummary || '暂无匹配亮点。' }}</p>
             <h3>待核实事项</h3>
-            <ul>
-              <li v-for="item in application.aiMatch.risks" :key="item">{{ item }}</li>
-            </ul>
-            <div class="application-ai__suggestion">{{ application.aiMatch.suggestion }}</div>
+            <p>{{ application.aiMatch.riskSummary || '暂无待核实事项。' }}</p>
+            <div class="application-ai__suggestion">
+              推荐等级：{{ application.aiMatch.recommendLevel }}
+            </div>
             <p class="application-ai__authority">
               AI 只提供分析参考，不会自动通过、拒绝或改变候选人阶段。
             </p>

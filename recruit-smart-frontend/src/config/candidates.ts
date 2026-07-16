@@ -21,10 +21,8 @@ export function getCandidateStatusTone(status: CandidateStatus) {
 }
 
 export function getApplicationStatusTone(status: ApplicationStatus) {
-  if (status === 'HIRED' || status === 'OFFER') return 'success'
-  if (status === 'SCREEN_REJECT' || status === 'INTERVIEW_REJECT' || status === 'OFFER_REJECT') {
-    return 'danger'
-  }
-  if (status === 'INTERVIEWING' || status === 'SCREEN_PASS') return 'info'
+  if (status === 'HIRED' || status === 'OFFERED') return 'success'
+  if (status === 'SCREEN_REJECT' || status === 'REJECTED') return 'danger'
+  if (status === 'INTERVIEWING' || status === 'SCREEN_PASSED') return 'info'
   return 'warning'
 }

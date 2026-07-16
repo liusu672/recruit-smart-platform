@@ -2,10 +2,10 @@
 import { Eye } from 'lucide-vue-next'
 
 import { getApplicationStatusTone } from '@/config/pipeline'
-import type { PipelineApplication } from '@/types/pipeline'
+import type { PipelineApplicationSummary } from '@/types/pipeline'
 
 defineProps<{
-  applications: PipelineApplication[]
+  applications: PipelineApplicationSummary[]
   loading: boolean
 }>()
 
@@ -30,11 +30,11 @@ function formatDate(value: string) {
     row-key="id"
     height="calc(100dvh - 330px)"
     highlight-current-row
-    @row-click="(row: PipelineApplication) => emit('select', row.id)"
+    @row-click="(row: PipelineApplicationSummary) => emit('select', row.id)"
   >
     <el-table-column type="selection" width="48" />
     <el-table-column prop="candidateName" label="候选人" min-width="160" fixed="left">
-      <template #default="{ row }: { row: PipelineApplication }">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         <div class="pipeline-table__candidate">
           <strong>{{ row.candidateName }}</strong>
           <span>{{ row.education || '学历待补充' }} · {{ row.yearsOfExperience }} 年经验</span>
@@ -42,7 +42,7 @@ function formatDate(value: string) {
       </template>
     </el-table-column>
     <el-table-column prop="jobTitle" label="投递职位" min-width="190">
-      <template #default="{ row }: { row: PipelineApplication }">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         <div class="pipeline-table__candidate">
           <strong>{{ row.jobTitle }}</strong>
           <span>{{ row.department }}</span>
@@ -50,7 +50,7 @@ function formatDate(value: string) {
       </template>
     </el-table-column>
     <el-table-column prop="statusText" label="当前阶段" width="128">
-      <template #default="{ row }: { row: PipelineApplication }">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         <span
           class="rs-status-pill"
           :class="`rs-status-pill--${getApplicationStatusTone(row.status)}`"
@@ -59,25 +59,27 @@ function formatDate(value: string) {
         </span>
       </template>
     </el-table-column>
-    <el-table-column prop="aiMatch.score" label="AI 匹配" width="96" align="right" sortable>
-      <template #default="{ row }: { row: PipelineApplication }">
-        <strong v-if="row.aiMatch" class="pipeline-table__score">{{ row.aiMatch.score }}</strong>
+    <el-table-column prop="matchScore" label="AI 匹配" width="96" align="right" sortable>
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
+        <strong v-if="row.matchScore !== null" class="pipeline-table__score">
+          {{ row.matchScore }}
+        </strong>
         <span v-else class="pipeline-table__muted">暂无</span>
       </template>
     </el-table-column>
-    <el-table-column prop="ownerName" label="负责人" width="112">
-      <template #default="{ row }: { row: PipelineApplication }">
+    <el-table-column prop="ownerName" label="处理人" width="112">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         {{ row.ownerName || '待分配' }}
       </template>
     </el-table-column>
     <el-table-column prop="sourceText" label="来源" width="112" />
     <el-table-column prop="lastActivityAt" label="最近活动" width="132" align="right" sortable>
-      <template #default="{ row }: { row: PipelineApplication }">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         <span class="rs-tabular-number">{{ formatDate(row.lastActivityAt) }}</span>
       </template>
     </el-table-column>
     <el-table-column label="操作" width="64" fixed="right" align="right">
-      <template #default="{ row }: { row: PipelineApplication }">
+      <template #default="{ row }: { row: PipelineApplicationSummary }">
         <div @click.stop>
           <el-tooltip content="查看投递详情" placement="top">
             <el-button

@@ -3,10 +3,10 @@ import { Clock3, Sparkles, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { getPipelineStageKey, pipelineStages } from '@/config/pipeline'
-import type { PipelineApplication } from '@/types/pipeline'
+import type { PipelineApplicationSummary } from '@/types/pipeline'
 
 const props = defineProps<{
-  applications: PipelineApplication[]
+  applications: PipelineApplicationSummary[]
 }>()
 
 const emit = defineEmits<{
@@ -53,9 +53,9 @@ function formatActivity(value: string) {
         >
           <span class="pipeline-card__heading">
             <strong>{{ application.candidateName }}</strong>
-            <span v-if="application.aiMatch" class="pipeline-card__score">
+            <span v-if="application.matchScore !== null" class="pipeline-card__score">
               <Sparkles :size="13" :stroke-width="1.75" aria-hidden="true" />
-              {{ application.aiMatch.score }}
+              {{ application.matchScore }}
             </span>
           </span>
           <span class="pipeline-card__job">{{ application.jobTitle }}</span>

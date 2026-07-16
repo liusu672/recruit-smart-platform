@@ -20,28 +20,27 @@ export const pipelineStages: PipelineStageDefinition[] = [
     key: 'INTERVIEW',
     label: '面试',
     description: '初筛通过与面试进行中',
-    statuses: ['SCREEN_PASS', 'INTERVIEWING'],
+    statuses: ['SCREEN_PASSED', 'INTERVIEWING'],
   },
-  { key: 'OFFER', label: 'Offer', description: '等待候选人决定', statuses: ['OFFER'] },
+  { key: 'OFFER', label: 'Offer', description: '等待候选人决定', statuses: ['OFFERED'] },
   { key: 'HIRED', label: '已录用', description: '已接受并进入入职', statuses: ['HIRED'] },
   {
     key: 'CLOSED',
     label: '已结束',
     description: '拒绝、撤回或流程终止',
-    statuses: ['SCREEN_REJECT', 'INTERVIEW_REJECT', 'OFFER_REJECT', 'WITHDRAWN'],
+    statuses: ['SCREEN_REJECT', 'REJECTED', 'WITHDRAWN'],
   },
 ]
 
 export const applicationStatusOptions: Array<{ label: string; value: ApplicationStatus }> = [
   { label: '已投递', value: 'SUBMITTED' },
   { label: '筛选中', value: 'SCREENING' },
-  { label: '初筛通过', value: 'SCREEN_PASS' },
+  { label: '初筛通过', value: 'SCREEN_PASSED' },
   { label: '初筛未通过', value: 'SCREEN_REJECT' },
   { label: '面试中', value: 'INTERVIEWING' },
-  { label: '面试未通过', value: 'INTERVIEW_REJECT' },
-  { label: 'Offer 阶段', value: 'OFFER' },
+  { label: 'Offer 阶段', value: 'OFFERED' },
   { label: '已入职', value: 'HIRED' },
-  { label: 'Offer 拒绝', value: 'OFFER_REJECT' },
+  { label: '已拒绝', value: 'REJECTED' },
   { label: '已撤回', value: 'WITHDRAWN' },
 ]
 
@@ -83,22 +82,18 @@ export function getPipelineStageKey(status: ApplicationStatus): PipelineStageKey
 }
 
 export function getApplicationStatusTone(status: ApplicationStatus) {
-  if (status === 'HIRED' || status === 'OFFER') return 'success'
-  if (status === 'SCREEN_REJECT' || status === 'INTERVIEW_REJECT' || status === 'OFFER_REJECT') {
-    return 'danger'
-  }
-  if (status === 'SCREEN_PASS' || status === 'INTERVIEWING') return 'info'
+  if (status === 'HIRED' || status === 'OFFERED') return 'success'
+  if (status === 'SCREEN_REJECT' || status === 'REJECTED') return 'danger'
+  if (status === 'SCREEN_PASSED' || status === 'INTERVIEWING') return 'info'
   return 'warning'
 }
 
 export function isTerminalApplicationStatus(status: ApplicationStatus) {
-  return ['SCREEN_REJECT', 'INTERVIEW_REJECT', 'HIRED', 'OFFER_REJECT', 'WITHDRAWN'].includes(
-    status,
-  )
+  return ['SCREEN_REJECT', 'REJECTED', 'HIRED', 'WITHDRAWN'].includes(status)
 }
 
 export function getScreeningDecisionStatus(decision: ScreeningDecision): ApplicationStatus {
-  if (decision === 'PASS') return 'SCREEN_PASS'
+  if (decision === 'PASS') return 'SCREEN_PASSED'
   if (decision === 'REJECT') return 'SCREEN_REJECT'
   return 'SCREENING'
 }
