@@ -1,7 +1,7 @@
 import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
-  PipelineApplicationDetail,
+  PipelineApplication,
   PipelinePagedData,
   PipelinePageResponse,
   PipelineQuery,
@@ -22,6 +22,7 @@ export function adaptPipelinePage(
   }
 }
 
+// 后端目前只有投递、面试和 Offer 实体；以下聚合接口待业务服务实现后再核对字段。
 export async function getPipelineApplications(query: PipelineQuery): Promise<PipelinePagedData> {
   const params = {
     pageNum: query.page,
@@ -36,8 +37,8 @@ export async function getPipelineApplications(query: PipelineQuery): Promise<Pip
   return adaptPipelinePage(result, query.page, query.pageSize)
 }
 
-export function getPipelineApplication(id: number): Promise<PipelineApplicationDetail> {
-  return unwrapResult(http.get<Result<PipelineApplicationDetail>>(`/applications/${id}/pipeline`))
+export function getPipelineApplication(id: number): Promise<PipelineApplication> {
+  return unwrapResult(http.get<Result<PipelineApplication>>(`/applications/${id}/pipeline`))
 }
 
 export function updateApplicationStatus(id: number, data: PipelineStatusUpdateRequest) {

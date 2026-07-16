@@ -1,5 +1,5 @@
 import type { PagedData } from '@/types/api'
-import type { ApplicationStatus } from '@/types/candidate'
+import type { ApplicationStatus, CandidateAiMatch } from '@/types/candidate'
 
 export type PipelineViewMode = 'BOARD' | 'TABLE'
 export type PipelineStageKey = 'NEW' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'CLOSED'
@@ -27,16 +27,6 @@ export interface PipelineOfferSummary {
   statusText: string
 }
 
-export interface AiMatchSummary {
-  matchScore: number
-  recommendLevel: string
-  recommendReason: string
-  highlightSummary: string
-  riskSummary: string
-  modelName: string
-  generatedAt: string
-}
-
 export interface PipelineTimelineEvent {
   id: string
   title: string
@@ -47,42 +37,32 @@ export interface PipelineTimelineEvent {
   relatedObject: string
 }
 
-export interface PipelineApplicationSummary {
+export interface PipelineApplication {
   id: number
   candidateId: number
   candidateName: string
+  candidatePhone: string | null
   education: string | null
+  school: string | null
   yearsOfExperience: number
+  resumeId: number
+  resumeName: string
   jobId: number
   jobTitle: string
   department: string
   status: ApplicationStatus
   statusText: string
-  matchScore: number | null
-  recommendLevel: string | null
-  ownerId: number | null
-  ownerName: string | null
   source: string
   sourceText: string
-  reviewDecision: ScreeningDecision | null
+  allowAdjustment: boolean
+  ownerName: string | null
   appliedAt: string
   lastActivityAt: string
-}
-
-export interface PipelineApplicationDetail extends PipelineApplicationSummary {
-  candidatePhone: string | null
-  candidateEmail: string | null
-  school: string | null
-  resumeId: number
-  resumeName: string | null
-  resumeFileType: string | null
-  allowAdjustment: boolean
-  adjustedJobId: number | null
   hrNote: string | null
   rejectReasonCode: string | null
   rejectReason: string | null
-  reviewedAt: string | null
-  aiMatch: AiMatchSummary | null
+  reviewDecision: ScreeningDecision | null
+  aiMatch: CandidateAiMatch | null
   interview: PipelineInterviewSummary | null
   offer: PipelineOfferSummary | null
   timeline: PipelineTimelineEvent[]
@@ -90,7 +70,7 @@ export interface PipelineApplicationDetail extends PipelineApplicationSummary {
 
 export interface PipelinePageResponse {
   total: number
-  records: PipelineApplicationSummary[]
+  records: PipelineApplication[]
 }
 
 export interface PipelineQuery {
@@ -105,10 +85,13 @@ export interface PipelineReviewRequest {
   decision: ScreeningDecision
   rejectReasonCode: string
   note: string
+  reviewedBy: number
 }
 
 export interface PipelineStatusUpdateRequest {
-  status: ApplicationStatus
+  toStatus: ApplicationStatus
+  note: string
+  operatorId: number
 }
 
-export type PipelinePagedData = PagedData<PipelineApplicationSummary>
+export type PipelinePagedData = PagedData<PipelineApplication>

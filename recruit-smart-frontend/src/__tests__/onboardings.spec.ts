@@ -38,11 +38,11 @@ describe('onboarding demo state machine', () => {
     )
     const reviewing = startDemoOnboardingReview(
       pending,
-      { note: '材料已接收。' },
+      { operatorId: 2, note: '材料已接收。' },
       '2026-07-16T10:00:00',
     )
     expect(reviewing).toMatchObject({ status: 'REVIEWING', materialStatus: 'REVIEWING' })
-    expect(() => startDemoOnboardingReview(reviewing, { note: '重复操作' })).toThrow(
+    expect(() => startDemoOnboardingReview(reviewing, { operatorId: 2, note: '重复操作' })).toThrow(
       '只有待提交记录可以开始审核',
     )
   })
@@ -52,10 +52,12 @@ describe('onboarding demo state machine', () => {
       initialDemoOnboardings.find((item) => item.status === 'REVIEWING')!,
     )
     const approved = reviewDemoOnboardingMaterial(source, {
+      operatorId: 2,
       decision: 'APPROVE',
       note: '材料完整且可核验。',
     })
     const rejected = reviewDemoOnboardingMaterial(source, {
+      operatorId: 2,
       decision: 'REJECT',
       note: '请补充离职证明。',
     })
@@ -70,7 +72,14 @@ describe('onboarding demo state machine', () => {
     const reviewing = structuredClone(
       initialDemoOnboardings.find((item) => item.status === 'REVIEWING')!,
     )
-    const request = { note: '已确认到岗。' }
+    const request = {
+      operatorId: 2,
+      employeeNo: 'EMP20260728012',
+      department: approved.department,
+      position: approved.jobTitle,
+      entryDate: approved.entryDate,
+      note: '已确认到岗。',
+    }
     expect(completeDemoOnboarding(approved, request, '2026-07-28T09:00:00')).toMatchObject({
       status: 'ONBOARDED',
       completedAt: '2026-07-28T09:00:00',

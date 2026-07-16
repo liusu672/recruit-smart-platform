@@ -11,12 +11,7 @@ import { applicationStatusOptions, getPipelineStageKey, pipelineStages } from '@
 import { useRecruitmentPipeline } from '@/composables/useRecruitmentPipeline'
 import { useSessionStore } from '@/stores/session'
 import type { ApplicationStatus } from '@/types/candidate'
-import type {
-  PipelineApplicationDetail,
-  PipelineApplicationSummary,
-  PipelineViewMode,
-  ScreeningDecision,
-} from '@/types/pipeline'
+import type { PipelineApplication, PipelineViewMode, ScreeningDecision } from '@/types/pipeline'
 
 const session = useSessionStore()
 const {
@@ -38,7 +33,7 @@ const {
 const viewMode = ref<PipelineViewMode>('BOARD')
 const decisionDialogVisible = ref(false)
 const pendingDecision = ref<ScreeningDecision>('PASS')
-const pendingApplication = ref<PipelineApplicationSummary | null>(null)
+const pendingApplication = ref<PipelineApplication | null>(null)
 const filterForm = reactive({
   keyword: '',
   jobId: null as number | null,
@@ -83,7 +78,7 @@ function clearFilters() {
   resetFilters()
 }
 
-async function startScreening(application: PipelineApplicationSummary) {
+async function startScreening(application: PipelineApplication) {
   try {
     await ElMessageBox.confirm(
       `确认由 HR 开始筛选“${application.candidateName}”的投递记录？`,
@@ -93,7 +88,9 @@ async function startScreening(application: PipelineApplicationSummary) {
     await statusMutation.mutateAsync({
       id: application.id,
       data: {
-        status: 'SCREENING',
+        toStatus: 'SCREENING',
+        note: 'HR 开始审核候选人资料。',
+        operatorId: Number(session.user?.id ?? 0),
       },
     })
     ElMessage.success('投递记录已进入 HR 筛选')
@@ -103,7 +100,7 @@ async function startScreening(application: PipelineApplicationSummary) {
   }
 }
 
-function openReview(decision: ScreeningDecision, application: PipelineApplicationDetail) {
+function openReview(decision: ScreeningDecision, application: PipelineApplication) {
   pendingDecision.value = decision
   pendingApplication.value = application
   decisionDialogVisible.value = true
@@ -120,7 +117,10 @@ async function submitReview(payload: {
   try {
     await reviewMutation.mutateAsync({
       id: application.id,
-      data: payload,
+      data: {
+        ...payload,
+        reviewedBy: Number(session.user?.id ?? 0),
+      },
     })
     decisionDialogVisible.value = false
     ElMessage.success('筛选结论已保存')
