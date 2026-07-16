@@ -26,7 +26,8 @@ export const useSessionStore = defineStore('session', () => {
   const user = ref<AuthUser | null>(readStoredUser())
 
   const isAuthenticated = computed(() => Boolean(token.value && user.value))
-  const currentRole = computed<UserRole>(() => user.value?.role ?? 'HR')
+  // 缺失用户时不授予默认角色，避免异常会话在任何前端权限判断中被当作 HR。
+  const currentRole = computed<UserRole | null>(() => user.value?.role ?? null)
 
   // token 与用户信息必须同步写入，避免路由守卫读到半登录状态。
   function setSession(payload: LoginPayload) {

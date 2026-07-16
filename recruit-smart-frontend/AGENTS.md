@@ -13,15 +13,15 @@ This file applies to `recruit-smart-frontend/` and inherits the repository-level
 
 The frontend is a Vue 3 + TypeScript + Vite desktop SPA.
 
-- `src/api/`: Axios client, login response adaptation, and AI SSE client.
+- `src/api/`: Axios client, login response adaptation, recruitment/onboarding/employee API adaptation, and AI SSE client.
 - `src/app/`: application-level plugin configuration such as Vue Query.
-- `src/components/<domain>/`: reusable domain components. Authentication components currently live in `components/auth/`.
+- `src/components/<domain>/`: reusable domain components. Authentication and each completed recruitment domain follow the same domain folders.
 - `src/composables/`: page state, validation, and interaction logic.
 - `src/config/`: static page copy, menus, and option definitions.
 - `src/router/`: route records, role metadata, and global guards.
 - `src/stores/`: Pinia client state. It currently owns only the login session.
 - `src/styles/`: global tokens, Element Plus overrides, and page-specific SCSS.
-- `src/types/`: shared API, authentication, login, and AI contracts.
+- `src/types/`: shared API, authentication, login, recruitment-domain, and AI contracts.
 - `src/views/`: route-level page composition.
 - `src/__tests__/`: Vitest tests using the jsdom environment.
 
@@ -33,6 +33,7 @@ Run commands from `recruit-smart-frontend/`:
 
 ```bash
 npm install
+npm run mock-api
 npm run dev
 npm run type-check
 npm run lint
@@ -47,6 +48,7 @@ Environment requirements:
 - npm 11 or newer.
 - Development server: `http://localhost:5173`.
 - `/api` is proxied to `http://localhost:8080` with the `/api` prefix removed.
+- `npm run mock-api` is an explicit frontend-only fallback for local development. Never run it on the same port as the real backend or present its in-memory data as production data.
 
 Before handing off code, run at least:
 
@@ -91,7 +93,10 @@ Current public routes are `/login` and `/register`. Candidate registration has f
 - Store only pure client or cross-page UI state in Pinia.
 - Use TanStack Vue Query for server data, caching, loading, errors, mutations, and invalidation.
 - Do not copy server lists or pagination results into Pinia.
-- Confirm backend pagination fields before adapting them to the frontend `PagedData<T>` type.
+- Confirm backend pagination fields before adapting them to the frontend `PagedData<T>` type. The job module is confirmed as `{ total, records }`; candidate, pipeline, interview, and Offer aggregation shapes remain frontend contracts pending backend implementation.
+- The backend currently has only the Offer entity and Mapper. Keep Offer list/detail/create/update/send/revoke routes marked provisional, and never add an HR action that accepts or rejects an Offer on behalf of a candidate.
+- The backend currently has only Onboarding/EmployeeProfile entities and Mappers. Treat their aggregation and action routes as provisional. Completing onboarding and creating an employee profile is one explicit human-confirmed business action.
+- Keep interviewer comments and AI summaries in separate fields. AI output must never overwrite the original scorecard, comment, or suggestion.
 
 For AI streaming, use `startAiStream` and typed `AiStreamEvent` values. Support cancellation and visible error handling. Do not treat free-form stream text as an executable business command.
 
@@ -109,7 +114,7 @@ For AI streaming, use `startAiStream` and typed `AiStreamEvent` values. Support 
 
 ## Testing Guidelines
 
-Existing tests cover session persistence and authentication-role normalization. Add focused tests when changing:
+Existing tests cover session persistence, authentication-role normalization, and completed recruitment/onboarding/employee adapters and state rules. Add focused tests when changing:
 
 - login response adaptation or role normalization;
 - session persistence, restoration, or logout;
@@ -126,11 +131,9 @@ Do not accidentally present the following as completed production functionality:
 
 - candidate registration backend submission;
 - verification-code authentication;
-- real candidate, pipeline, and interview data pages;
-- TanStack Table business tables;
-- VeeValidate/Zod form integration;
-- ECharts business dashboards;
-- full Vue Query business-query adoption.
+- HR 聚合页仍有部分临时契约；候选人端公开职位与 `/me` 接口、面试官本人任务接口已经按后端 Controller 接入；
+- administrator governance APIs for users, roles, dictionaries, audit logs, and system health;
+- Vue Query adoption outside the completed job, candidate, pipeline, interview, Offer, onboarding, and employee modules.
 
 When implementing one of these, update `前端框架.md`, add the relevant tests, and remove the corresponding limitation only after the behavior is verified.
 
