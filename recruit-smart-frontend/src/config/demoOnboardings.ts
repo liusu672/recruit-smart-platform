@@ -202,19 +202,16 @@ export function completeDemoOnboarding(
 ) {
   if (record.status !== 'APPROVED' || record.materialStatus !== 'APPROVED')
     throw new Error('只有材料已通过的记录可以确认入职')
-  if (
-    !request.employeeNo.trim() ||
-    !request.department.trim() ||
-    !request.position.trim() ||
-    !request.entryDate
-  )
-    throw new Error('员工编号、部门、岗位和入职日期不能为空')
+  const employeeNo = `EMP${now.slice(0, 10).replaceAll('-', '')}${String(
+    record.candidateId,
+  ).padStart(3, '0')}`
+  const note = request.note?.trim() || '已确认到岗。'
   return {
     ...record,
     status: 'ONBOARDED' as const,
     statusText: getOnboardingStatusText('ONBOARDED'),
     currentStep: '入职完成',
-    remark: request.note.trim(),
+    remark: note,
     completedAt: now,
     updatedAt: now,
     timeline: [
@@ -222,7 +219,7 @@ export function completeDemoOnboarding(
       {
         id: `${record.id}-complete-${now}`,
         title: '确认入职并生成档案',
-        description: `员工编号 ${request.employeeNo.trim()}。${request.note.trim()}`,
+        description: `员工编号 ${employeeNo}。${note}`,
         actorName: '当前 HR',
         occurredAt: now,
       },

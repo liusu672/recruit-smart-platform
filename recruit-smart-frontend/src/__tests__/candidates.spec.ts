@@ -73,7 +73,6 @@ describe('candidate demo data', () => {
       yearsOfExperience: 2,
       currentStatus: 'AVAILABLE',
       source: 'HR_IMPORT',
-      createdBy: 1,
     })
 
     expect(candidate).toMatchObject({
@@ -94,9 +93,9 @@ describe('candidate status tones', () => {
     expect(getCandidateStatusTone('HIRED')).toBe('success')
     expect(getCandidateStatusTone('INTERVIEWING')).toBe('info')
     expect(getCandidateStatusTone('AVAILABLE')).toBe('warning')
-    expect(getApplicationStatusTone('OFFER')).toBe('success')
+    expect(getApplicationStatusTone('OFFERED')).toBe('success')
     expect(getApplicationStatusTone('SCREEN_REJECT')).toBe('danger')
-    expect(getApplicationStatusTone('SCREEN_PASS')).toBe('info')
+    expect(getApplicationStatusTone('SCREEN_PASSED')).toBe('info')
     expect(getApplicationStatusTone('SCREENING')).toBe('warning')
   })
 })

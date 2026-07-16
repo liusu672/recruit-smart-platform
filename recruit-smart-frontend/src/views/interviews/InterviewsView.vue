@@ -230,9 +230,10 @@ async function generateQuestion(focus: string) {
 
     <section v-if="listError && !demoMode" class="interview-error" role="alert">
       <div>
-        <h3>面试工作区接口尚不可用</h3>
+        <h3>面试工作区接口暂不可用</h3>
         <p>
-          {{ listError.message }}。后端目前只有面试与反馈实体，可使用明确标识的演示数据继续开发。
+          {{ listError.message }}。请确认
+          Gateway、业务服务和当前账号权限正常，也可以使用演示数据继续评审。
         </p>
       </div>
       <div>

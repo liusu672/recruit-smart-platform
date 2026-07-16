@@ -5,13 +5,12 @@ export type CandidateSource = 'SELF_REGISTER' | 'HR_IMPORT' | 'ONLINE'
 export type ApplicationStatus =
   | 'SUBMITTED'
   | 'SCREENING'
-  | 'SCREEN_PASS'
+  | 'SCREEN_PASSED'
   | 'SCREEN_REJECT'
   | 'INTERVIEWING'
-  | 'INTERVIEW_REJECT'
-  | 'OFFER'
+  | 'OFFERED'
   | 'HIRED'
-  | 'OFFER_REJECT'
+  | 'REJECTED'
   | 'WITHDRAWN'
 
 export interface CandidateSummary {
@@ -107,7 +106,6 @@ export interface CandidateCreateRequest {
   yearsOfExperience: number
   currentStatus: CandidateStatus
   source: CandidateSource
-  createdBy: number
 }
 
 export type CandidatePagedData = PagedData<CandidateSummary>

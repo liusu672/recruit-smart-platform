@@ -14,7 +14,7 @@ import {
   initialDemoPipeline,
 } from '@/config/demoPipeline'
 import type {
-  PipelineApplication,
+  PipelineApplicationDetail,
   PipelineQuery,
   PipelineReviewRequest,
   PipelineStatusUpdateRequest,
@@ -27,7 +27,7 @@ function cloneDemoPipeline() {
 export function useRecruitmentPipeline() {
   const queryClient = useQueryClient()
   const demoMode = ref(false)
-  const demoRecords = ref<PipelineApplication[]>(cloneDemoPipeline())
+  const demoRecords = ref<PipelineApplicationDetail[]>(cloneDemoPipeline())
   const selectedApplicationId = ref<number | null>(null)
   const query = reactive<PipelineQuery>({
     keyword: '',
