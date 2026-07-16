@@ -15,6 +15,7 @@ public class Candidate {
     private Long userId;
     private String name;
     private String gender;
+    private Integer age;
     private String phone;
     private String email;
     private String education;

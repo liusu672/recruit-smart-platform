@@ -1,5 +1,9 @@
 package com.recruit.common.util;
 
+import com.recruit.common.enums.ErrorCode;
+import com.recruit.common.exception.BusinessException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,5 +34,16 @@ public class JwtUtil {
                 .expiration(expireTime)
                 .signWith(getSecretKey())
                 .compact();
+    }
+    public Claims parseToken(String token){
+        try{
+            return Jwts.parser()
+                    .verifyWith(getSecretKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        }catch(JwtException | IllegalArgumentException e){
+            throw new BusinessException(ErrorCode.UNAUTHORIZED,"登录状态已失效");
+        }
     }
 }

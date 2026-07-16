@@ -21,6 +21,7 @@ public class Resume {
     private String projectExperience;
     private String workExperience;
     private Integer isDefault;
+    private String parseStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

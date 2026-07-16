@@ -12,6 +12,10 @@ public interface JobPositionService {
     void updateJob(Long id, JobPositionUpdateDTO dto);
     JobPositionVO getById(Long id);
     PageResult<JobPositionVO> jobPages(JobPositionQueryDTO dto);
+    JobPositionVO getOpenById(Long id);
+    PageResult<JobPositionVO> openJobPages(JobPositionQueryDTO dto);
     void publishJob(Long id);
+    void pauseJob(Long id);
+    void resumeJob(Long id);
     void closeJob(Long id);
 }

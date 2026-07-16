@@ -12,6 +12,11 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
@@ -21,7 +26,10 @@ logging:
 jwt:
   secret: recruit-smart-platform-secret-key-2026
   expire-time: 86400000
-
+resume:
+  storage:
+    root-path: ${RESUME_STORAGE_PATH:./uploads/resumes}
+    max-size: 10485760
 knife4j:
   enable: true
 

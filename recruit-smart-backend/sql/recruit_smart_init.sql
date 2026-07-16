@@ -83,6 +83,7 @@ CREATE TABLE candidate (
   user_id BIGINT DEFAULT NULL COMMENT '绑定的系统用户ID，可为空',
   name VARCHAR(64) NOT NULL COMMENT '候选人姓名',
   gender VARCHAR(16) DEFAULT NULL COMMENT '性别',
+  age INT DEFAULT NULL COMMENT '年龄',
   phone VARCHAR(32) DEFAULT NULL COMMENT '手机号',
   email VARCHAR(128) DEFAULT NULL COMMENT '邮箱',
   education VARCHAR(64) DEFAULT NULL COMMENT '最高学历',
@@ -113,10 +114,12 @@ CREATE TABLE resume (
   project_experience TEXT COMMENT '项目经历摘要',
   work_experience TEXT COMMENT '工作经历摘要',
   is_default TINYINT NOT NULL DEFAULT 0 COMMENT '是否默认简历：1是，0否',
+  parse_status VARCHAR(32) NOT NULL DEFAULT 'PENDING' COMMENT '解析状态：PENDING等待解析，PROCESSING解析中，SUCCESS解析成功，FAILED解析失败',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   KEY idx_resume_candidate_id (candidate_id),
-  KEY idx_resume_is_default (is_default)
+  KEY idx_resume_is_default (is_default),
+  KEY idx_resume_parse_status (parse_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='简历表';
 
 -- 6. Job application table. This is the center table of recruitment workflow.
@@ -197,7 +200,7 @@ CREATE TABLE interview_feedback (
   ai_summary TEXT COMMENT 'AI反馈摘要',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  KEY idx_feedback_interview_id (interview_id),
+  UNIQUE KEY uk_feedback_interview_id (interview_id),
   KEY idx_feedback_interviewer_id (interviewer_id),
   KEY idx_feedback_suggestion (suggestion)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试反馈表';
@@ -267,7 +270,7 @@ CREATE TABLE employee_profile (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='员工档案表';
 
 -- Seed data.
--- Passwords below are demo values. Replace them with BCrypt hashes when login authentication is implemented.
+-- The BCrypt hashes below correspond to the demo password: 123456.
 
 INSERT INTO sys_role (id, role_code, role_name, description) VALUES
 (1, 'ADMIN', '系统管理员', '维护系统用户、角色和基础配置'),
@@ -276,10 +279,10 @@ INSERT INTO sys_role (id, role_code, role_name, description) VALUES
 (4, 'CANDIDATE', '候选人', '负责维护个人资料、上传简历和投递职位');
 
 INSERT INTO sys_user (id, username, password, real_name, phone, email, role_id, status) VALUES
-(1, 'admin', '123456', '系统管理员', '13800000001', 'admin@recruit.com', 1, 1),
-(2, 'hr01', '123456', '李HR', '13800000002', 'hr01@recruit.com', 2, 1),
-(3, 'interviewer01', '123456', '王面试官', '13800000003', 'interviewer01@recruit.com', 3, 1),
-(4, 'candidate01', '123456', '张三', '13800000004', 'zhangsan@example.com', 4, 1);
+(1, 'admin', '$2a$10$DXeibuKFK47H.le87RVs2uwMeTrqyf0OJm5MMFx6twyLyQah4HdT6', '系统管理员', '13800000001', 'admin@recruit.com', 1, 1),
+(2, 'hr01', '$2a$10$DXeibuKFK47H.le87RVs2uwMeTrqyf0OJm5MMFx6twyLyQah4HdT6', '李HR', '13800000002', 'hr01@recruit.com', 2, 1),
+(3, 'interviewer01', '$2a$10$DXeibuKFK47H.le87RVs2uwMeTrqyf0OJm5MMFx6twyLyQah4HdT6', '王面试官', '13800000003', 'interviewer01@recruit.com', 3, 1),
+(4, 'candidate01', '$2a$10$DXeibuKFK47H.le87RVs2uwMeTrqyf0OJm5MMFx6twyLyQah4HdT6', '张三', '13800000004', 'zhangsan@example.com', 4, 1);
 
 INSERT INTO job_position (
   id, title, department, location, salary_min, salary_max, headcount,
@@ -299,32 +302,32 @@ INSERT INTO job_position (
  'DRAFT', 2, NULL);
 
 INSERT INTO candidate (
-  id, user_id, name, gender, phone, email, education, school, major,
+  id, user_id, name, gender, age, phone, email, education, school, major,
   years_of_experience, current_status, source, created_by
 ) VALUES
-(1, 4, '张三', '男', '13900000001', 'zhangsan@example.com', '本科', '武汉理工大学', '软件工程', 2, 'HIRED', 'SELF_REGISTER', NULL),
-(2, NULL, '李四', '女', '13900000002', 'lisi@example.com', '硕士', '华中科技大学', '计算机科学与技术', 1, 'INTERVIEWING', 'HR_IMPORT', 2),
-(3, NULL, '王五', '男', '13900000003', 'wangwu@example.com', '本科', '湖北大学', '人力资源管理', 3, 'AVAILABLE', 'HR_IMPORT', 2);
+(1, 4, '张三', '男', 24, '13900000001', 'zhangsan@example.com', '本科', '武汉理工大学', '软件工程', 2, 'HIRED', 'SELF_REGISTER', NULL),
+(2, NULL, '李四', '女', 25, '13900000002', 'lisi@example.com', '硕士', '华中科技大学', '计算机科学与技术', 1, 'INTERVIEWING', 'HR_IMPORT', 2),
+(3, NULL, '王五', '男', 26, '13900000003', 'wangwu@example.com', '本科', '湖北大学', '人力资源管理', 3, 'AVAILABLE', 'HR_IMPORT', 2);
 
 INSERT INTO resume (
   id, candidate_id, resume_name, file_url, file_type, parsed_content,
-  skills, project_experience, work_experience, is_default
+  skills, project_experience, work_experience, is_default, parse_status
 ) VALUES
 (1, 1, '张三-Java后端简历', '/files/resume/zhangsan-java.pdf', 'PDF',
  '张三，本科，软件工程专业，熟悉Java、Spring Boot、MySQL，参与过招聘管理系统开发。',
  'Java,Spring Boot,MySQL,Redis,Git',
  '参与招聘管理系统后端开发，负责职位、投递、面试模块接口。',
- '2年Java后端开发经验。', 1),
+ '2年Java后端开发经验。', 1, 'SUCCESS'),
 (2, 2, '李四-AI算法简历', '/files/resume/lisi-ai.pdf', 'PDF',
  '李四，硕士，熟悉Python、机器学习、文本向量化和语义检索。',
  'Python,Machine Learning,RAG,Qdrant,PyTorch',
  '参与简历语义匹配实验项目，负责文本向量化和相似度计算。',
- '1年AI算法实习经验。', 1),
+ '1年AI算法实习经验。', 1, 'SUCCESS'),
 (3, 3, '王五-HR简历', '/files/resume/wangwu-hr.pdf', 'PDF',
  '王五，本科，人力资源管理专业，熟悉招聘流程和候选人沟通。',
  '招聘流程,候选人沟通,Offer管理,入职办理',
  '参与校园招聘活动组织和候选人跟进。',
- '3年人力资源相关经验。', 1);
+ '3年人力资源相关经验。', 1, 'SUCCESS');
 
 INSERT INTO job_application (
   id, job_id, candidate_id, resume_id, status, allow_adjustment, adjusted_job_id,
@@ -395,4 +398,3 @@ INSERT INTO employee_profile (
  '初始入职员工，暂无考勤记录。',
  '入职意愿稳定，对岗位内容认可。',
  'LOW');
-
