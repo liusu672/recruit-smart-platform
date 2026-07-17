@@ -39,4 +39,8 @@ export interface EmployeePageResponse {
   records: EmployeeRecord[]
 }
 
+export interface EmployeeStatusUpdateRequest {
+  status: EmployeeStatus
+}
+
 export type EmployeePagedData = PagedData<EmployeeRecord>

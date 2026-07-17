@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { adaptJobPage, parseSalaryRange } from '@/api/jobs'
-import { unwrapVoidResult } from '@/api/http'
+import { adaptJobPage, parseSalaryRange, pauseJob, resumeJob } from '@/api/jobs'
+import { http, unwrapVoidResult } from '@/api/http'
 import { getDemoJobPage, initialDemoJobs } from '@/config/demoJobs'
 
 describe('job API adaptation', () => {
@@ -56,5 +56,21 @@ describe('job demo data', () => {
 
     expect(page.total).toBe(1)
     expect(page.items[0]?.title).toBe('Java 后端开发工程师')
+  })
+})
+
+describe('job state API', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('calls the backend pause and resume endpoints', async () => {
+    const put = vi.spyOn(http, 'put').mockResolvedValue({
+      data: { code: 200, message: 'success', data: null },
+    })
+
+    await pauseJob(101)
+    await resumeJob(101)
+
+    expect(put).toHaveBeenNthCalledWith(1, '/jobs/101/pause')
+    expect(put).toHaveBeenNthCalledWith(2, '/jobs/101/resume')
   })
 })

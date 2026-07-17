@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
-import { closeJob, createJob, getJobById, getJobs, publishJob, updateJob } from '@/api/jobs'
+import {
+  closeJob,
+  createJob,
+  getJobById,
+  getJobs,
+  pauseJob,
+  publishJob,
+  resumeJob,
+  updateJob,
+} from '@/api/jobs'
 import { getDemoJobPage, initialDemoJobs } from '@/config/demoJobs'
 import type {
   JobCreateRequest,
@@ -129,12 +138,39 @@ export function useJobManagement() {
     onSuccess: refreshQueries,
   })
 
+  const pauseMutation = useMutation({
+    mutationFn: async (id: number) => {
+      if (!demoMode.value) return pauseJob(id)
+
+      const job = demoRecords.value.find((item) => item.id === id)
+      if (!job || job.status !== 'OPEN') throw new Error('只有招聘中的职位可以暂停')
+      job.status = 'PAUSED'
+      job.statusText = '已暂停'
+      job.updatedAt = new Date().toISOString()
+    },
+    onSuccess: refreshQueries,
+  })
+
+  const resumeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      if (!demoMode.value) return resumeJob(id)
+
+      const job = demoRecords.value.find((item) => item.id === id)
+      if (!job || job.status !== 'PAUSED') throw new Error('只有已暂停的职位可以恢复')
+      job.status = 'OPEN'
+      job.statusText = '招聘中'
+      job.updatedAt = new Date().toISOString()
+    },
+    onSuccess: refreshQueries,
+  })
+
   const closeMutation = useMutation({
     mutationFn: async (id: number) => {
       if (!demoMode.value) return closeJob(id)
 
       const job = demoRecords.value.find((item) => item.id === id)
-      if (!job || job.status !== 'OPEN') throw new Error('只有招聘中的职位可以关闭')
+      if (!job || (job.status !== 'OPEN' && job.status !== 'PAUSED'))
+        throw new Error('只有招聘中或已暂停的职位可以关闭')
       job.status = 'CLOSED'
       job.statusText = '已关闭'
       job.updatedAt = new Date().toISOString()
@@ -173,6 +209,8 @@ export function useJobManagement() {
       createMutation.isPending.value ||
       updateMutation.isPending.value ||
       publishMutation.isPending.value ||
+      pauseMutation.isPending.value ||
+      resumeMutation.isPending.value ||
       closeMutation.isPending.value,
   )
 
@@ -185,6 +223,8 @@ export function useJobManagement() {
     createMutation,
     updateMutation,
     publishMutation,
+    pauseMutation,
+    resumeMutation,
     closeMutation,
     isMutating,
     applyFilters,

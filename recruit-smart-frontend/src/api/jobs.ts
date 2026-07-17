@@ -50,6 +50,14 @@ export function publishJob(id: number): Promise<void> {
   return unwrapVoidResult(http.put<Result<null>>(`/jobs/${id}/publish`))
 }
 
+export function pauseJob(id: number): Promise<void> {
+  return unwrapVoidResult(http.put<Result<null>>(`/jobs/${id}/pause`))
+}
+
+export function resumeJob(id: number): Promise<void> {
+  return unwrapVoidResult(http.put<Result<null>>(`/jobs/${id}/resume`))
+}
+
 export function closeJob(id: number): Promise<void> {
   return unwrapVoidResult(http.put<Result<null>>(`/jobs/${id}/close`))
 }

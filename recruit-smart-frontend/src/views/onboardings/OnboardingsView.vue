@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import OnboardingDetailDrawer from '@/components/onboardings/OnboardingDetailDrawer.vue'
 import OnboardingTable from '@/components/onboardings/OnboardingTable.vue'
 import { useOnboardingManagement } from '@/composables/useOnboardingManagement'
@@ -9,6 +10,7 @@ import { onboardingStatusOptions } from '@/config/onboardings'
 import type { OnboardingRecord, OnboardingStatus } from '@/types/onboarding'
 
 const state = useOnboardingManagement()
+const route = useRoute()
 const filterForm = reactive<{ keyword: string; status: OnboardingStatus | '' }>({
   keyword: '',
   status: '',
@@ -23,6 +25,22 @@ const detailVisible = computed({
     if (!value) state.closeDetail()
   },
 })
+
+function parseRouteId(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const id = Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+watch(
+  () => route.query.onboardingId,
+  (value) => {
+    const onboardingId = parseRouteId(value)
+    if (onboardingId !== null) state.openDetail(onboardingId)
+  },
+  { immediate: true },
+)
+
 function submitFilters() {
   state.applyFilters({ keyword: filterForm.keyword.trim(), status: filterForm.status })
 }
@@ -88,6 +106,39 @@ async function complete(record: OnboardingRecord) {
     ElMessage.error(error instanceof Error ? error.message : '确认入职失败')
   }
 }
+
+async function cancel(record: OnboardingRecord) {
+  try {
+    const result = await ElMessageBox.prompt(
+      `请填写取消“${record.candidateName}”入职流程的原因。`,
+      '取消入职流程',
+      {
+        confirmButtonText: '确认取消',
+        cancelButtonText: '返回',
+        inputType: 'textarea',
+        inputValidator: (value) => value.trim().length >= 4 || '请填写至少 4 个字的取消原因',
+        type: 'warning',
+      },
+    )
+    await ElMessageBox.confirm(
+      `确认取消“${record.candidateName}”的入职流程？该操作提交后不可撤销。`,
+      '再次确认取消',
+      {
+        confirmButtonText: '确认取消',
+        cancelButtonText: '返回',
+        type: 'warning',
+      },
+    )
+    await state.cancelMutation.mutateAsync({
+      id: record.id,
+      data: { reason: result.value.trim() },
+    })
+    ElMessage.success('入职流程已取消')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '取消入职流程失败')
+  }
+}
 </script>
 
 <template>
@@ -147,6 +198,7 @@ async function complete(record: OnboardingRecord) {
         @approve="reviewMaterial($event, 'APPROVE')"
         @reject="reviewMaterial($event, 'REJECT')"
         @complete="complete"
+        @cancel="cancel"
       />
       <footer>
         <span
@@ -167,6 +219,7 @@ async function complete(record: OnboardingRecord) {
       :loading="state.detailQuery.isLoading.value"
       :error="detailError"
       @complete="complete"
+      @cancel="cancel"
     />
   </div>
 </template>

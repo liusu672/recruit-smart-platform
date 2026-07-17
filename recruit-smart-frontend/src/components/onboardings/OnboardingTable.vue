@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { CheckCircle2, Eye, FileCheck2, RotateCcw, UserRoundCheck } from 'lucide-vue-next'
+import { CheckCircle2, Eye, FileCheck2, RotateCcw, UserRoundCheck, XCircle } from 'lucide-vue-next'
 
 import {
+  canCancelOnboarding,
   canCompleteOnboarding,
   canReviewOnboardingMaterial,
   canStartOnboardingReview,
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   approve: [record: OnboardingRecord]
   reject: [record: OnboardingRecord]
   complete: [record: OnboardingRecord]
+  cancel: [record: OnboardingRecord]
 }>()
 
 function formatDate(value: string) {
@@ -113,6 +115,15 @@ function formatDate(value: string) {
               :icon="UserRoundCheck"
               aria-label="确认入职并生成员工档案"
               @click="emit('complete', row)"
+          /></el-tooltip>
+          <el-tooltip v-if="canCancelOnboarding(row.status)" content="取消入职流程"
+            ><el-button
+              circle
+              type="danger"
+              plain
+              :icon="XCircle"
+              aria-label="取消入职流程"
+              @click="emit('cancel', row)"
           /></el-tooltip></div></template
     ></el-table-column>
   </el-table>

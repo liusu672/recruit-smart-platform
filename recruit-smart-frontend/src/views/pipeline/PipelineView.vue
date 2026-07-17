@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Columns3, List, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import ApplicationDetailDrawer from '@/components/pipeline/ApplicationDetailDrawer.vue'
 import PipelineBoard from '@/components/pipeline/PipelineBoard.vue'
@@ -19,6 +20,7 @@ import type {
 } from '@/types/pipeline'
 
 const session = useSessionStore()
+const route = useRoute()
 const {
   query,
   demoMode,
@@ -68,6 +70,21 @@ const stageSummary = computed(() =>
       (application) => getPipelineStageKey(application.status) === stage.key,
     ).length,
   })),
+)
+
+function parseRouteId(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const id = Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+watch(
+  () => route.query.applicationId,
+  (value) => {
+    const applicationId = parseRouteId(value)
+    if (applicationId !== null) selectApplication(applicationId)
+  },
+  { immediate: true },
 )
 
 function submitFilters() {

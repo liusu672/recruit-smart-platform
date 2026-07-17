@@ -1,7 +1,22 @@
 <script setup lang="ts">
-import { CalendarClock, FileText, ShieldCheck, Sparkles, UserRound } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
+import {
+  CalendarClock,
+  Download,
+  Eye,
+  FileText,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+} from 'lucide-vue-next'
 import { ref, watch } from 'vue'
 
+import {
+  getResumeDownloadFile,
+  getResumePreviewFile,
+  openBlobPreview,
+  saveBlobAsFile,
+} from '@/api/resumes'
 import { getApplicationStatusTone } from '@/config/pipeline'
 import type { PipelineApplicationDetail, ScreeningDecision } from '@/types/pipeline'
 
@@ -21,6 +36,7 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref('summary')
+const resumeActionLoading = ref(false)
 
 watch(visible, (isVisible) => {
   if (isVisible) activeTab.value = 'summary'
@@ -35,6 +51,39 @@ function formatDate(value: string | null | undefined) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(value))
+}
+
+function isPdfResume(application: PipelineApplicationDetail) {
+  return (
+    application.resumeFileType?.toUpperCase() === 'PDF' ||
+    application.resumeName?.toLowerCase().endsWith('.pdf')
+  )
+}
+
+async function previewResume(application: PipelineApplicationDetail) {
+  if (!isPdfResume(application)) {
+    ElMessage.warning('仅 PDF 简历支持在线预览，请下载后查看')
+    return
+  }
+  resumeActionLoading.value = true
+  try {
+    openBlobPreview(await getResumePreviewFile(application.resumeId))
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '简历预览失败')
+  } finally {
+    resumeActionLoading.value = false
+  }
+}
+
+async function downloadResume(application: PipelineApplicationDetail) {
+  resumeActionLoading.value = true
+  try {
+    saveBlobAsFile(await getResumeDownloadFile(application.resumeId))
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '简历下载失败')
+  } finally {
+    resumeActionLoading.value = false
+  }
 }
 </script>
 
@@ -86,7 +135,29 @@ function formatDate(value: string | null | undefined) {
             </div>
             <div>
               <dt>投递简历</dt>
-              <dd>{{ application.resumeName || '待补充' }}</dd>
+              <dd class="application-detail__resume">
+                <span>{{ application.resumeName || '待补充' }}</span>
+                <span v-if="application.resumeName" class="application-detail__resume-actions">
+                  <el-button
+                    text
+                    type="primary"
+                    :icon="Eye"
+                    :loading="resumeActionLoading"
+                    @click="previewResume(application)"
+                  >
+                    预览 PDF
+                  </el-button>
+                  <el-button
+                    text
+                    type="primary"
+                    :icon="Download"
+                    :loading="resumeActionLoading"
+                    @click="downloadResume(application)"
+                  >
+                    下载
+                  </el-button>
+                </span>
+              </dd>
             </div>
             <div>
               <dt>处理人</dt>
@@ -303,6 +374,17 @@ function formatDate(value: string | null | undefined) {
   margin: 0;
   color: var(--rs-text-primary);
   font-weight: 600;
+}
+
+.application-detail__resume,
+.application-detail__resume-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-2);
+}
+
+.application-detail__resume {
+  flex-wrap: wrap;
 }
 
 .application-detail__section {

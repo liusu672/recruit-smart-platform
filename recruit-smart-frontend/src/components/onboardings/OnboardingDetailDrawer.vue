@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { CalendarDays, Mail, Phone, UserRoundCheck } from 'lucide-vue-next'
-import { canCompleteOnboarding, getOnboardingStatusTone } from '@/config/onboardings'
+import { CalendarDays, Mail, Phone, UserRoundCheck, XCircle } from 'lucide-vue-next'
+import {
+  canCancelOnboarding,
+  canCompleteOnboarding,
+  getOnboardingStatusTone,
+} from '@/config/onboardings'
 import type { OnboardingRecord } from '@/types/onboarding'
 
 defineProps<{
@@ -12,6 +16,7 @@ defineProps<{
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   complete: [record: OnboardingRecord]
+  cancel: [record: OnboardingRecord]
 }>()
 function formatDate(value: string | null, withTime = false) {
   if (!value) return '尚未记录'
@@ -91,10 +96,23 @@ function formatDate(value: string | null, withTime = false) {
         >
       </section>
     </div>
-    <template v-if="record && canCompleteOnboarding(record.status, record.materialStatus)" #footer
-      ><el-button type="primary" :icon="UserRoundCheck" @click="emit('complete', record)"
-        >确认入职并生成档案</el-button
-      ></template
+    <template v-if="record" #footer
+      ><div class="detail-actions">
+        <el-button
+          v-if="canCancelOnboarding(record.status)"
+          type="danger"
+          plain
+          :icon="XCircle"
+          @click="emit('cancel', record)"
+          >取消流程</el-button
+        ><el-button
+          v-if="canCompleteOnboarding(record.status, record.materialStatus)"
+          type="primary"
+          :icon="UserRoundCheck"
+          @click="emit('complete', record)"
+          >确认入职并生成档案</el-button
+        >
+      </div></template
     >
   </el-drawer>
 </template>
@@ -108,6 +126,11 @@ header {
   display: flex;
   align-items: center;
   gap: var(--rs-space-3);
+}
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--rs-space-2);
 }
 header > div {
   min-width: 0;

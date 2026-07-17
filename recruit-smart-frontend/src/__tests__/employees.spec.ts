@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { adaptEmployeePage } from '@/api/employees'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { adaptEmployeePage, updateEmployeeStatus } from '@/api/employees'
+import { http } from '@/api/http'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
 
 describe('employee directory', () => {
@@ -29,4 +30,16 @@ describe('employee directory', () => {
     const unassessed = initialDemoEmployees.find((item) => item.turnoverRiskLevel === null)
     expect(unassessed).toMatchObject({ riskAssessedAt: null, status: 'ACTIVE' })
   })
+
+  it('calls the backend employee status endpoint', async () => {
+    const put = vi.spyOn(http, 'put').mockResolvedValue({
+      data: { code: 200, message: 'success', data: null },
+    })
+
+    await updateEmployeeStatus(1001, { status: 'ACTIVE' })
+
+    expect(put).toHaveBeenCalledWith('/employees/1001/status', { status: 'ACTIVE' })
+  })
+
+  afterEach(() => vi.restoreAllMocks())
 })

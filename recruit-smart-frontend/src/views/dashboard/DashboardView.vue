@@ -34,7 +34,21 @@ function reloadOverview() {
 }
 
 function openTask(task: DashboardTask) {
-  void router.push(getDashboardTaskRoute(task.type))
+  const path = getDashboardTaskRoute(task.type)
+  const id = task.applicationId ?? task.relatedId
+  if (!Number.isFinite(id) || id <= 0) {
+    void router.push(path)
+    return
+  }
+  const query =
+    task.type === 'SCREENING'
+      ? { applicationId: String(id) }
+      : task.type === 'INTERVIEW_FEEDBACK'
+        ? { interviewId: String(task.relatedId) }
+        : task.type === 'OFFER'
+          ? { offerId: String(task.relatedId) }
+          : { onboardingId: String(task.relatedId) }
+  void router.push({ path, query })
 }
 </script>
 

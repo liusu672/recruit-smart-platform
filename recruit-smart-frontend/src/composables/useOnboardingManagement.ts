@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
 import {
+  cancelOnboarding,
   completeOnboarding,
   getOnboardingById,
   getOnboardings,
@@ -9,6 +10,7 @@ import {
   startOnboardingReview,
 } from '@/api/onboardings'
 import {
+  cancelDemoOnboarding,
   completeDemoOnboarding,
   getDemoOnboardingPage,
   initialDemoOnboardings,
@@ -16,6 +18,7 @@ import {
   startDemoOnboardingReview,
 } from '@/config/demoOnboardings'
 import type {
+  CancelOnboardingRequest,
   CompleteOnboardingRequest,
   MaterialReviewRequest,
   OnboardingActionRequest,
@@ -97,6 +100,14 @@ export function useOnboardingManagement() {
     onSuccess: refresh,
   })
 
+  const cancelMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CancelOnboardingRequest }) =>
+      demoMode.value
+        ? updateDemoRecord(id, (record) => cancelDemoOnboarding(record, data))
+        : cancelOnboarding(id, data),
+    onSuccess: refresh,
+  })
+
   return {
     query,
     demoMode,
@@ -106,6 +117,7 @@ export function useOnboardingManagement() {
     startReviewMutation,
     materialReviewMutation,
     completeMutation,
+    cancelMutation,
     applyFilters: (filters: Pick<OnboardingQuery, 'keyword' | 'status'>) =>
       Object.assign(query, filters, { page: 1 }),
     resetFilters: () => Object.assign(query, { keyword: '', status: '', page: 1 }),

@@ -1,12 +1,19 @@
-import { useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
-import { getEmployeeById, getEmployees } from '@/api/employees'
+import { getEmployeeById, getEmployees, updateEmployeeStatus } from '@/api/employees'
+import { getEmployeeStatusText } from '@/config/employees'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
-import type { EmployeeQuery } from '@/types/employee'
+import type { EmployeeQuery, EmployeeRecord, EmployeeStatusUpdateRequest } from '@/types/employee'
+
+function cloneDemoEmployees() {
+  return initialDemoEmployees.map((record) => ({ ...record }))
+}
 
 export function useEmployeeDirectory() {
+  const queryClient = useQueryClient()
   const demoMode = ref(false)
+  const demoRecords = ref<EmployeeRecord[]>(cloneDemoEmployees())
   const selectedId = ref<number | null>(null)
   const query = reactive<EmployeeQuery>({
     keyword: '',
@@ -27,7 +34,7 @@ export function useEmployeeDirectory() {
     ]),
     queryFn: () =>
       demoMode.value
-        ? Promise.resolve(getDemoEmployeePage(initialDemoEmployees, { ...query }))
+        ? Promise.resolve(getDemoEmployeePage(demoRecords.value, { ...query }))
         : getEmployees({ ...query }),
   })
   const detailQuery = useQuery({
@@ -40,17 +47,38 @@ export function useEmployeeDirectory() {
     queryFn: async () => {
       if (selectedId.value === null) throw new Error('尚未选择员工档案')
       if (!demoMode.value) return getEmployeeById(selectedId.value)
-      const record = initialDemoEmployees.find((item) => item.id === selectedId.value)
+      const record = demoRecords.value.find((item) => item.id === selectedId.value)
       if (!record) throw new Error('演示员工档案不存在')
       return { ...record }
     },
   })
+
+  async function refresh() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['employees'] }),
+      queryClient.invalidateQueries({ queryKey: ['employee-detail'] }),
+    ])
+  }
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: EmployeeStatusUpdateRequest }) => {
+      if (!demoMode.value) return updateEmployeeStatus(id, data)
+      const record = demoRecords.value.find((item) => item.id === id)
+      if (!record) throw new Error('演示员工档案不存在')
+      record.status = data.status
+      record.statusText = getEmployeeStatusText(data.status)
+      record.updatedAt = new Date().toISOString()
+    },
+    onSuccess: refresh,
+  })
+
   return {
     query,
     demoMode,
     selectedId,
     listQuery,
     detailQuery,
+    statusMutation,
     applyFilters: (filters: Pick<EmployeeQuery, 'keyword' | 'department' | 'status'>) =>
       Object.assign(query, filters, { page: 1 }),
     resetFilters: () => Object.assign(query, { keyword: '', department: '', status: '', page: 1 }),

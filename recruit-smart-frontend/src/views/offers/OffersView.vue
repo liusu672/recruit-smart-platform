@@ -1,15 +1,19 @@
 <script setup lang="ts">
+import { useQuery } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
+import { getPipelineApplications } from '@/api/pipeline'
 import OfferDetailDrawer from '@/components/offers/OfferDetailDrawer.vue'
 import OfferFormDrawer from '@/components/offers/OfferFormDrawer.vue'
 import OfferTable from '@/components/offers/OfferTable.vue'
 import { useOfferManagement } from '@/composables/useOfferManagement'
-import { demoEligibleOfferApplications } from '@/config/demoOffers'
+import { getDemoPipelinePage, initialDemoPipeline } from '@/config/demoPipeline'
 import { formatOfferSalary, offerStatusOptions, validateOfferForSend } from '@/config/offers'
 import type {
+  OfferCandidateOption,
   OfferFormSubmitValue,
   OfferRecord,
   OfferStatus,
@@ -34,6 +38,7 @@ const {
   closeDetail,
 } = useOfferManagement()
 
+const route = useRoute()
 const filterForm = reactive<{ keyword: string; status: OfferStatus | '' }>({
   keyword: '',
   status: '',
@@ -45,12 +50,60 @@ const offers = computed(() => offersQuery.data.value?.items ?? [])
 const total = computed(() => offersQuery.data.value?.total ?? 0)
 const listError = computed(() => offersQuery.error.value as Error | null)
 const detailError = computed(() => detailQuery.error.value as Error | null)
+const eligibleApplicationsQuery = useQuery({
+  queryKey: computed(() => ['offer-eligible-applications', demoMode.value ? 'demo' : 'api']),
+  queryFn: async (): Promise<OfferCandidateOption[]> => {
+    const page = demoMode.value
+      ? getDemoPipelinePage(initialDemoPipeline, {
+          keyword: '',
+          jobId: null,
+          status: 'INTERVIEWING',
+          page: 1,
+          pageSize: 100,
+        })
+      : await getPipelineApplications({
+          keyword: '',
+          jobId: null,
+          status: 'INTERVIEWING',
+          page: 1,
+          pageSize: 100,
+        })
+
+    return page.items.map((application) => ({
+      applicationId: application.id,
+      candidateName: application.candidateName,
+      jobTitle: application.jobTitle,
+      interviewScore: null,
+    }))
+  },
+})
+const offerCandidates = computed(() => {
+  const existingApplicationIds = new Set(offers.value.map((offer) => offer.applicationId))
+  return (eligibleApplicationsQuery.data.value ?? []).filter(
+    (candidate) => !existingApplicationIds.has(candidate.applicationId),
+  )
+})
 const detailVisible = computed({
   get: () => selectedOfferId.value !== null,
   set: (value) => {
     if (!value) closeDetail()
   },
 })
+
+function parseRouteId(value: unknown) {
+  const raw = Array.isArray(value) ? value[0] : value
+  const id = Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+watch(
+  () => route.query.offerId,
+  (value) => {
+    const offerId = parseRouteId(value)
+    if (offerId !== null) openDetail(offerId)
+  },
+  { immediate: true },
+)
 
 function submitFilters() {
   applyFilters({ keyword: filterForm.keyword.trim(), status: filterForm.status })
@@ -245,7 +298,7 @@ async function confirmRevoke(offer: OfferRecord) {
     <OfferFormDrawer
       v-model:visible="formVisible"
       :offer="editingOffer"
-      :candidates="demoEligibleOfferApplications"
+      :candidates="offerCandidates"
       :submitting="createMutation.isPending.value || updateMutation.isPending.value"
       @submit="submitOfferForm"
     />

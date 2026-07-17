@@ -1,5 +1,6 @@
 import { getMaterialStatusText, getOnboardingStatusText } from '@/config/onboardings'
 import type {
+  CancelOnboardingRequest,
   CompleteOnboardingRequest,
   MaterialReviewRequest,
   OnboardingActionRequest,
@@ -220,6 +221,35 @@ export function completeDemoOnboarding(
         id: `${record.id}-complete-${now}`,
         title: '确认入职并生成档案',
         description: `员工编号 ${employeeNo}。${note}`,
+        actorName: '当前 HR',
+        occurredAt: now,
+      },
+    ],
+  }
+}
+
+export function cancelDemoOnboarding(
+  record: OnboardingRecord,
+  request: CancelOnboardingRequest,
+  now = new Date().toISOString(),
+) {
+  if (record.status === 'ONBOARDED' || record.status === 'CANCELED')
+    throw new Error('已入职或已取消的流程不能再次取消')
+  const reason = request.reason.trim()
+  if (!reason) throw new Error('取消入职流程必须填写原因')
+  return {
+    ...record,
+    status: 'CANCELED' as const,
+    statusText: getOnboardingStatusText('CANCELED'),
+    currentStep: '流程已取消',
+    remark: reason,
+    updatedAt: now,
+    timeline: [
+      ...record.timeline,
+      {
+        id: `${record.id}-cancel-${now}`,
+        title: '取消入职流程',
+        description: reason,
         actorName: '当前 HR',
         occurredAt: now,
       },

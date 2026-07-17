@@ -57,4 +57,8 @@ export interface CompleteOnboardingRequest {
   note?: string
 }
 
+export interface CancelOnboardingRequest {
+  reason: string
+}
+
 export type OnboardingPagedData = PagedData<OnboardingRecord>

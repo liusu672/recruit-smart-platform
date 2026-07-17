@@ -18,6 +18,8 @@ const {
   createMutation,
   updateMutation,
   publishMutation,
+  pauseMutation,
+  resumeMutation,
   closeMutation,
   isMutating,
   applyFilters,
@@ -103,6 +105,44 @@ async function confirmPublish(job: JobPosition) {
     })
     await publishMutation.mutateAsync(job.id)
     ElMessage.success('职位已发布')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    showError(error)
+  }
+}
+
+async function confirmPause(job: JobPosition) {
+  try {
+    await ElMessageBox.confirm(
+      `暂停后“${job.title}”将不再接收新的候选人投递，历史记录仍会保留。`,
+      '暂停职位',
+      {
+        confirmButtonText: '确认暂停',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+    await pauseMutation.mutateAsync(job.id)
+    ElMessage.success('职位已暂停')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    showError(error)
+  }
+}
+
+async function confirmResume(job: JobPosition) {
+  try {
+    await ElMessageBox.confirm(
+      `恢复后候选人将可以继续投递“${job.title}”，确认继续吗？`,
+      '恢复职位',
+      {
+        confirmButtonText: '确认恢复',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+    await resumeMutation.mutateAsync(job.id)
+    ElMessage.success('职位已恢复招聘')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     showError(error)
@@ -302,6 +342,8 @@ async function confirmClose(job: JobPosition) {
       :action-loading="isMutating"
       @edit="openEdit"
       @publish="confirmPublish"
+      @pause="confirmPause"
+      @resume="confirmResume"
       @close-job="confirmClose"
     />
 

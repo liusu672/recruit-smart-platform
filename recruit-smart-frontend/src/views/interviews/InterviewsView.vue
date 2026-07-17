@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshCw, RotateCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
 import CandidateInterviewBrief from '@/components/interviews/CandidateInterviewBrief.vue'
 import InterviewCopilotPanel from '@/components/interviews/InterviewCopilotPanel.vue'
@@ -23,6 +24,7 @@ import type {
 } from '@/types/interview'
 
 const session = useSessionStore()
+const route = useRoute()
 const {
   demoMode,
   selectedInterviewId,
@@ -67,10 +69,31 @@ const visibleQuestions = computed(() => [
   ...(workspace.value?.questions ?? []),
   ...extraQuestions.value,
 ])
+const routeInterviewId = computed(() => {
+  const raw = Array.isArray(route.query.interviewId)
+    ? route.query.interviewId[0]
+    : route.query.interviewId
+  const id = Number(raw)
+  return Number.isFinite(id) && id > 0 ? id : null
+})
+
+watch(
+  routeInterviewId,
+  (id) => {
+    if (id !== null) selectInterview(id)
+  },
+  { immediate: true },
+)
 
 watch(
   tasks,
   (items) => {
+    if (routeInterviewId.value !== null) {
+      if (selectedInterviewId.value !== routeInterviewId.value) {
+        selectInterview(routeInterviewId.value)
+      }
+      return
+    }
     if (!items.length) return
     if (!items.some((item) => item.id === selectedInterviewId.value)) {
       selectInterview(items[0]!.id)

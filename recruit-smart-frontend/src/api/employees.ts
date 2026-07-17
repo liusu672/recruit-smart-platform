@@ -1,10 +1,11 @@
-import { http, unwrapResult } from '@/api/http'
+import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
   EmployeePagedData,
   EmployeePageResponse,
   EmployeeQuery,
   EmployeeRecord,
+  EmployeeStatusUpdateRequest,
 } from '@/types/employee'
 
 export function adaptEmployeePage(
@@ -32,4 +33,8 @@ export async function getEmployees(query: EmployeeQuery) {
 
 export function getEmployeeById(id: number) {
   return unwrapResult(http.get<Result<EmployeeRecord>>(`/employees/${id}`))
+}
+
+export function updateEmployeeStatus(id: number, data: EmployeeStatusUpdateRequest) {
+  return unwrapVoidResult(http.put<Result<null>>(`/employees/${id}/status`, data))
 }

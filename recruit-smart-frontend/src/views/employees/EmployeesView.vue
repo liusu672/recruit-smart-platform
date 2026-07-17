@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive } from 'vue'
 import EmployeeDetailDrawer from '@/components/employees/EmployeeDetailDrawer.vue'
 import EmployeeTable from '@/components/employees/EmployeeTable.vue'
 import { useEmployeeDirectory } from '@/composables/useEmployeeDirectory'
-import { employeeStatusOptions } from '@/config/employees'
+import { employeeStatusOptions, getEmployeeStatusText } from '@/config/employees'
 import type { EmployeeStatus } from '@/types/employee'
 
 const state = useEmployeeDirectory()
@@ -34,6 +35,27 @@ function submitFilters() {
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', department: '', status: '' })
   state.resetFilters()
+}
+
+async function updateStatus(status: EmployeeStatus) {
+  const record = state.detailQuery.data.value
+  if (!record || record.status === status) return
+  try {
+    await ElMessageBox.confirm(
+      `确认将“${record.name}”的员工状态改为“${getEmployeeStatusText(status)}”？`,
+      '修改员工状态',
+      {
+        confirmButtonText: '确认修改',
+        cancelButtonText: '取消',
+        type: status === 'LEFT' ? 'warning' : 'info',
+      },
+    )
+    await state.statusMutation.mutateAsync({ id: record.id, data: { status } })
+    ElMessage.success('员工状态已更新')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '员工状态更新失败')
+  }
 }
 </script>
 
@@ -115,6 +137,8 @@ function clearFilters() {
       :record="state.detailQuery.data.value"
       :loading="state.detailQuery.isLoading.value"
       :error="detailError"
+      :updating="state.statusMutation.isPending.value"
+      @update-status="updateStatus"
     />
   </div>
 </template>

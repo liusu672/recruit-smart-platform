@@ -26,7 +26,8 @@ export function usePortalResource<T>(loader: () => Promise<T>, demoData: T): Por
       const message = caught instanceof Error ? caught.message : '数据加载失败'
       const protectedFailure =
         caught instanceof ApiError && (caught.code === 401 || caught.code === 403)
-      if (import.meta.env.DEV && !protectedFailure) {
+      const demoFallbackEnabled = import.meta.env.VITE_PORTAL_DEMO_FALLBACK === 'true'
+      if (demoFallbackEnabled && !protectedFailure) {
         // 演示回退也必须保持角色数据隔离，不能借用 HR 候选人库作为候选人数据。
         data.value = demoData
         demoMode.value = true

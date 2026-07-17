@@ -1,14 +1,38 @@
 <script setup lang="ts">
 import { BrainCircuit, CalendarDays, Mail, Phone, ShieldCheck } from 'lucide-vue-next'
-import { getEmployeeStatusTone, getTurnoverRiskText, getTurnoverRiskTone } from '@/config/employees'
-import type { EmployeeRecord } from '@/types/employee'
-defineProps<{
+import { ref, watch } from 'vue'
+
+import {
+  employeeStatusOptions,
+  getEmployeeStatusTone,
+  getTurnoverRiskText,
+  getTurnoverRiskTone,
+} from '@/config/employees'
+import type { EmployeeRecord, EmployeeStatus } from '@/types/employee'
+
+const props = defineProps<{
   visible: boolean
   record: EmployeeRecord | undefined
   loading: boolean
   error: Error | null
+  updating: boolean
 }>()
-const emit = defineEmits<{ 'update:visible': [value: boolean] }>()
+
+const emit = defineEmits<{
+  'update:visible': [value: boolean]
+  updateStatus: [status: EmployeeStatus]
+}>()
+
+const selectedStatus = ref<EmployeeStatus>('PROBATION')
+
+watch(
+  () => props.record?.status,
+  (status) => {
+    if (status) selectedStatus.value = status
+  },
+  { immediate: true },
+)
+
 function formatDate(value: string | null, withTime = false) {
   if (!value) return '未评估'
   return new Intl.DateTimeFormat('zh-CN', {
@@ -68,6 +92,27 @@ function formatDate(value: string | null, withTime = false) {
         </div>
         <p>风险结果只用于提醒 HR 线下关注，不会自动改变员工状态或触发人事动作。</p>
         <small>最近评估：{{ formatDate(record.riskAssessedAt, true) }}</small>
+      </section>
+      <section>
+        <h4>员工状态</h4>
+        <div class="status-form">
+          <el-select v-model="selectedStatus" aria-label="员工状态">
+            <el-option
+              v-for="option in employeeStatusOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            :loading="updating"
+            :disabled="selectedStatus === record.status"
+            @click="emit('updateStatus', selectedStatus)"
+          >
+            更新状态
+          </el-button>
+        </div>
       </section>
       <section>
         <h4>绩效摘要</h4>
@@ -178,6 +223,11 @@ dt {
 }
 .risk p {
   margin-top: var(--rs-space-2);
+}
+.status-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--rs-space-2);
 }
 h4 {
   margin-bottom: var(--rs-space-2);

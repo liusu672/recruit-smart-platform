@@ -17,6 +17,8 @@ const emit = defineEmits<{
   'update:visible': [value: boolean]
   edit: [job: JobPosition]
   publish: [job: JobPosition]
+  pause: [job: JobPosition]
+  resume: [job: JobPosition]
   closeJob: [job: JobPosition]
 }>()
 
@@ -116,6 +118,23 @@ function formatDate(value: string | null) {
         </el-button>
         <el-button
           v-else-if="job.status === 'OPEN'"
+          type="warning"
+          plain
+          :loading="actionLoading"
+          @click="emit('pause', job)"
+        >
+          暂停职位
+        </el-button>
+        <el-button
+          v-else-if="job.status === 'PAUSED'"
+          type="primary"
+          :loading="actionLoading"
+          @click="emit('resume', job)"
+        >
+          恢复职位
+        </el-button>
+        <el-button
+          v-if="job.status === 'OPEN' || job.status === 'PAUSED'"
           type="danger"
           plain
           :loading="actionLoading"

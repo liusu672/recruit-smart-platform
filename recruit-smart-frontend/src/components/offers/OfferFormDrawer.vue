@@ -40,7 +40,7 @@ const title = computed(() => (props.offer ? '编辑 Offer 草稿' : '创建 Offe
 const isDirty = computed(() => JSON.stringify(form) !== initialSnapshot.value)
 
 const rules: FormRules<OfferFormValue> = {
-  applicationId: [{ required: true, message: '请选择已通过面试的投递', trigger: 'change' }],
+  applicationId: [{ required: true, message: '请选择面试中的投递', trigger: 'change' }],
   salary: [
     { required: true, message: '请输入录用月薪', trigger: 'change' },
     {
@@ -80,6 +80,12 @@ function selectCandidate(applicationId: number) {
   const candidate = props.candidates.find((item) => item.applicationId === applicationId)
   form.candidateName = candidate?.candidateName ?? ''
   form.jobTitle = candidate?.jobTitle ?? ''
+}
+
+function formatCandidateLabel(candidate: OfferCandidateOption) {
+  const score =
+    candidate.interviewScore === null ? '面试评分待补充' : `面试 ${candidate.interviewScore} 分`
+  return `${candidate.candidateName} - ${candidate.jobTitle}（${score}）`
 }
 
 async function requestClose(done?: () => void) {
@@ -141,13 +147,13 @@ async function submit() {
         <el-select
           v-if="!offer"
           v-model="form.applicationId"
-          placeholder="选择已通过面试的候选人"
+          placeholder="选择面试中的候选人"
           @change="selectCandidate"
         >
           <el-option
             v-for="candidate in candidates"
             :key="candidate.applicationId"
-            :label="`${candidate.candidateName} - ${candidate.jobTitle}（面试 ${candidate.interviewScore} 分）`"
+            :label="formatCandidateLabel(candidate)"
             :value="candidate.applicationId"
           />
         </el-select>

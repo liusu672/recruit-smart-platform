@@ -41,3 +41,7 @@ export function canReviewOnboardingMaterial(status: OnboardingStatus) {
 export function canCompleteOnboarding(status: OnboardingStatus, materialStatus: MaterialStatus) {
   return status === 'APPROVED' && materialStatus === 'APPROVED'
 }
+
+export function canCancelOnboarding(status: OnboardingStatus) {
+  return status !== 'ONBOARDED' && status !== 'CANCELED'
+}

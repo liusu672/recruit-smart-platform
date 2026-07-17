@@ -1,6 +1,6 @@
 import { getOfferStatusText, validateOfferForSend } from '@/config/offers'
+import { initialDemoPipeline } from '@/config/demoPipeline'
 import type {
-  OfferCandidateOption,
   OfferCreateRequest,
   OfferQuery,
   OfferRecord,
@@ -8,21 +8,6 @@ import type {
   OfferSendRequest,
   OfferUpdateRequest,
 } from '@/types/offer'
-
-export const demoEligibleOfferApplications: OfferCandidateOption[] = [
-  {
-    applicationId: 511,
-    candidateName: '顾知行',
-    jobTitle: 'Java 后端开发工程师',
-    interviewScore: 87,
-  },
-  {
-    applicationId: 512,
-    candidateName: '赵可欣',
-    jobTitle: 'UI/UX 设计师',
-    interviewScore: 84,
-  },
-]
 
 export const initialDemoOffers: OfferRecord[] = [
   {
@@ -201,21 +186,21 @@ export function createDemoOffer(
   createdAt = new Date().toISOString(),
 ) {
   const id = Math.max(800, ...records.map((item) => item.id)) + 1
-  const candidate = demoEligibleOfferApplications.find(
-    (item) => item.applicationId === request.applicationId,
+  const application = initialDemoPipeline.find(
+    (item) => item.id === request.applicationId && item.status === 'INTERVIEWING',
   )
   const offer: OfferRecord = {
     id,
     applicationId: request.applicationId,
-    candidateId: request.applicationId + 100,
-    candidateName: candidate?.candidateName ?? '待接口补充候选人',
-    candidatePhone: null,
-    candidateEmail: null,
-    jobId: 0,
-    jobTitle: candidate?.jobTitle ?? '待接口补充职位',
-    department: '待补充',
-    interviewScore: candidate?.interviewScore ?? null,
-    interviewSuggestion: candidate ? 'PASS' : null,
+    candidateId: application?.candidateId ?? request.applicationId + 100,
+    candidateName: application?.candidateName ?? '待接口补充候选人',
+    candidatePhone: application?.candidatePhone ?? null,
+    candidateEmail: application?.candidateEmail ?? null,
+    jobId: application?.jobId ?? 0,
+    jobTitle: application?.jobTitle ?? '待接口补充职位',
+    department: application?.department ?? '待补充',
+    interviewScore: application?.interview?.feedbackScore ?? null,
+    interviewSuggestion: application?.interview?.feedbackSuggestion ?? null,
     salary: request.salary,
     entryDate: request.entryDate,
     probationMonths: request.probationMonths,

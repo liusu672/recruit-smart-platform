@@ -1,6 +1,6 @@
 import type { PagedData } from '@/types/api'
 
-export type JobStatus = 'DRAFT' | 'OPEN' | 'CLOSED'
+export type JobStatus = 'DRAFT' | 'OPEN' | 'PAUSED' | 'CLOSED'
 
 export interface JobPosition {
   id: number
