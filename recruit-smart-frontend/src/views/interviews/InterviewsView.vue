@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { RefreshCw, RotateCcw, Search, ShieldCheck, TriangleAlert } from 'lucide-vue-next'
+import {
+  CalendarClock,
+  CheckCircle2,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -12,6 +20,7 @@ import { useInterviewWorkspace } from '@/composables/useInterviewWorkspace'
 import {
   calculateInterviewScore,
   interviewFeedbackStateOptions,
+  interviewMethodOptions,
   interviewStatusOptions,
 } from '@/config/interviews'
 import { useSessionStore } from '@/stores/session'
@@ -19,6 +28,7 @@ import type {
   InterviewFeedbackState,
   InterviewQuestion,
   InterviewScoreItem,
+  InterviewScheduleRequest,
   InterviewStatus,
   InterviewSuggestion,
 } from '@/types/interview'
@@ -31,6 +41,8 @@ const {
   taskQuery,
   workspaceQuery,
   draftMutation,
+  scheduleMutation,
+  completeMutation,
   submitMutation,
   questionMutation,
   applyFilters,
@@ -53,6 +65,17 @@ const scorecard = ref<InterviewScoreItem[]>([])
 const comment = ref('')
 const suggestion = ref<InterviewSuggestion | null>(null)
 const extraQuestions = ref<InterviewQuestion[]>([])
+const scheduleDialogVisible = ref(false)
+const scheduleForm = reactive<InterviewScheduleRequest>({
+  interviewTime: '',
+  method: 'ONLINE',
+  location: '',
+})
+const scheduleRules = {
+  interviewTime: [{ required: true, message: '请选择面试时间', trigger: 'change' }],
+  method: [{ required: true, message: '请选择面试方式', trigger: 'change' }],
+  location: [{ required: true, message: '请填写地点或会议链接', trigger: 'blur' }],
+}
 
 const tasks = computed(() => taskQuery.data.value?.items ?? [])
 const workspace = computed(() => workspaceQuery.data.value)
@@ -62,7 +85,17 @@ const overallScore = computed(() =>
   calculateInterviewScore(scorecard.value.map((item) => item.score)),
 )
 const canEdit = computed(
-  () => session.currentRole === 'INTERVIEWER' && workspace.value?.feedbackState !== 'SUBMITTED',
+  () =>
+    session.currentRole === 'INTERVIEWER' &&
+    (workspace.value?.status === 'SCHEDULED' || workspace.value?.status === 'COMPLETED') &&
+    workspace.value?.feedbackState !== 'SUBMITTED',
+)
+const canSubmitFeedback = computed(() => canEdit.value && workspace.value?.status === 'COMPLETED')
+const canSchedule = computed(
+  () => session.currentRole === 'INTERVIEWER' && workspace.value?.status === 'ASSIGNED',
+)
+const canComplete = computed(
+  () => session.currentRole === 'INTERVIEWER' && workspace.value?.status === 'SCHEDULED',
 )
 const readonly = computed(() => !canEdit.value)
 const visibleQuestions = computed(() => [
@@ -138,6 +171,56 @@ function buildFeedbackRequest() {
   }
 }
 
+function openScheduleDialog() {
+  const interview = workspace.value
+  if (!interview || !canSchedule.value) return
+  scheduleForm.interviewTime = interview.interviewTime ?? ''
+  scheduleForm.method = interview.method ?? 'ONLINE'
+  scheduleForm.location = interview.location ?? ''
+  scheduleDialogVisible.value = true
+}
+
+async function submitSchedule() {
+  const interview = workspace.value
+  if (!interview || !canSchedule.value) return
+  if (!scheduleForm.interviewTime || !scheduleForm.location.trim()) {
+    ElMessage.warning('请选择面试时间并填写地点或会议链接')
+    return
+  }
+
+  try {
+    await scheduleMutation.mutateAsync({
+      id: interview.id,
+      data: {
+        interviewTime: scheduleForm.interviewTime,
+        method: scheduleForm.method,
+        location: scheduleForm.location.trim(),
+      },
+    })
+    scheduleDialogVisible.value = false
+    ElMessage.success('面试预约已确认')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '面试预约失败')
+  }
+}
+
+async function completeCurrentInterview() {
+  const interview = workspace.value
+  if (!interview || !canComplete.value) return
+  try {
+    await ElMessageBox.confirm('完成后才能提交面试反馈，请确认本次面试已经结束。', '完成面试', {
+      confirmButtonText: '确认完成',
+      cancelButtonText: '继续面试',
+      type: 'info',
+    })
+    await completeMutation.mutateAsync(interview.id)
+    ElMessage.success('面试已完成，现在可以提交反馈')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '完成面试失败')
+  }
+}
+
 async function saveDraft() {
   const interview = workspace.value
   if (!interview || !canEdit.value) return
@@ -151,7 +234,12 @@ async function saveDraft() {
 
 async function submitFeedback() {
   const interview = workspace.value
-  if (!interview || !canEdit.value) return
+  if (!interview || !canSubmitFeedback.value) {
+    if (interview?.status !== 'COMPLETED') {
+      ElMessage.warning('请先将面试标记为已完成，再提交反馈')
+    }
+    return
+  }
   if (
     scorecard.value.some((item) => item.score === null || !item.evidence.trim()) ||
     !comment.value.trim() ||
@@ -306,6 +394,39 @@ async function generateQuestion(focus: string) {
           </div>
         </section>
 
+        <section
+          v-if="canSchedule || canComplete"
+          class="interview-action-bar"
+          aria-label="面试状态操作"
+        >
+          <div>
+            <strong>{{ canSchedule ? '面试官尚未确认预约' : '面试已预约' }}</strong>
+            <span>{{
+              canSchedule
+                ? '确认时间、方式和地点后，候选人才能查看面试安排。'
+                : '面试结束后请先标记完成，再提交结构化反馈。'
+            }}</span>
+          </div>
+          <el-button
+            v-if="canSchedule"
+            type="primary"
+            :icon="CalendarClock"
+            :loading="scheduleMutation.isPending.value"
+            @click="openScheduleDialog"
+          >
+            预约面试
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :icon="CheckCircle2"
+            :loading="completeMutation.isPending.value"
+            @click="completeCurrentInterview"
+          >
+            完成面试
+          </el-button>
+        </section>
+
         <section class="interview-workspace">
           <CandidateInterviewBrief :interview="workspace" />
           <InterviewScorecard
@@ -314,6 +435,7 @@ async function generateQuestion(focus: string) {
             :suggestion="suggestion"
             :overall-score="overallScore"
             :readonly="readonly"
+            :submit-disabled="!canSubmitFeedback"
             :saving="draftMutation.isPending.value"
             :submitting="submitMutation.isPending.value"
             @update:scorecard="scorecard = $event"
@@ -333,6 +455,49 @@ async function generateQuestion(focus: string) {
 
       <el-empty v-else description="请选择一个面试任务进入工作区" :image-size="80" />
     </template>
+
+    <el-dialog v-model="scheduleDialogVisible" title="预约面试" width="480px" destroy-on-close>
+      <el-form :model="scheduleForm" :rules="scheduleRules" label-width="96px">
+        <el-form-item label="面试时间" prop="interviewTime">
+          <el-date-picker
+            v-model="scheduleForm.interviewTime"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            format="YYYY-MM-DD HH:mm"
+            placeholder="选择面试时间"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="面试方式" prop="method">
+          <el-select v-model="scheduleForm.method" placeholder="选择面试方式" style="width: 100%">
+            <el-option
+              v-for="option in interviewMethodOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="地点或会议" prop="location">
+          <el-input
+            v-model="scheduleForm.location"
+            placeholder="填写会议链接、会议室或联系电话"
+            maxlength="255"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="scheduleDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="scheduleMutation.isPending.value"
+          @click="submitSchedule"
+        >
+          确认预约
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -451,6 +616,27 @@ async function generateQuestion(focus: string) {
 }
 
 .interview-reminder span {
+  color: var(--rs-text-secondary);
+  font-size: 12px;
+}
+
+.interview-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-4);
+  padding: var(--rs-space-3) var(--rs-space-4);
+  border: 1px solid var(--rs-blue-500);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-selected);
+}
+
+.interview-action-bar > div {
+  display: grid;
+  gap: var(--rs-space-1);
+}
+
+.interview-action-bar span {
   color: var(--rs-text-secondary);
   font-size: 12px;
 }

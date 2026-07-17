@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { adaptPipelinePage } from '@/api/pipeline'
 import {
+  applyDemoInterviewAssignment,
+  applyDemoInterviewCancellation,
+  applyDemoInterviewReassignment,
   applyDemoScreeningDecision,
   applyDemoStatusUpdate,
   getDemoPipelinePage,
@@ -72,6 +75,51 @@ describe('pipeline stages and demo operations', () => {
       hrNote: '作品集符合岗位重点',
     })
     expect(updated.timeline.at(-1)?.source).toBe('BUSINESS')
+  })
+
+  it('assigns, reassigns and cancels an interview from the pipeline', () => {
+    const screening = initialDemoPipeline.find((item) => item.status === 'SCREENING')!
+    const passed = applyDemoScreeningDecision(screening, {
+      decision: 'PASS',
+      rejectReasonCode: '',
+      note: '作品集符合岗位重点',
+    })
+    const assigned = applyDemoInterviewAssignment(
+      passed,
+      { applicationId: passed.id, interviewerId: 3, round: 'FIRST' },
+      '2026-07-17T09:00:00',
+    )
+
+    expect(assigned).toMatchObject({
+      status: 'INTERVIEWING',
+      interview: {
+        status: 'ASSIGNED',
+        interviewerId: 3,
+        interviewTime: null,
+        method: null,
+        location: null,
+        assignedAt: '2026-07-17T09:00:00',
+        scheduledAt: null,
+      },
+    })
+
+    const reassigned = applyDemoInterviewReassignment(
+      assigned,
+      { interviewerId: 4 },
+      '2026-07-17T09:10:00',
+    )
+    expect(reassigned.interview).toMatchObject({
+      interviewerId: 4,
+      interviewerName: '刘晓',
+      assignedAt: '2026-07-17T09:10:00',
+    })
+
+    const canceled = applyDemoInterviewCancellation(reassigned, '2026-07-17T09:20:00')
+    expect(canceled.interview).toMatchObject({
+      status: 'CANCELED',
+      statusText: '已取消',
+    })
+    expect(canceled.timeline.at(-1)?.title).toBe('取消面试')
   })
 
   it('requires a business reason before rejecting a candidate', () => {

@@ -14,7 +14,8 @@ const emit = defineEmits<{
   select: [id: number]
 }>()
 
-function formatTaskTime(value: string) {
+function formatTaskTime(value: string | null) {
+  if (!value) return '待预约'
   const date = new Date(value)
   return new Intl.DateTimeFormat('zh-CN', {
     month: 'numeric',
@@ -50,13 +51,16 @@ function formatTaskTime(value: string) {
         <span class="task-queue__meta">
           <CalendarClock :size="14" :stroke-width="1.75" aria-hidden="true" />
           {{ formatTaskTime(task.interviewTime) }}
-          <component
-            :is="task.method === 'ONLINE' ? Video : MapPin"
-            :size="14"
-            :stroke-width="1.75"
-            aria-hidden="true"
-          />
-          {{ task.methodText }}
+          <template v-if="task.method">
+            <component
+              :is="task.method === 'ONLINE' ? Video : MapPin"
+              :size="14"
+              :stroke-width="1.75"
+              aria-hidden="true"
+            />
+            {{ task.methodText }}
+          </template>
+          <span v-else>方式待确认</span>
         </span>
       </span>
       <span class="task-queue__states">

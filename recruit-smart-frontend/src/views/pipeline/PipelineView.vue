@@ -9,9 +9,11 @@ import PipelineBoard from '@/components/pipeline/PipelineBoard.vue'
 import PipelineTable from '@/components/pipeline/PipelineTable.vue'
 import ScreeningDecisionDialog from '@/components/pipeline/ScreeningDecisionDialog.vue'
 import { applicationStatusOptions, getPipelineStageKey, pipelineStages } from '@/config/pipeline'
+import { interviewRoundOptions } from '@/config/interviews'
 import { useRecruitmentPipeline } from '@/composables/useRecruitmentPipeline'
 import { useSessionStore } from '@/stores/session'
 import type { ApplicationStatus } from '@/types/candidate'
+import type { InterviewAssignmentRequest, InterviewRound } from '@/types/interview'
 import type {
   PipelineApplicationDetail,
   PipelineApplicationSummary,
@@ -27,8 +29,12 @@ const {
   selectedApplicationId,
   pipelineQuery,
   detailQuery,
+  interviewerQuery,
   statusMutation,
   reviewMutation,
+  interviewAssignmentMutation,
+  interviewReassignmentMutation,
+  interviewCancellationMutation,
   applyFilters,
   resetFilters,
   useDemoData,
@@ -41,6 +47,16 @@ const viewMode = ref<PipelineViewMode>('BOARD')
 const decisionDialogVisible = ref(false)
 const pendingDecision = ref<ScreeningDecision>('PASS')
 const pendingApplication = ref<PipelineApplicationSummary | null>(null)
+const assignmentDialogVisible = ref(false)
+const assignmentMode = ref<'CREATE' | 'REASSIGN'>('CREATE')
+const assignmentApplication = ref<PipelineApplicationDetail | null>(null)
+const assignmentForm = reactive<{
+  interviewerId: number | null
+  round: InterviewRound
+}>({
+  interviewerId: null,
+  round: 'FIRST',
+})
 const filterForm = reactive({
   keyword: '',
   jobId: null as number | null,
@@ -70,6 +86,11 @@ const stageSummary = computed(() =>
       (application) => getPipelineStageKey(application.status) === stage.key,
     ).length,
   })),
+)
+const interviewerOptions = computed(() => interviewerQuery.data.value ?? [])
+const assignmentSubmitting = computed(
+  () =>
+    interviewAssignmentMutation.isPending.value || interviewReassignmentMutation.isPending.value,
 )
 
 function parseRouteId(value: unknown) {
@@ -124,6 +145,77 @@ function openReview(decision: ScreeningDecision, application: PipelineApplicatio
   pendingDecision.value = decision
   pendingApplication.value = application
   decisionDialogVisible.value = true
+}
+
+function openInterviewAssignment(
+  application: PipelineApplicationDetail,
+  mode: 'CREATE' | 'REASSIGN',
+) {
+  assignmentMode.value = mode
+  assignmentApplication.value = application
+  assignmentForm.interviewerId = application.interview?.interviewerId ?? null
+  assignmentForm.round = application.interview?.round ?? 'FIRST'
+  closeDetail()
+  assignmentDialogVisible.value = true
+  void interviewerQuery.refetch()
+}
+
+async function submitInterviewAssignment() {
+  const application = assignmentApplication.value
+  const interviewerId = assignmentForm.interviewerId
+  if (!application || interviewerId === null) {
+    ElMessage.warning('请选择面试官')
+    return
+  }
+
+  try {
+    if (assignmentMode.value === 'CREATE') {
+      const data: InterviewAssignmentRequest = {
+        applicationId: application.id,
+        interviewerId,
+        round: assignmentForm.round,
+      }
+      await interviewAssignmentMutation.mutateAsync({ id: application.id, data })
+      ElMessage.success('面试官已指派，等待面试官预约')
+    } else if (application.interview) {
+      await interviewReassignmentMutation.mutateAsync({
+        applicationId: application.id,
+        interviewId: application.interview.id,
+        data: { interviewerId },
+      })
+      ElMessage.success('面试官已重新指派')
+    }
+    assignmentDialogVisible.value = false
+    assignmentApplication.value = null
+    selectApplication(application.id)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '面试官指派失败')
+  }
+}
+
+async function cancelInterview(application: PipelineApplicationDetail) {
+  const interview = application.interview
+  if (!interview) return
+
+  try {
+    await ElMessageBox.confirm(
+      `取消“${application.candidateName}”的${interview.roundText}面试后，候选人将无法查看该安排。`,
+      '取消面试',
+      {
+        confirmButtonText: '确认取消',
+        cancelButtonText: '保留安排',
+        type: 'warning',
+      },
+    )
+    await interviewCancellationMutation.mutateAsync({
+      applicationId: application.id,
+      interviewId: interview.id,
+    })
+    ElMessage.success('面试已取消')
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : '取消面试失败')
+  }
 }
 
 async function submitReview(payload: {
@@ -274,6 +366,9 @@ async function submitReview(payload: {
       :demo-mode="demoMode"
       @start-screening="startScreening"
       @review="openReview"
+      @assign-interview="openInterviewAssignment($event, 'CREATE')"
+      @reassign-interview="openInterviewAssignment($event, 'REASSIGN')"
+      @cancel-interview="cancelInterview"
     />
 
     <ScreeningDecisionDialog
@@ -283,6 +378,72 @@ async function submitReview(payload: {
       :submitting="reviewMutation.isPending.value"
       @submit="submitReview"
     />
+
+    <el-dialog
+      v-model="assignmentDialogVisible"
+      :title="assignmentMode === 'CREATE' ? '指派面试官' : '重新指派面试官'"
+      width="440px"
+      destroy-on-close
+    >
+      <div v-if="assignmentApplication" class="interview-assignment">
+        <div class="interview-assignment__context">
+          <strong>{{ assignmentApplication.candidateName }}</strong>
+          <span>
+            {{ assignmentApplication.jobTitle }} ·
+            {{
+              assignmentMode === 'CREATE'
+                ? '初筛已通过，等待面试官预约'
+                : assignmentApplication.interview?.roundText
+            }}
+          </span>
+        </div>
+        <el-form :model="assignmentForm" label-width="88px">
+          <el-form-item label="面试官" required>
+            <el-select
+              v-model="assignmentForm.interviewerId"
+              placeholder="选择面试官"
+              :loading="interviewerQuery.isFetching.value"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="option in interviewerOptions"
+                :key="option.id"
+                :label="option.realName + '（' + option.username + '）'"
+                :value="option.id"
+              />
+            </el-select>
+            <span v-if="interviewerQuery.error.value" class="interview-assignment__error">
+              面试官列表加载失败，请重试
+            </span>
+          </el-form-item>
+          <el-form-item v-if="assignmentMode === 'CREATE'" label="面试轮次" required>
+            <el-select
+              v-model="assignmentForm.round"
+              placeholder="选择面试轮次"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="option in interviewRoundOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="assignmentDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="assignmentSubmitting"
+          :disabled="!interviewerOptions.length"
+          @click="submitInterviewAssignment"
+        >
+          {{ assignmentMode === 'CREATE' ? '确认指派' : '确认重新指派' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -431,5 +592,31 @@ async function submitReview(payload: {
   min-height: 56px;
   padding: 0 var(--rs-space-4);
   color: var(--rs-text-secondary);
+}
+
+.interview-assignment {
+  display: grid;
+  gap: var(--rs-space-4);
+}
+
+.interview-assignment__context {
+  display: grid;
+  gap: var(--rs-space-1);
+  padding: var(--rs-space-3);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-subtle);
+}
+
+.interview-assignment__context span,
+.interview-assignment__error {
+  color: var(--rs-text-secondary);
+  font-size: 12px;
+}
+
+.interview-assignment__error {
+  display: block;
+  margin-top: var(--rs-space-1);
+  color: var(--rs-danger-700);
 }
 </style>

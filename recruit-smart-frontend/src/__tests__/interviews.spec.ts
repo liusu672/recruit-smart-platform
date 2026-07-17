@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { adaptInterviewTaskPage } from '@/api/interviews'
 import {
+  applyDemoInterviewCompletion,
   applyDemoInterviewDraft,
+  applyDemoInterviewSchedule,
   applyDemoInterviewSubmit,
   getDemoInterviewPage,
   initialDemoInterviews,
 } from '@/config/demoInterviews'
-import { calculateInterviewScore } from '@/config/interviews'
+import { calculateInterviewScore, getInterviewStatusText } from '@/config/interviews'
 
 describe('interview API adaptation', () => {
   it('maps task records to the shared pagination contract', () => {
@@ -37,6 +39,47 @@ describe('interview workspace demo operations', () => {
     expect(calculateInterviewScore([4, null, 3, 2])).toBeNull()
   })
 
+  it('schedules an assigned task before allowing it to be completed', () => {
+    const assigned = structuredClone(initialDemoInterviews[0]!)
+    assigned.status = 'ASSIGNED'
+    assigned.statusText = getInterviewStatusText('ASSIGNED')
+    assigned.interviewTime = null
+    assigned.method = null
+    assigned.methodText = '待确认'
+    assigned.location = null
+    assigned.scheduledAt = null
+
+    expect(
+      getDemoInterviewPage([assigned], {
+        keyword: '',
+        status: 'ASSIGNED',
+        feedbackState: '',
+        page: 1,
+        pageSize: 8,
+      }).total,
+    ).toBe(1)
+
+    const scheduled = applyDemoInterviewSchedule(
+      assigned,
+      {
+        interviewTime: '2026-07-20T14:00:00',
+        method: 'ONLINE',
+        location: '腾讯会议 123456',
+      },
+      '2026-07-17T10:00:00',
+    )
+    expect(scheduled).toMatchObject({
+      status: 'SCHEDULED',
+      interviewTime: '2026-07-20T14:00:00',
+      scheduledAt: '2026-07-17T10:00:00',
+    })
+
+    expect(applyDemoInterviewCompletion(scheduled)).toMatchObject({
+      status: 'COMPLETED',
+      statusText: '已完成',
+    })
+  })
+
   it('saves incomplete work as a draft without producing an AI summary', () => {
     const interview = structuredClone(initialDemoInterviews[0]!)
     const updated = applyDemoInterviewDraft(interview, {
@@ -53,11 +96,24 @@ describe('interview workspace demo operations', () => {
   })
 
   it('requires evidence before submitting human feedback', () => {
-    const interview = structuredClone(initialDemoInterviews[1]!)
+    const interview = structuredClone(initialDemoInterviews[2]!)
+    interview.feedbackState = 'EMPTY'
+    interview.feedbackStateText = '未填写'
+    interview.feedback = {
+      ...interview.feedback,
+      id: null,
+      state: 'EMPTY',
+      score: null,
+      comment: '',
+      suggestion: null,
+      submittedAt: null,
+    }
 
     expect(() =>
       applyDemoInterviewSubmit(interview, {
-        scorecard: interview.scorecard,
+        scorecard: interview.scorecard.map((item, index) =>
+          index === 0 ? { ...item, score: null, evidence: '' } : item,
+        ),
         score: null,
         comment: '',
         suggestion: null,
@@ -67,7 +123,7 @@ describe('interview workspace demo operations', () => {
   })
 
   it('locks submitted feedback while keeping the AI summary separate', () => {
-    const interview = structuredClone(initialDemoInterviews[0]!)
+    const interview = applyDemoInterviewCompletion(structuredClone(initialDemoInterviews[0]!))
     const scorecard = interview.scorecard.map((item, index) => ({
       ...item,
       score: index === 0 ? 4 : 3,

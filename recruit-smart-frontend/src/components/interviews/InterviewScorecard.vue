@@ -10,6 +10,7 @@ const props = defineProps<{
   suggestion: InterviewSuggestion | null
   overallScore: number | null
   readonly: boolean
+  submitDisabled: boolean
   saving: boolean
   submitting: boolean
 }>()
@@ -112,11 +113,17 @@ function updateItem(index: number, patch: Partial<InterviewScoreItem>) {
     </section>
 
     <footer class="scorecard__footer">
-      <p v-if="readonly">反馈已提交，原始评价进入只读状态。</p>
+      <p v-if="submitDisabled">完成面试后才能提交反馈。</p>
+      <p v-else-if="readonly">反馈已提交，原始评价进入只读状态。</p>
       <p v-else>提交后不可在前端覆盖；需要修改时由招聘负责人发起审计流程。</p>
       <div v-if="!readonly">
         <el-button :loading="saving" @click="emit('save')">保存草稿</el-button>
-        <el-button type="primary" :loading="submitting" @click="emit('submit')">
+        <el-button
+          type="primary"
+          :loading="submitting"
+          :disabled="submitDisabled"
+          @click="emit('submit')"
+        >
           提交反馈
         </el-button>
       </div>

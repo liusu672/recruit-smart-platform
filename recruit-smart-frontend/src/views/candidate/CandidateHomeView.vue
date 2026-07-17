@@ -50,6 +50,10 @@ const resource = usePortalResource(
 const nextInterview = computed(() =>
   resource.data.value.interviews.find((item) => item.status === 'SCHEDULED'),
 )
+
+function formatInterviewTime(value: string | null) {
+  return value ? new Date(value).toLocaleString('zh-CN') : '待预约'
+}
 </script>
 
 <template>
@@ -96,7 +100,7 @@ const nextInterview = computed(() =>
             <p>{{ nextInterview.methodText }} · {{ nextInterview.location || '地点待通知' }}</p>
           </div>
           <div class="portal-row__cell">
-            <strong>{{ new Date(nextInterview.interviewTime).toLocaleString('zh-CN') }}</strong
+            <strong>{{ formatInterviewTime(nextInterview.interviewTime) }}</strong
             ><span>面试时间</span>
           </div>
           <span class="rs-status-pill rs-status-pill--info">{{ nextInterview.statusText }}</span>

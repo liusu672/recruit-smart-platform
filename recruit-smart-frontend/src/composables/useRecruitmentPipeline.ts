@@ -2,17 +2,28 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
 import {
+  cancelInterview,
+  createInterview,
+  getInterviewers,
+  updateInterview,
+} from '@/api/interviews'
+import {
   getPipelineApplication,
   getPipelineApplications,
   reviewApplication,
   updateApplicationStatus,
 } from '@/api/pipeline'
 import {
+  applyDemoInterviewAssignment,
+  applyDemoInterviewCancellation,
+  applyDemoInterviewReassignment,
   applyDemoScreeningDecision,
   applyDemoStatusUpdate,
+  demoInterviewerOptions,
   getDemoPipelinePage,
   initialDemoPipeline,
 } from '@/config/demoPipeline'
+import type { InterviewAssignmentRequest, InterviewUpdateRequest } from '@/types/interview'
 import type {
   PipelineApplicationDetail,
   PipelineQuery,
@@ -71,6 +82,12 @@ export function useRecruitmentPipeline() {
     },
   })
 
+  const interviewerQuery = useQuery({
+    queryKey: ['interviewers'],
+    queryFn: () => (demoMode.value ? Promise.resolve(demoInterviewerOptions) : getInterviewers()),
+    enabled: false,
+  })
+
   async function invalidatePipeline() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['pipeline'] }),
@@ -94,6 +111,50 @@ export function useRecruitmentPipeline() {
       const index = demoRecords.value.findIndex((item) => item.id === id)
       if (index < 0) throw new Error('演示投递记录不存在')
       demoRecords.value[index] = applyDemoScreeningDecision(demoRecords.value[index]!, data)
+    },
+    onSuccess: invalidatePipeline,
+  })
+
+  const interviewAssignmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InterviewAssignmentRequest }) => {
+      if (!demoMode.value) return createInterview(data)
+      const index = demoRecords.value.findIndex((item) => item.id === id)
+      if (index < 0) throw new Error('演示投递记录不存在')
+      demoRecords.value[index] = applyDemoInterviewAssignment(demoRecords.value[index]!, data)
+    },
+    onSuccess: invalidatePipeline,
+  })
+
+  const interviewReassignmentMutation = useMutation({
+    mutationFn: async ({
+      applicationId,
+      interviewId,
+      data,
+    }: {
+      applicationId: number
+      interviewId: number
+      data: InterviewUpdateRequest
+    }) => {
+      if (!demoMode.value) return updateInterview(interviewId, data)
+      const index = demoRecords.value.findIndex((item) => item.id === applicationId)
+      if (index < 0) throw new Error('演示投递记录不存在')
+      demoRecords.value[index] = applyDemoInterviewReassignment(demoRecords.value[index]!, data)
+    },
+    onSuccess: invalidatePipeline,
+  })
+
+  const interviewCancellationMutation = useMutation({
+    mutationFn: async ({
+      applicationId,
+      interviewId,
+    }: {
+      applicationId: number
+      interviewId: number
+    }) => {
+      if (!demoMode.value) return cancelInterview(interviewId)
+      const index = demoRecords.value.findIndex((item) => item.id === applicationId)
+      if (index < 0) throw new Error('演示投递记录不存在')
+      demoRecords.value[index] = applyDemoInterviewCancellation(demoRecords.value[index]!)
     },
     onSuccess: invalidatePipeline,
   })
@@ -132,8 +193,12 @@ export function useRecruitmentPipeline() {
     selectedApplicationId,
     pipelineQuery,
     detailQuery,
+    interviewerQuery,
     statusMutation,
     reviewMutation,
+    interviewAssignmentMutation,
+    interviewReassignmentMutation,
+    interviewCancellationMutation,
     applyFilters,
     resetFilters,
     useDemoData,
