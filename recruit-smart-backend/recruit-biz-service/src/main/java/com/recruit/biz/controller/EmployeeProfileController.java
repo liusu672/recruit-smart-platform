@@ -40,7 +40,7 @@ public class EmployeeProfileController {
     @GetMapping("/{id}")
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "查询员工档案详情")
-    public Result<EmployeeDetailVO> getDetail(@PathVariable Long id) {
+    public Result<EmployeeDetailVO> getDetail(@PathVariable("id") Long id) {
         return Result.success(employeeProfileService.getDetail(id));
     }
 
@@ -48,7 +48,7 @@ public class EmployeeProfileController {
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "修改员工状态")
     public Result<Void> updateStatus(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody EmployeeStatusUpdateDTO dto
     ) {
         employeeProfileService.updateStatus(id, dto);

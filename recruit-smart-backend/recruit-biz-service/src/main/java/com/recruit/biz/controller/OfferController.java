@@ -43,7 +43,7 @@ public class OfferController {
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "修改Offer草稿")
     public Result<Void> update(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody OfferUpdateDTO dto
     ) {
         offerService.updateOffer(id, dto);
@@ -53,14 +53,14 @@ public class OfferController {
     @GetMapping("/{id}")
     @RequireRoles({"ADMIN", "HR", "CANDIDATE"})
     @Operation(summary = "查询Offer详情")
-    public Result<OfferDetailVO> getDetail(@PathVariable Long id) {
+    public Result<OfferDetailVO> getDetail(@PathVariable("id") Long id) {
         return Result.success(offerService.getDetail(id));
     }
 
     @PutMapping("/{id}/send")
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "发送Offer")
-    public Result<Void> send(@PathVariable Long id) {
+    public Result<Void> send(@PathVariable("id") Long id) {
         offerService.sendOffer(id);
         return Result.success();
     }
@@ -77,7 +77,7 @@ public class OfferController {
     @PutMapping("/{id}/accept")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "候选人接受Offer")
-    public Result<Void> accept(@PathVariable Long id) {
+    public Result<Void> accept(@PathVariable("id") Long id) {
         offerService.acceptOffer(id);
         return Result.success();
     }
@@ -85,7 +85,7 @@ public class OfferController {
     @PutMapping("/{id}/reject")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "候选人拒绝Offer")
-    public Result<Void> reject(@PathVariable Long id) {
+    public Result<Void> reject(@PathVariable("id") Long id) {
         offerService.rejectOffer(id);
         return Result.success();
     }
@@ -102,7 +102,7 @@ public class OfferController {
     @PutMapping("/{id}/revoke")
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "撤回Offer")
-    public Result<Void> revoke(@PathVariable Long id) {
+    public Result<Void> revoke(@PathVariable("id") Long id) {
         offerService.revokeOffer(id);
         return Result.success();
     }

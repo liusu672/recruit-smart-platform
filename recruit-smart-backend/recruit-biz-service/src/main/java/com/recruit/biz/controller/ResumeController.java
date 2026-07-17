@@ -48,7 +48,7 @@ public class ResumeController {
     })
     @Operation(summary = "查询简历详情")
     public Result<ResumeDetailVO> getDetail(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         return Result.success(resumeService.getDetail(id));
     }
@@ -61,7 +61,7 @@ public class ResumeController {
     })
     @Operation(summary = "下载简历文件")
     public ResponseEntity<org.springframework.core.io.Resource> download(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         ResumeFileResource file = resumeService.download(id);
         ContentDisposition disposition = ContentDisposition.attachment()
@@ -86,7 +86,7 @@ public class ResumeController {
     })
     @Operation(summary = "在线预览PDF简历")
     public ResponseEntity<org.springframework.core.io.Resource> preview(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         ResumeFileResource file = resumeService.preview(id);
         ContentDisposition disposition = ContentDisposition.inline()
@@ -107,7 +107,7 @@ public class ResumeController {
     @PutMapping("/{id}/default")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "设置默认简历")
-    public Result<Void> setDefault(@PathVariable Long id) {
+    public Result<Void> setDefault(@PathVariable("id") Long id) {
         resumeService.setDefault(id);
         return Result.success();
     }
@@ -115,7 +115,7 @@ public class ResumeController {
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "修改简历名称")
     public Result<Void> rename(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody ResumeRenameDTO dto
     ) {
         resumeService.rename(id, dto);
@@ -124,7 +124,7 @@ public class ResumeController {
     @DeleteMapping("/{id}")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "删除简历")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable("id") Long id) {
         resumeService.delete(id);
         return Result.success();
     }

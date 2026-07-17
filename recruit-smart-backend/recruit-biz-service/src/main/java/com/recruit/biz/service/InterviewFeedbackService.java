@@ -1,9 +1,15 @@
 package com.recruit.biz.service;
 
 import com.recruit.biz.dto.InterviewFeedbackCreateDTO;
+import com.recruit.biz.dto.InterviewFeedbackDraftDTO;
 import com.recruit.biz.vo.InterviewFeedbackVO;
 
 public interface InterviewFeedbackService {
+    void saveDraft(
+            Long interviewId,
+            InterviewFeedbackDraftDTO dto
+    );
+
     Long submitFeedback(
             Long interviewId,
             InterviewFeedbackCreateDTO dto

@@ -9,6 +9,7 @@ import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.security.CurrentUser;
 import com.recruit.biz.security.UserContext;
+import com.recruit.biz.service.ApplicationProcessEventService;
 import com.recruit.common.exception.BusinessException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +34,9 @@ class JobApplicationScreeningServiceTest {
 
     @Mock
     private JobApplicationMapper jobApplicationMapper;
+
+    @Mock
+    private ApplicationProcessEventService processEventService;
 
     @InjectMocks
     private JobApplicationServiceImpl jobApplicationService;

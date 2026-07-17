@@ -28,7 +28,7 @@ public class JobApplicationHRController {
     @RequireRoles({"ADMIN", "HR", "INTERVIEWER"})
     @Operation(summary = "HR按职位查询投递列表")
     public Result<PageResult<JobApplicationHRSummaryVO>> listJobApplications(
-            @PathVariable Long jobId,
+            @PathVariable("jobId") Long jobId,
             @Valid @ModelAttribute JobApplicationHRQueryDTO dto
     ) {
         return Result.success(

@@ -2,14 +2,19 @@ package com.recruit.biz.controller;
 
 import com.recruit.biz.dto.InterviewCreateDTO;
 import com.recruit.biz.dto.InterviewFeedbackCreateDTO;
+import com.recruit.biz.dto.InterviewFeedbackDraftDTO;
 import com.recruit.biz.dto.InterviewQueryDTO;
+import com.recruit.biz.dto.InterviewTaskQueryDTO;
 import com.recruit.biz.dto.InterviewUpdateDTO;
 import com.recruit.biz.security.RequireRoles;
 import com.recruit.biz.service.InterviewService;
 import com.recruit.biz.service.InterviewFeedbackService;
+import com.recruit.biz.service.InterviewWorkspaceService;
 import com.recruit.biz.vo.InterviewSummaryVO;
+import com.recruit.biz.vo.InterviewTaskSummaryVO;
 import com.recruit.biz.vo.InterviewDetailVO;
 import com.recruit.biz.vo.InterviewFeedbackVO;
+import com.recruit.biz.vo.InterviewWorkspaceVO;
 import com.recruit.common.result.PageResult;
 import com.recruit.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +40,9 @@ public class InterviewController {
 
     @Resource
     private InterviewFeedbackService interviewFeedbackService;
+
+    @Resource
+    private InterviewWorkspaceService interviewWorkspaceService;
 
     @PostMapping
     @RequireRoles({"ADMIN", "HR"})
@@ -69,18 +77,40 @@ public class InterviewController {
         );
     }
 
+    @GetMapping("/tasks")
+    @RequireRoles({"INTERVIEWER", "HR", "ADMIN"})
+    @Operation(summary = "分页查询面试工作台任务")
+    public Result<PageResult<InterviewTaskSummaryVO>> listTasks(
+            @Valid @ModelAttribute InterviewTaskQueryDTO dto
+    ) {
+        return Result.success(
+                interviewWorkspaceService.listTasks(dto)
+        );
+    }
+
     @GetMapping("/{id}")
     @RequireRoles({"CANDIDATE", "INTERVIEWER", "HR", "ADMIN"})
     @Operation(summary = "查询面试详情")
-    public Result<InterviewDetailVO> getDetail(@PathVariable Long id) {
+    public Result<InterviewDetailVO> getDetail(@PathVariable("id") Long id) {
         return Result.success(interviewService.getDetail(id));
+    }
+
+    @GetMapping("/{id}/workspace")
+    @RequireRoles({"INTERVIEWER", "HR", "ADMIN"})
+    @Operation(summary = "查询面试工作台聚合数据")
+    public Result<InterviewWorkspaceVO> getWorkspace(
+            @PathVariable("id") Long id
+    ) {
+        return Result.success(
+                interviewWorkspaceService.getWorkspace(id)
+        );
     }
 
     @PutMapping("/{id}")
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "修改面试安排")
     public Result<Void> update(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody InterviewUpdateDTO dto
     ) {
         interviewService.updateInterview(id, dto);
@@ -90,7 +120,7 @@ public class InterviewController {
     @PutMapping("/{id}/cancel")
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "取消面试")
-    public Result<Void> cancel(@PathVariable Long id) {
+    public Result<Void> cancel(@PathVariable("id") Long id) {
         interviewService.cancelInterview(id);
         return Result.success();
     }
@@ -98,7 +128,7 @@ public class InterviewController {
     @PutMapping("/{id}/complete")
     @RequireRoles({"ADMIN", "HR", "INTERVIEWER"})
     @Operation(summary = "完成面试")
-    public Result<Void> complete(@PathVariable Long id) {
+    public Result<Void> complete(@PathVariable("id") Long id) {
         interviewService.completeInterview(id);
         return Result.success();
     }
@@ -107,7 +137,7 @@ public class InterviewController {
     @RequireRoles({"INTERVIEWER"})
     @Operation(summary = "提交面试反馈")
     public Result<Long> submitFeedback(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody InterviewFeedbackCreateDTO dto
     ) {
         return Result.success(
@@ -115,11 +145,22 @@ public class InterviewController {
         );
     }
 
+    @PutMapping("/{id}/feedback/draft")
+    @RequireRoles({"INTERVIEWER"})
+    @Operation(summary = "保存面试反馈草稿")
+    public Result<Void> saveFeedbackDraft(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody InterviewFeedbackDraftDTO dto
+    ) {
+        interviewFeedbackService.saveDraft(id, dto);
+        return Result.success();
+    }
+
     @GetMapping("/{id}/feedback")
     @RequireRoles({"ADMIN", "HR", "INTERVIEWER"})
     @Operation(summary = "查询面试反馈")
     public Result<InterviewFeedbackVO> getFeedback(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         return Result.success(
                 interviewFeedbackService.getFeedback(id)

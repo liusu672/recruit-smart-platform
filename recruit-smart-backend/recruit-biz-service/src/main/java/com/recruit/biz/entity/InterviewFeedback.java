@@ -14,10 +14,13 @@ public class InterviewFeedback {
     private Long id;
     private Long interviewId;
     private Long interviewerId;
+    private String state;
+    private String scorecardJson;
     private Integer score;
     private String comment;
     private String suggestion;
     private String aiSummary;
+    private LocalDateTime submittedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -7,11 +7,20 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 @Schema(description = "提交面试反馈参数")
 public class InterviewFeedbackCreateDTO {
+
+    @Valid
+    @NotEmpty(message = "评分卡不能为空")
+    @Size(max = 20, message = "评分项不能超过20项")
+    private List<InterviewScoreItemDTO> scorecard;
 
     @NotNull(message = "面试评分不能为空")
     @Min(value = 0, message = "面试评分不能小于0")

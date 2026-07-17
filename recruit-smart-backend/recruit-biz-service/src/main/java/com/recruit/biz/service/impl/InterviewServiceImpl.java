@@ -17,6 +17,8 @@ import com.recruit.biz.enums.InterviewMethod;
 import com.recruit.biz.enums.InterviewRound;
 import com.recruit.biz.enums.InterviewStatus;
 import com.recruit.biz.enums.JobApplicationStatus;
+import com.recruit.biz.enums.ProcessEventType;
+import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
@@ -26,6 +28,7 @@ import com.recruit.biz.mapper.SysRoleMapper;
 import com.recruit.biz.mapper.SysUserMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.InterviewService;
+import com.recruit.biz.service.ApplicationProcessEventService;
 import com.recruit.biz.vo.InterviewSummaryVO;
 import com.recruit.biz.vo.InterviewDetailVO;
 import com.recruit.common.enums.ErrorCode;
@@ -64,6 +67,9 @@ public class InterviewServiceImpl implements InterviewService {
 
     @Resource
     private SysRoleMapper sysRoleMapper;
+
+    @Resource
+    private ApplicationProcessEventService processEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -184,6 +190,17 @@ public class InterviewServiceImpl implements InterviewService {
                 );
             }
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.INTERVIEW_CREATED,
+                null,
+                InterviewStatus.SCHEDULED.name(),
+                "创建" + dto.getRound() + "轮面试，面试时间："
+                        + dto.getInterviewTime(),
+                ProcessRelatedType.INTERVIEW,
+                interview.getId()
+        );
 
         return interview.getId();
     }
@@ -322,6 +339,17 @@ public class InterviewServiceImpl implements InterviewService {
                     "修改面试安排失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                interview.getApplicationId(),
+                ProcessEventType.INTERVIEW_UPDATED,
+                InterviewStatus.SCHEDULED.name(),
+                InterviewStatus.SCHEDULED.name(),
+                "面试时间调整为" + dto.getInterviewTime()
+                        + "，方式：" + dto.getMethod(),
+                ProcessRelatedType.INTERVIEW,
+                interview.getId()
+        );
     }
 
     @Override
@@ -356,6 +384,16 @@ public class InterviewServiceImpl implements InterviewService {
                     "取消面试失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                interview.getApplicationId(),
+                ProcessEventType.INTERVIEW_CANCELED,
+                InterviewStatus.SCHEDULED.name(),
+                InterviewStatus.CANCELED.name(),
+                "取消" + interview.getRound() + "轮面试",
+                ProcessRelatedType.INTERVIEW,
+                interview.getId()
+        );
     }
 
     @Override
@@ -403,6 +441,16 @@ public class InterviewServiceImpl implements InterviewService {
                     "完成面试失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                interview.getApplicationId(),
+                ProcessEventType.INTERVIEW_COMPLETED,
+                InterviewStatus.SCHEDULED.name(),
+                InterviewStatus.COMPLETED.name(),
+                "面试已标记完成，等待面试反馈",
+                ProcessRelatedType.INTERVIEW,
+                interview.getId()
+        );
     }
 
     @Override

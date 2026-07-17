@@ -66,7 +66,7 @@ public class JobApplicationController {
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "查询招聘流程详情")
     public Result<PipelineApplicationDetailVO> getPipelineDetail(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         return Result.success(pipelineService.getPipelineDetail(id));
     }
@@ -75,7 +75,7 @@ public class JobApplicationController {
     @RequireRoles({"CANDIDATE", "HR", "ADMIN", "INTERVIEWER"})
     @Operation(summary = "查询投递详情")
     public Result<JobApplicationDetailVO> getDetail(
-            @PathVariable Long id
+            @PathVariable("id") Long id
     ) {
         return Result.success(jobApplicationService.getDetail(id));
     }
@@ -83,7 +83,7 @@ public class JobApplicationController {
     @PutMapping("/{id}/withdraw")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "撤回职位投递")
-    public Result<Void> withdraw(@PathVariable Long id) {
+    public Result<Void> withdraw(@PathVariable("id") Long id) {
         jobApplicationService.withdraw(id);
         return Result.success();
     }
@@ -92,7 +92,7 @@ public class JobApplicationController {
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "拒绝投递")
     public Result<Void> reject(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody JobApplicationRejectDTO dto
     ) {
         jobApplicationService.reject(id, dto);
@@ -103,7 +103,7 @@ public class JobApplicationController {
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "提交简历筛选结论")
     public Result<Void> reviewScreening(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody JobApplicationScreeningDTO dto
     ) {
         jobApplicationService.reviewScreening(id, dto);
@@ -114,7 +114,7 @@ public class JobApplicationController {
     @RequireRoles({"ADMIN", "HR"})
     @Operation(summary = "修改投递状态")
     public Result<Void> updateStatus(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody JobApplicationStatusUpdateDTO dto
     ) {
         jobApplicationService.updateStatus(id, dto);

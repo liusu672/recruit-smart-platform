@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS offer;
 DROP TABLE IF EXISTS interview_feedback;
 DROP TABLE IF EXISTS interview;
 DROP TABLE IF EXISTS ai_match_result;
+DROP TABLE IF EXISTS application_process_event;
 DROP TABLE IF EXISTS job_application;
 DROP TABLE IF EXISTS resume;
 DROP TABLE IF EXISTS candidate;
@@ -148,7 +149,29 @@ CREATE TABLE job_application (
   KEY idx_application_applied_at (applied_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位投递记录表';
 
--- 7. AI resume matching result table.
+-- 7. Application process event table.
+CREATE TABLE application_process_event (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '流程事件ID',
+  application_id BIGINT NOT NULL COMMENT '投递记录ID',
+  event_type VARCHAR(64) NOT NULL COMMENT '事件类型编码',
+  from_status VARCHAR(32) DEFAULT NULL COMMENT '操作前状态',
+  to_status VARCHAR(32) DEFAULT NULL COMMENT '操作后状态',
+  title VARCHAR(128) NOT NULL COMMENT '事件标题',
+  description VARCHAR(500) DEFAULT NULL COMMENT '事件说明或操作备注',
+  operator_id BIGINT DEFAULT NULL COMMENT '操作人用户ID，系统事件可为空',
+  operator_role VARCHAR(32) DEFAULT NULL COMMENT '操作时的角色编码',
+  source_type VARCHAR(32) NOT NULL DEFAULT 'BUSINESS' COMMENT '来源：BUSINESS、AI、SYSTEM',
+  related_type VARCHAR(32) DEFAULT NULL COMMENT '关联对象类型',
+  related_id BIGINT DEFAULT NULL COMMENT '关联对象ID',
+  occurred_at DATETIME NOT NULL COMMENT '事件发生时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  KEY idx_event_application_time (application_id, occurred_at, id),
+  KEY idx_event_operator_id (operator_id),
+  KEY idx_event_type (event_type),
+  KEY idx_event_related (related_type, related_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='招聘流程事件记录表';
+
+-- 8. AI resume matching result table.
 CREATE TABLE ai_match_result (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'AI匹配结果ID',
   application_id BIGINT NOT NULL COMMENT '投递记录ID',
@@ -170,12 +193,12 @@ CREATE TABLE ai_match_result (
   KEY idx_ai_match_score (match_score)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI简历职位匹配结果表';
 
--- 8. Interview schedule table.
+-- 9. Interview schedule table.
 CREATE TABLE interview (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '面试ID',
   application_id BIGINT NOT NULL COMMENT '投递记录ID',
   interviewer_id BIGINT NOT NULL COMMENT '面试官用户ID',
-  round VARCHAR(32) NOT NULL DEFAULT 'FIRST' COMMENT '面试轮次：FIRST一面，SECOND二面，HR_HR面',
+  round VARCHAR(32) NOT NULL DEFAULT 'FIRST' COMMENT '面试轮次：FIRST一面，SECOND二面，HR表示HR面',
   interview_time DATETIME NOT NULL COMMENT '面试时间',
   method VARCHAR(32) NOT NULL DEFAULT 'ONLINE' COMMENT '面试方式：ONLINE线上，OFFLINE线下，PHONE电话',
   location VARCHAR(255) DEFAULT NULL COMMENT '面试地点或会议链接',
@@ -189,23 +212,28 @@ CREATE TABLE interview (
   KEY idx_interview_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试安排表';
 
--- 9. Interview feedback table.
+-- 10. Interview feedback table.
 CREATE TABLE interview_feedback (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '面试反馈ID',
   interview_id BIGINT NOT NULL COMMENT '面试ID',
   interviewer_id BIGINT NOT NULL COMMENT '面试官用户ID',
+  state VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '反馈状态：DRAFT草稿，SUBMITTED已提交',
+  scorecard_json JSON DEFAULT NULL COMMENT '结构化评分卡JSON',
   score INT DEFAULT NULL COMMENT '面试评分，0-100',
   comment TEXT COMMENT '面试评价',
   suggestion VARCHAR(32) DEFAULT NULL COMMENT '录用建议：PASS通过，REJECT拒绝，PENDING待定',
   ai_summary TEXT COMMENT 'AI反馈摘要',
+  submitted_at DATETIME DEFAULT NULL COMMENT '正式提交时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   UNIQUE KEY uk_feedback_interview_id (interview_id),
   KEY idx_feedback_interviewer_id (interviewer_id),
-  KEY idx_feedback_suggestion (suggestion)
+  KEY idx_feedback_suggestion (suggestion),
+  KEY idx_feedback_state (state),
+  KEY idx_feedback_submitted_at (submitted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试反馈表';
 
--- 10. Offer table.
+-- 11. Offer table.
 CREATE TABLE offer (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT 'Offer ID',
   application_id BIGINT NOT NULL COMMENT '投递记录ID',
@@ -225,7 +253,7 @@ CREATE TABLE offer (
   KEY idx_offer_entry_date (entry_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Offer表';
 
--- 11. Onboarding workflow table.
+-- 12. Onboarding workflow table.
 CREATE TABLE onboarding (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '入职记录ID',
   offer_id BIGINT NOT NULL COMMENT 'Offer ID',
@@ -242,7 +270,7 @@ CREATE TABLE onboarding (
   KEY idx_onboarding_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='入职流程表';
 
--- 12. Employee profile table.
+-- 13. Employee profile table.
 CREATE TABLE employee_profile (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '员工档案ID',
   user_id BIGINT DEFAULT NULL COMMENT '员工系统用户ID',
@@ -366,12 +394,19 @@ INSERT INTO interview (
 (2, 2, 3, 'FIRST', '2026-07-10 10:00:00', 'ONLINE', '腾讯会议：987-654-321', 'SCHEDULED', 2);
 
 INSERT INTO interview_feedback (
-  id, interview_id, interviewer_id, score, comment, suggestion, ai_summary
+  id, interview_id, interviewer_id, state, scorecard_json, score,
+  comment, suggestion, ai_summary, submitted_at
 ) VALUES
-(1, 1, 3, 86,
+(1, 1, 3, 'SUBMITTED', JSON_ARRAY(
+ JSON_OBJECT('key', 'professional', 'label', '专业能力', 'description', '核心知识与实践深度', 'score', 4, 'evidence', 'Java基础扎实，能够说明接口设计'),
+ JSON_OBJECT('key', 'problem-solving', 'label', '问题解决', 'description', '问题拆解与方案能力', 'score', 3, 'evidence', '能够分析项目中的状态流转问题'),
+ JSON_OBJECT('key', 'collaboration', 'label', '协作与影响力', 'description', '沟通与协作能力', 'score', 3, 'evidence', '沟通表达较清晰'),
+ JSON_OBJECT('key', 'reflection', 'label', '结果与复盘', 'description', '结果总结与复盘能力', 'score', 3, 'evidence', '能够总结项目中的不足和改进方向')
+ ), 86,
  '候选人Java基础扎实，能说明项目中的职位、投递和面试模块设计，沟通表达较清晰。',
  'PASS',
- '候选人技术栈与岗位匹配，项目经历相关，建议进入Offer阶段。');
+ '候选人技术栈与岗位匹配，项目经历相关，建议进入Offer阶段。',
+ '2026-07-09 15:10:00');
 
 INSERT INTO offer (
   id, application_id, salary, entry_date, probation_months, work_location,
@@ -398,3 +433,68 @@ INSERT INTO employee_profile (
  '初始入职员工，暂无考勤记录。',
  '入职意愿稳定，对岗位内容认可。',
  'LOW');
+
+INSERT INTO application_process_event (
+  application_id, event_type, from_status, to_status, title, description,
+  operator_id, operator_role, source_type, related_type, related_id, occurred_at
+) VALUES
+(1, 'APPLICATION_SUBMITTED', NULL, 'SUBMITTED', '候选人提交投递',
+ '使用简历“张三-Java后端简历”投递职位“Java后端开发工程师”',
+ 4, 'CANDIDATE', 'BUSINESS', 'APPLICATION', 1, '2026-07-09 10:00:00'),
+(1, 'AI_MATCH_COMPLETED', NULL, NULL, '生成岗位匹配结果',
+ 'AI生成岗位匹配分、推荐理由和风险摘要',
+ NULL, NULL, 'AI', 'AI_MATCH', 1, '2026-07-09 10:05:00'),
+(1, 'SCREENING_PASSED', 'SCREENING', 'SCREEN_PASSED', '筛选通过',
+ 'Java基础较好，项目经历匹配',
+ 2, 'HR', 'BUSINESS', 'APPLICATION', 1, '2026-07-09 10:30:00'),
+(1, 'INTERVIEW_CREATED', NULL, 'SCHEDULED', '创建面试安排',
+ '创建一面安排，面试方式为线上',
+ 2, 'HR', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 11:00:00'),
+(1, 'INTERVIEW_COMPLETED', 'SCHEDULED', 'COMPLETED', '完成面试',
+ '面试已完成，等待面试官提交反馈',
+ 3, 'INTERVIEWER', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 15:00:00'),
+(1, 'INTERVIEW_FEEDBACK_SUBMITTED', NULL, 'PASS', '提交面试反馈',
+ '面试评分86，建议通过',
+ 3, 'INTERVIEWER', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 15:10:00'),
+(1, 'OFFER_CREATED', NULL, 'DRAFT', '创建 Offer',
+ '创建录用方案草稿',
+ 2, 'HR', 'BUSINESS', 'OFFER', 1, '2026-07-09 15:30:00'),
+(1, 'OFFER_SENT', 'DRAFT', 'SENT', '发送 Offer',
+ 'Offer已发送给候选人',
+ 2, 'HR', 'BUSINESS', 'OFFER', 1, '2026-07-09 16:00:00'),
+(1, 'OFFER_ACCEPTED', 'SENT', 'ACCEPTED', '候选人接受 Offer',
+ '候选人确认接受录用方案',
+ 4, 'CANDIDATE', 'BUSINESS', 'OFFER', 1, '2026-07-09 17:00:00'),
+(1, 'ONBOARDING_CREATED', NULL, 'PENDING', '创建入职流程',
+ '接受Offer后自动创建入职流程',
+ 4, 'CANDIDATE', 'BUSINESS', 'ONBOARDING', 1, '2026-07-09 17:00:01'),
+(1, 'MATERIAL_SUBMITTED', 'PENDING', 'REVIEWING', '候选人提交入职材料',
+ '候选人提交入职材料，等待HR审核',
+ 4, 'CANDIDATE', 'BUSINESS', 'ONBOARDING', 1, '2026-07-10 09:00:00'),
+(1, 'MATERIAL_APPROVED', 'REVIEWING', 'APPROVED', '入职材料审核通过',
+ 'HR审核入职材料通过',
+ 2, 'HR', 'BUSINESS', 'ONBOARDING', 1, '2026-07-10 10:00:00'),
+(1, 'ONBOARDING_COMPLETED', 'APPROVED', 'ONBOARDED', '完成入职',
+ '完成入职并创建员工档案EMP20260709001',
+ 2, 'HR', 'BUSINESS', 'EMPLOYEE', 1, '2026-07-15 09:00:00'),
+(2, 'APPLICATION_SUBMITTED', NULL, 'SUBMITTED', '候选人提交投递',
+ '使用简历“李四-AI算法简历”投递职位“AI算法实习生”',
+ NULL, 'CANDIDATE', 'BUSINESS', 'APPLICATION', 2, '2026-07-09 10:20:00'),
+(2, 'AI_MATCH_COMPLETED', NULL, NULL, '生成岗位匹配结果',
+ 'AI生成岗位匹配分、推荐理由和风险摘要',
+ NULL, NULL, 'AI', 'AI_MATCH', 2, '2026-07-09 10:25:00'),
+(2, 'SCREENING_PASSED', 'SCREENING', 'SCREEN_PASSED', '筛选通过',
+ 'AI方向匹配度较高，安排一面',
+ 2, 'HR', 'BUSINESS', 'APPLICATION', 2, '2026-07-09 11:00:00'),
+(2, 'INTERVIEW_CREATED', NULL, 'SCHEDULED', '创建面试安排',
+ '创建一面安排，面试方式为线上',
+ 2, 'HR', 'BUSINESS', 'INTERVIEW', 2, '2026-07-09 11:10:00'),
+(3, 'APPLICATION_SUBMITTED', NULL, 'SUBMITTED', '候选人提交投递',
+ 'HR录入候选人投递记录',
+ 2, 'HR', 'BUSINESS', 'APPLICATION', 3, '2026-07-09 10:40:00'),
+(3, 'AI_MATCH_COMPLETED', NULL, NULL, '生成岗位匹配结果',
+ 'AI生成岗位匹配分、推荐理由和风险摘要',
+ NULL, NULL, 'AI', 'AI_MATCH', 3, '2026-07-09 10:45:00'),
+(3, 'SCREENING_REJECTED', 'SCREENING', 'SCREEN_REJECT', '筛选拒绝',
+ '候选人主要经历为HR方向，与后端开发岗位不匹配',
+ 2, 'HR', 'BUSINESS', 'APPLICATION', 3, '2026-07-09 11:20:00');

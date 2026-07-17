@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruit.biz.assembler.PipelineAssembler;
 import com.recruit.biz.dto.PipelineApplicationQueryDTO;
 import com.recruit.biz.entity.AiMatchResult;
+import com.recruit.biz.entity.ApplicationProcessEvent;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
 import com.recruit.biz.entity.InterviewFeedback;
@@ -14,6 +15,7 @@ import com.recruit.biz.entity.Offer;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.AiMatchResultMapper;
+import com.recruit.biz.mapper.ApplicationProcessEventMapper;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.InterviewMapper;
@@ -52,6 +54,8 @@ public class PipelineServiceImpl implements PipelineService {
     private ResumeMapper resumeMapper;
     @Resource
     private AiMatchResultMapper aiMatchResultMapper;
+    @Resource
+    private ApplicationProcessEventMapper applicationProcessEventMapper;
     @Resource
     private InterviewMapper interviewMapper;
     @Resource
@@ -151,8 +155,24 @@ public class PipelineServiceImpl implements PipelineService {
                 new LambdaQueryWrapper<Offer>()
                         .eq(Offer::getApplicationId, applicationId)
         );
+        List<ApplicationProcessEvent> processEvents =
+                applicationProcessEventMapper.selectList(
+                        new LambdaQueryWrapper<ApplicationProcessEvent>()
+                                .eq(
+                                        ApplicationProcessEvent::getApplicationId,
+                                        applicationId
+                                )
+                                .orderByAsc(
+                                        ApplicationProcessEvent::getOccurredAt
+                                )
+                                .orderByAsc(ApplicationProcessEvent::getId)
+                );
 
         Set<Long> userIds = collectRelatedUserIds(application, interviews, offer);
+        processEvents.stream()
+                .map(ApplicationProcessEvent::getOperatorId)
+                .filter(Objects::nonNull)
+                .forEach(userIds::add);
         Map<Long, SysUser> userMap = userIds.isEmpty()
                 ? Map.of()
                 : sysUserMapper.selectBatchIds(userIds)
@@ -172,6 +192,14 @@ public class PipelineServiceImpl implements PipelineService {
                                         InterviewFeedback::getInterviewId,
                                         currentInterview.getId()
                                 )
+                                .and(condition -> condition
+                                        .eq(
+                                                InterviewFeedback::getState,
+                                                "SUBMITTED"
+                                        )
+                                        .or()
+                                        .isNull(InterviewFeedback::getState)
+                                )
                 );
 
         return pipelineAssembler.toDetail(
@@ -184,6 +212,7 @@ public class PipelineServiceImpl implements PipelineService {
                 currentInterview,
                 feedback,
                 offer,
+                processEvents,
                 userMap
         );
     }

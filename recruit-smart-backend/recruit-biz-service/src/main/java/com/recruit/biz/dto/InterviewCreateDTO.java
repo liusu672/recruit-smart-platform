@@ -24,7 +24,7 @@ public class InterviewCreateDTO {
 
     @NotBlank(message = "面试轮次不能为空")
     @Pattern(
-            regexp = "^(FIRST|SECOND|HR_HR)$",
+            regexp = "^(FIRST|SECOND|HR)$",
             message = "面试轮次不正确"
     )
     @Schema(description = "面试轮次", example = "FIRST")

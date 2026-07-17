@@ -16,6 +16,8 @@ import com.recruit.biz.enums.JobApplicationStatus;
 import com.recruit.biz.enums.OfferStatus;
 import com.recruit.biz.enums.OnboardingMaterialStatus;
 import com.recruit.biz.enums.OnboardingStatus;
+import com.recruit.biz.enums.ProcessEventType;
+import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.mapper.JobPositionMapper;
@@ -23,6 +25,7 @@ import com.recruit.biz.mapper.OfferMapper;
 import com.recruit.biz.mapper.OnboardingMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.OfferService;
+import com.recruit.biz.service.ApplicationProcessEventService;
 import com.recruit.biz.vo.OfferDetailVO;
 import com.recruit.biz.vo.OfferHRSummaryVO;
 import com.recruit.biz.vo.OfferSummaryVO;
@@ -59,6 +62,9 @@ public class OfferServiceImpl implements OfferService {
 
     @Resource
     private OnboardingMapper onboardingMapper;
+
+    @Resource
+    private ApplicationProcessEventService processEventService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -122,10 +128,21 @@ public class OfferServiceImpl implements OfferService {
             );
         }
 
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.OFFER_CREATED,
+                null,
+                OfferStatus.DRAFT.name(),
+                "创建 Offer 草稿",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
+
         return offer.getId();
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateOffer(Long id, OfferUpdateDTO dto) {
         Offer offer = requireOffer(id);
         if (!OfferStatus.DRAFT.name().equals(offer.getStatus())) {
@@ -173,6 +190,16 @@ public class OfferServiceImpl implements OfferService {
                     "修改Offer失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                offer.getApplicationId(),
+                ProcessEventType.OFFER_UPDATED,
+                OfferStatus.DRAFT.name(),
+                OfferStatus.DRAFT.name(),
+                "修改 Offer 草稿内容",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
     }
 
     @Override
@@ -291,6 +318,16 @@ public class OfferServiceImpl implements OfferService {
                     "更新投递状态失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.OFFER_SENT,
+                OfferStatus.DRAFT.name(),
+                OfferStatus.SENT.name(),
+                "Offer 已发送给候选人",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
     }
 
     @Override
@@ -457,6 +494,25 @@ public class OfferServiceImpl implements OfferService {
                     "该Offer已经存在入职记录"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.OFFER_ACCEPTED,
+                OfferStatus.SENT.name(),
+                OfferStatus.ACCEPTED.name(),
+                "候选人确认接受 Offer",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.ONBOARDING_CREATED,
+                null,
+                OnboardingStatus.PENDING.name(),
+                "接受 Offer 后自动创建入职流程",
+                ProcessRelatedType.ONBOARDING,
+                onboarding.getId()
+        );
     }
 
     @Override
@@ -523,6 +579,16 @@ public class OfferServiceImpl implements OfferService {
                     "更新投递状态失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.OFFER_REJECTED,
+                OfferStatus.SENT.name(),
+                OfferStatus.REJECTED.name(),
+                "候选人拒绝 Offer",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
     }
 
     @Override
@@ -739,6 +805,16 @@ public class OfferServiceImpl implements OfferService {
                     "更新投递状态失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.OFFER_REVOKED,
+                OfferStatus.SENT.name(),
+                OfferStatus.REVOKED.name(),
+                "HR 撤回 Offer",
+                ProcessRelatedType.OFFER,
+                offer.getId()
+        );
     }
 
     private OfferHRSummaryVO toHRSummaryVO(

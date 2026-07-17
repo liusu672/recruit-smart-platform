@@ -8,7 +8,7 @@ import lombok.Getter;
 public enum InterviewRound {
     FIRST("一面"),
     SECOND("二面"),
-    HR_HR("HR面");
+    HR("HR面");
 
     private final String description;
 

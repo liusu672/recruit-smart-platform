@@ -2,9 +2,14 @@ package com.recruit.biz.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import com.recruit.biz.assembler.PipelineAssembler;
 import com.recruit.biz.dto.PipelineApplicationQueryDTO;
 import com.recruit.biz.entity.AiMatchResult;
+import com.recruit.biz.entity.ApplicationProcessEvent;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
 import com.recruit.biz.entity.InterviewFeedback;
@@ -14,6 +19,7 @@ import com.recruit.biz.entity.Offer;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.AiMatchResultMapper;
+import com.recruit.biz.mapper.ApplicationProcessEventMapper;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.InterviewMapper;
@@ -47,6 +53,17 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PipelineServiceImplTest {
 
+    @BeforeAll
+    static void initializeTableInfo() {
+        TableInfoHelper.initTableInfo(
+                new MapperBuilderAssistant(
+                        new MybatisConfiguration(),
+                        ""
+                ),
+                InterviewFeedback.class
+        );
+    }
+
     @Mock
     private JobApplicationMapper jobApplicationMapper;
     @Mock
@@ -57,6 +74,8 @@ class PipelineServiceImplTest {
     private ResumeMapper resumeMapper;
     @Mock
     private AiMatchResultMapper aiMatchResultMapper;
+    @Mock
+    private ApplicationProcessEventMapper applicationProcessEventMapper;
     @Mock
     private InterviewMapper interviewMapper;
     @Mock
@@ -162,6 +181,20 @@ class PipelineServiceImplTest {
         offer.setAcceptedAt(appliedAt.plusDays(4));
         when(offerMapper.selectOne(any())).thenReturn(offer);
 
+        ApplicationProcessEvent processEvent = new ApplicationProcessEvent();
+        processEvent.setId(10L);
+        processEvent.setApplicationId(1L);
+        processEvent.setTitle("提交面试反馈");
+        processEvent.setDescription("面试评分90，建议通过");
+        processEvent.setOperatorId(6L);
+        processEvent.setOperatorRole("INTERVIEWER");
+        processEvent.setSourceType("BUSINESS");
+        processEvent.setRelatedType("INTERVIEW");
+        processEvent.setRelatedId(5L);
+        processEvent.setOccurredAt(appliedAt.plusDays(2));
+        when(applicationProcessEventMapper.selectList(any()))
+                .thenReturn(List.of(processEvent));
+
         when(sysUserMapper.selectBatchIds(anyCollection())).thenReturn(List.of(
                 user(6L, "Interviewer"),
                 user(8L, "Recruiter")
@@ -182,6 +215,7 @@ class PipelineServiceImplTest {
         assertEquals(90, result.getInterview().getFeedbackScore());
         assertEquals("ACCEPTED", result.getOffer().getStatus());
         assertFalse(result.getTimeline().isEmpty());
+        assertEquals("提交面试反馈", result.getTimeline().get(0).getTitle());
         assertNotNull(result.getTimeline().get(0).getDescription());
         assertNotNull(result.getTimeline().get(0).getActorName());
     }

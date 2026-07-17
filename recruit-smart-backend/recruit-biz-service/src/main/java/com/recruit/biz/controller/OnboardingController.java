@@ -42,14 +42,14 @@ public class OnboardingController {
     @GetMapping("/{id}")
     @RequireRoles({"CANDIDATE", "HR", "ADMIN"})
     @Operation(summary = "查询入职流程详情")
-    public Result<OnboardingDetailVO> getDetail(@PathVariable Long id) {
+    public Result<OnboardingDetailVO> getDetail(@PathVariable("id") Long id) {
         return Result.success(onboardingService.getDetail(id));
     }
 
     @PutMapping("/{id}/submit-materials")
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "候选人提交入职材料")
-    public Result<Void> submitMaterials(@PathVariable Long id) {
+    public Result<Void> submitMaterials(@PathVariable("id") Long id) {
         onboardingService.submitMaterials(id);
         return Result.success();
     }
@@ -66,7 +66,7 @@ public class OnboardingController {
     @PutMapping("/{id}/approve-materials")
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "HR审核通过入职材料")
-    public Result<Void> approveMaterials(@PathVariable Long id) {
+    public Result<Void> approveMaterials(@PathVariable("id") Long id) {
         onboardingService.approveMaterials(id);
         return Result.success();
     }
@@ -75,7 +75,7 @@ public class OnboardingController {
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "HR驳回入职材料")
     public Result<Void> rejectMaterials(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody OnboardingMaterialRejectDTO dto
     ) {
         onboardingService.rejectMaterials(id, dto);
@@ -85,7 +85,7 @@ public class OnboardingController {
     @PutMapping("/{id}/complete")
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "完成入职并创建员工档案")
-    public Result<Void> complete(@PathVariable Long id) {
+    public Result<Void> complete(@PathVariable("id") Long id) {
         onboardingService.completeOnboarding(id);
         return Result.success();
     }
@@ -94,7 +94,7 @@ public class OnboardingController {
     @RequireRoles({"HR", "ADMIN"})
     @Operation(summary = "取消入职流程")
     public Result<Void> cancel(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody OnboardingCancelDTO dto
     ) {
         onboardingService.cancelOnboarding(id, dto);

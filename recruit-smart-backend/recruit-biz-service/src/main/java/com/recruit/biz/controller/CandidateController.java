@@ -52,7 +52,7 @@ public class CandidateController {
         return Result.success();
     }
 
-    @RequireRoles({"ADMIN","HR","INTERVIEWER"})
+    @RequireRoles({"ADMIN","HR"})
     @Operation(summary = "查看候选人详情")
     @GetMapping("/{id}")
     public Result<CandidateDetailVO> getCandidateDetail(

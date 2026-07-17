@@ -158,7 +158,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'interviews',
         name: 'interviewer-interviews',
-        component: () => import('@/views/interviewer/InterviewerTasksView.vue'),
+        component: () => import('@/views/interviews/InterviewsView.vue'),
         meta: { title: '我的面试', roles: ['INTERVIEWER'] },
       },
     ],

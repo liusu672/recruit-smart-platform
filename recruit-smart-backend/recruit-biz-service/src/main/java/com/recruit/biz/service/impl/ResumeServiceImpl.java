@@ -5,11 +5,13 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.recruit.biz.dto.ResumeRenameDTO;
 import com.recruit.biz.dto.ResumeUploadDTO;
 import com.recruit.biz.entity.Candidate;
+import com.recruit.biz.entity.Interview;
 import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.enums.ResumeFileType;
 import com.recruit.biz.enums.ResumeParseStatus;
 import com.recruit.biz.mapper.CandidateMapper;
+import com.recruit.biz.mapper.InterviewMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.mapper.ResumeMapper;
 import com.recruit.biz.security.UserContext;
@@ -27,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class ResumeServiceImpl implements ResumeService {
@@ -36,6 +40,8 @@ public class ResumeServiceImpl implements ResumeService {
     private CandidateMapper candidateMapper;
     @Resource
     private JobApplicationMapper jobApplicationMapper;
+    @Resource
+    private InterviewMapper interviewMapper;
     @Resource
     private ResumeFileStorage resumeFileStorage;
     @Override
@@ -386,24 +392,64 @@ public class ResumeServiceImpl implements ResumeService {
         return fileName;
     }
     private void checkResumeAccess(Resume resume) {
-        if (!"CANDIDATE".equals(UserContext.getRoleCode())) {
+        String roleCode = UserContext.getRoleCode();
+        if ("ADMIN".equals(roleCode) || "HR".equals(roleCode)) {
             return;
         }
 
-        Candidate candidate = candidateMapper.selectOne(
-                new LambdaQueryWrapper<Candidate>()
-                        .eq(
-                                Candidate::getUserId,
-                                UserContext.getUserId()
-                        )
-        );
+        if ("INTERVIEWER".equals(roleCode)) {
+            Set<Long> applicationIds = jobApplicationMapper.selectList(
+                            new LambdaQueryWrapper<JobApplication>()
+                                    .eq(
+                                            JobApplication::getResumeId,
+                                            resume.getId()
+                                    )
+                    )
+                    .stream()
+                    .map(JobApplication::getId)
+                    .collect(Collectors.toSet());
 
-        if (candidate == null
-                || !candidate.getId().equals(resume.getCandidateId())) {
+            if (!applicationIds.isEmpty()) {
+                Long assignedCount = interviewMapper.selectCount(
+                        new LambdaQueryWrapper<Interview>()
+                                .in(
+                                        Interview::getApplicationId,
+                                        applicationIds
+                                )
+                                .eq(
+                                        Interview::getInterviewerId,
+                                        UserContext.getUserId()
+                                )
+                );
+                if (assignedCount != null && assignedCount > 0) {
+                    return;
+                }
+            }
+
             throw new BusinessException(
                     ErrorCode.FORBIDDEN,
-                    "无权访问该简历"
+                    "无权访问未分配给自己的面试简历"
             );
         }
+
+        if ("CANDIDATE".equals(roleCode)) {
+            Candidate candidate = candidateMapper.selectOne(
+                    new LambdaQueryWrapper<Candidate>()
+                            .eq(
+                                    Candidate::getUserId,
+                                    UserContext.getUserId()
+                            )
+            );
+
+            if (candidate != null
+                    && candidate.getId().equals(resume.getCandidateId())) {
+                return;
+            }
+        }
+
+        throw new BusinessException(
+                ErrorCode.FORBIDDEN,
+                "无权访问该简历"
+        );
     }
 }

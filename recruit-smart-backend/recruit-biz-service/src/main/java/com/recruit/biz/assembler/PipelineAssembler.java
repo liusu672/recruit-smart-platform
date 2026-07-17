@@ -1,6 +1,7 @@
 package com.recruit.biz.assembler;
 
 import com.recruit.biz.entity.AiMatchResult;
+import com.recruit.biz.entity.ApplicationProcessEvent;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
 import com.recruit.biz.entity.InterviewFeedback;
@@ -87,6 +88,7 @@ public class PipelineAssembler {
             Interview currentInterview,
             InterviewFeedback feedback,
             Offer offer,
+            List<ApplicationProcessEvent> processEvents,
             Map<Long, SysUser> userMap
     ) {
         PipelineApplicationSummaryVO summary = toSummary(
@@ -130,16 +132,59 @@ public class PipelineAssembler {
                 feedback
         ));
         vo.setOffer(toOfferSummary(offer, application, job));
-        vo.setTimeline(buildTimeline(
-                application,
-                candidate,
-                job,
-                aiMatch,
-                interviews,
-                offer,
-                userMap
-        ));
+        vo.setTimeline(processEvents == null || processEvents.isEmpty()
+                ? buildTimeline(
+                        application,
+                        candidate,
+                        job,
+                        aiMatch,
+                        interviews,
+                        offer,
+                        userMap
+                )
+                : buildRecordedTimeline(processEvents, userMap));
         return vo;
+    }
+
+    private List<PipelineTimelineEventVO> buildRecordedTimeline(
+            List<ApplicationProcessEvent> processEvents,
+            Map<Long, SysUser> userMap
+    ) {
+        return processEvents.stream()
+                .map(event -> new PipelineTimelineEventVO(
+                        "event-" + event.getId(),
+                        event.getTitle(),
+                        event.getDescription(),
+                        eventActorName(event, userMap),
+                        event.getOccurredAt(),
+                        event.getSourceType(),
+                        relatedObject(event)
+                ))
+                .toList();
+    }
+
+    private String eventActorName(
+            ApplicationProcessEvent event,
+            Map<Long, SysUser> userMap
+    ) {
+        if (event.getOperatorId() != null) {
+            return defaultActorName(
+                    userMap.get(event.getOperatorId()),
+                    hasText(event.getOperatorRole())
+                            ? event.getOperatorRole()
+                            : "系统用户"
+            );
+        }
+        return "AI".equals(event.getSourceType()) ? "AI 服务" : "系统";
+    }
+
+    private String relatedObject(ApplicationProcessEvent event) {
+        if (!hasText(event.getRelatedType())) {
+            return "招聘流程";
+        }
+        return event.getRelatedId() == null
+                ? event.getRelatedType()
+                : event.getRelatedType() + " #" + event.getRelatedId();
     }
 
     public Interview selectCurrentInterview(List<Interview> interviews) {

@@ -18,6 +18,8 @@ import com.recruit.biz.enums.JobApplicationStatus;
 import com.recruit.biz.enums.OfferStatus;
 import com.recruit.biz.enums.OnboardingMaterialStatus;
 import com.recruit.biz.enums.OnboardingStatus;
+import com.recruit.biz.enums.ProcessEventType;
+import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.EmployeeProfileMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
@@ -26,6 +28,7 @@ import com.recruit.biz.mapper.OfferMapper;
 import com.recruit.biz.mapper.OnboardingMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.OnboardingService;
+import com.recruit.biz.service.ApplicationProcessEventService;
 import com.recruit.biz.vo.OnboardingDetailVO;
 import com.recruit.biz.vo.OnboardingHRSummaryVO;
 import com.recruit.biz.vo.OnboardingSummaryVO;
@@ -66,6 +69,9 @@ public class OnboardingServiceImpl implements OnboardingService {
 
     @Resource
     private EmployeeProfileMapper employeeProfileMapper;
+
+    @Resource
+    private ApplicationProcessEventService processEventService;
 
     @Override
     public List<OnboardingSummaryVO> listMyOnboarding() {
@@ -246,6 +252,17 @@ public class OnboardingServiceImpl implements OnboardingService {
                     "提交材料失败，记录可能已被其他人处理"
             );
         }
+
+        JobApplication application = requireApplication(onboarding);
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.MATERIAL_SUBMITTED,
+                onboarding.getStatus(),
+                OnboardingStatus.REVIEWING.name(),
+                "候选人提交入职材料，等待 HR 审核",
+                ProcessRelatedType.ONBOARDING,
+                onboarding.getId()
+        );
     }
 
     @Override
@@ -416,6 +433,17 @@ public class OnboardingServiceImpl implements OnboardingService {
                     "材料审核通过失败，记录可能已被其他人处理"
             );
         }
+
+        JobApplication application = requireApplication(onboarding);
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.MATERIAL_APPROVED,
+                OnboardingStatus.REVIEWING.name(),
+                OnboardingStatus.APPROVED.name(),
+                "HR 审核入职材料通过",
+                ProcessRelatedType.ONBOARDING,
+                onboarding.getId()
+        );
     }
 
     @Override
@@ -471,6 +499,17 @@ public class OnboardingServiceImpl implements OnboardingService {
                     "驳回材料失败，记录可能已被其他人处理"
             );
         }
+
+        JobApplication application = requireApplication(onboarding);
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.MATERIAL_REJECTED,
+                OnboardingStatus.REVIEWING.name(),
+                OnboardingStatus.PENDING.name(),
+                dto.getReason().trim(),
+                ProcessRelatedType.ONBOARDING,
+                onboarding.getId()
+        );
     }
 
     @Override
@@ -646,6 +685,16 @@ public class OnboardingServiceImpl implements OnboardingService {
                     "更新候选人状态失败"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.ONBOARDING_COMPLETED,
+                OnboardingStatus.APPROVED.name(),
+                OnboardingStatus.ONBOARDED.name(),
+                "完成入职并创建员工档案：" + employee.getEmployeeNo(),
+                ProcessRelatedType.EMPLOYEE,
+                employee.getId()
+        );
     }
 
     @Override
@@ -732,11 +781,35 @@ public class OnboardingServiceImpl implements OnboardingService {
                     "更新投递状态失败，记录可能已被其他人处理"
             );
         }
+
+        processEventService.record(
+                application.getId(),
+                ProcessEventType.ONBOARDING_CANCELED,
+                onboarding.getStatus(),
+                OnboardingStatus.CANCELED.name(),
+                dto.getReason().trim(),
+                ProcessRelatedType.ONBOARDING,
+                onboarding.getId()
+        );
     }
 
     private String generateEmployeeNo(Long candidateId) {
         String date = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
         return "EMP" + date + String.format("%06d", candidateId);
+    }
+
+    private JobApplication requireApplication(Onboarding onboarding) {
+        Offer offer = offerMapper.selectById(onboarding.getOfferId());
+        JobApplication application = offer == null
+                ? null
+                : jobApplicationMapper.selectById(offer.getApplicationId());
+        if (application == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "入职流程关联的投递记录不存在"
+            );
+        }
+        return application;
     }
 
     private OnboardingSummaryVO toSummaryVO(
