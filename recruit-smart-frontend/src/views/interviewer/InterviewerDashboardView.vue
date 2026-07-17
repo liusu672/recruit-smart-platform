@@ -6,6 +6,10 @@ import { demoInterviewerTasks } from '@/config/demoCandidatePortal'
 const resource = usePortalResource(getMyInterviewerTasks, demoInterviewerTasks)
 const pending = computed(() => resource.data.value.filter((item) => item.status === 'SCHEDULED'))
 const completed = computed(() => resource.data.value.filter((item) => item.status === 'COMPLETED'))
+
+function formatInterviewTime(value: string | null) {
+  return value ? new Date(value).toLocaleString('zh-CN') : '待预约'
+}
 </script>
 <template>
   <div class="role-portal">
@@ -43,7 +47,7 @@ const completed = computed(() => resource.data.value.filter((item) => item.statu
             <p>候选人：{{ item.candidateName }}</p>
           </div>
           <div class="portal-row__cell">
-            <strong>{{ new Date(item.interviewTime).toLocaleString('zh-CN') }}</strong
+            <strong>{{ formatInterviewTime(item.interviewTime) }}</strong
             ><span>{{ item.methodText }}</span>
           </div>
           <span class="rs-status-pill rs-status-pill--info">{{ item.statusText }}</span

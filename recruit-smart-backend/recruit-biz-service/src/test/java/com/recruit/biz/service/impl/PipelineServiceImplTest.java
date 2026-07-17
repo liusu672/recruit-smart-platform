@@ -220,6 +220,38 @@ class PipelineServiceImplTest {
         assertNotNull(result.getTimeline().get(0).getActorName());
     }
 
+    @Test
+    void currentInterviewPrefersScheduledThenLatestAssignment() {
+        Interview olderAssignment = new Interview();
+        olderAssignment.setId(1L);
+        olderAssignment.setStatus("ASSIGNED");
+        olderAssignment.setAssignedAt(LocalDateTime.of(2026, 7, 16, 9, 0));
+
+        Interview latestAssignment = new Interview();
+        latestAssignment.setId(2L);
+        latestAssignment.setStatus("ASSIGNED");
+        latestAssignment.setAssignedAt(LocalDateTime.of(2026, 7, 17, 9, 0));
+
+        assertEquals(
+                2L,
+                pipelineAssembler.selectCurrentInterview(
+                        List.of(olderAssignment, latestAssignment)
+                ).getId()
+        );
+
+        Interview scheduled = new Interview();
+        scheduled.setId(3L);
+        scheduled.setStatus("SCHEDULED");
+        scheduled.setInterviewTime(LocalDateTime.of(2026, 7, 20, 14, 0));
+
+        assertEquals(
+                3L,
+                pipelineAssembler.selectCurrentInterview(
+                        List.of(latestAssignment, scheduled)
+                ).getId()
+        );
+    }
+
     private JobApplication application(LocalDateTime appliedAt) {
         JobApplication application = new JobApplication();
         application.setId(1L);

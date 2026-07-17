@@ -7,10 +7,23 @@ import type {
 } from '@/types/interview'
 
 export const interviewStatusOptions: Array<{ label: string; value: InterviewStatus }> = [
+  { label: '待预约', value: 'ASSIGNED' },
   { label: '待面试', value: 'SCHEDULED' },
   { label: '已完成', value: 'COMPLETED' },
   { label: '已取消', value: 'CANCELED' },
   { label: '需复试', value: 'REINTERVIEW' },
+]
+
+export const interviewMethodOptions: Array<{ label: string; value: InterviewMethod }> = [
+  { label: '线上面试', value: 'ONLINE' },
+  { label: '线下面试', value: 'OFFLINE' },
+  { label: '电话面试', value: 'PHONE' },
+]
+
+export const interviewRoundOptions: Array<{ label: string; value: InterviewRound }> = [
+  { label: '一面', value: 'FIRST' },
+  { label: '二面', value: 'SECOND' },
+  { label: 'HR 面', value: 'HR' },
 ]
 
 export const interviewFeedbackStateOptions: Array<{
@@ -60,7 +73,8 @@ export function getInterviewRoundText(round: InterviewRound) {
   return '一面'
 }
 
-export function getInterviewMethodText(method: InterviewMethod) {
+export function getInterviewMethodText(method: InterviewMethod | null) {
+  if (!method) return '待确认'
   if (method === 'OFFLINE') return '线下面试'
   if (method === 'PHONE') return '电话面试'
   return '线上面试'

@@ -8,6 +8,7 @@ import {
 import type {
   InterviewFeedbackRequest,
   InterviewTaskQuery,
+  InterviewScheduleRequest,
   InterviewWorkspace,
 } from '@/types/interview'
 
@@ -37,6 +38,8 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
     statusText: getInterviewStatusText('SCHEDULED'),
     interviewerId: 3,
     interviewerName: '王面试官',
+    assignedAt: '2026-07-15T09:20:00',
+    scheduledAt: '2026-07-15T10:00:00',
     feedbackState: 'DRAFT',
     feedbackStateText: getFeedbackStateText('DRAFT'),
     candidateBrief: {
@@ -104,6 +107,8 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
     statusText: getInterviewStatusText('REINTERVIEW'),
     interviewerId: 3,
     interviewerName: '王面试官',
+    assignedAt: '2026-07-14T09:20:00',
+    scheduledAt: '2026-07-14T10:00:00',
     feedbackState: 'EMPTY',
     feedbackStateText: getFeedbackStateText('EMPTY'),
     candidateBrief: {
@@ -162,6 +167,8 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
     statusText: getInterviewStatusText('COMPLETED'),
     interviewerId: 3,
     interviewerName: '王面试官',
+    assignedAt: '2026-07-13T09:20:00',
+    scheduledAt: '2026-07-13T10:00:00',
     feedbackState: 'SUBMITTED',
     feedbackStateText: getFeedbackStateText('SUBMITTED'),
     candidateBrief: {
@@ -227,10 +234,46 @@ export function getDemoInterviewPage(records: InterviewWorkspace[], query: Inter
   }
 }
 
+export function applyDemoInterviewSchedule(
+  interview: InterviewWorkspace,
+  request: InterviewScheduleRequest,
+  scheduledAt = new Date().toISOString(),
+) {
+  if (interview.status !== 'ASSIGNED' && interview.status !== 'SCHEDULED') {
+    throw new Error('当前状态不能预约面试')
+  }
+
+  return {
+    ...interview,
+    interviewTime: request.interviewTime,
+    method: request.method,
+    methodText: getInterviewMethodText(request.method),
+    location: request.location.trim(),
+    status: 'SCHEDULED' as const,
+    statusText: getInterviewStatusText('SCHEDULED'),
+    scheduledAt,
+  }
+}
+
+export function applyDemoInterviewCompletion(interview: InterviewWorkspace) {
+  if (interview.status !== 'SCHEDULED') {
+    throw new Error('只有待面试状态可以标记为完成')
+  }
+
+  return {
+    ...interview,
+    status: 'COMPLETED' as const,
+    statusText: getInterviewStatusText('COMPLETED'),
+  }
+}
+
 export function applyDemoInterviewDraft(
   interview: InterviewWorkspace,
   request: InterviewFeedbackRequest,
 ) {
+  if (interview.status !== 'SCHEDULED' && interview.status !== 'COMPLETED') {
+    throw new Error('只有已确认预约或已完成的面试可以保存反馈草稿')
+  }
   if (interview.feedbackState === 'SUBMITTED') throw new Error('已提交的反馈不能覆盖')
   return {
     ...interview,
@@ -252,6 +295,9 @@ export function applyDemoInterviewSubmit(
   request: InterviewFeedbackRequest,
   submittedAt = new Date().toISOString(),
 ) {
+  if (interview.status !== 'COMPLETED') {
+    throw new Error('只有已完成的面试可以提交反馈')
+  }
   if (interview.feedbackState === 'SUBMITTED') throw new Error('该面试反馈已经提交')
   if (request.scorecard.some((item) => item.score === null || !item.evidence.trim())) {
     throw new Error('请完成所有评分并填写评价证据')

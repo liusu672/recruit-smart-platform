@@ -3,6 +3,10 @@ import { getMyInterviews } from '@/api/candidatePortal'
 import { usePortalResource } from '@/composables/usePortalResource'
 import { demoMyInterviews } from '@/config/demoCandidatePortal'
 const resource = usePortalResource(getMyInterviews, demoMyInterviews)
+
+function formatInterviewTime(value: string | null) {
+  return value ? new Date(value).toLocaleString('zh-CN') : '待预约'
+}
 </script>
 <template>
   <div class="role-portal">
@@ -23,7 +27,7 @@ const resource = usePortalResource(getMyInterviews, demoMyInterviews)
             <p>{{ item.methodText }} · {{ item.location || '地点待通知' }}</p>
           </div>
           <div class="portal-row__cell">
-            <strong>{{ new Date(item.interviewTime).toLocaleString('zh-CN') }}</strong
+            <strong>{{ formatInterviewTime(item.interviewTime) }}</strong
             ><span>面试时间</span>
           </div>
           <span class="rs-status-pill rs-status-pill--info">{{ item.statusText }}</span

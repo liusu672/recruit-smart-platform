@@ -4,6 +4,7 @@ import com.recruit.biz.dto.InterviewCreateDTO;
 import com.recruit.biz.dto.InterviewFeedbackCreateDTO;
 import com.recruit.biz.dto.InterviewFeedbackDraftDTO;
 import com.recruit.biz.dto.InterviewQueryDTO;
+import com.recruit.biz.dto.InterviewScheduleDTO;
 import com.recruit.biz.dto.InterviewTaskQueryDTO;
 import com.recruit.biz.dto.InterviewUpdateDTO;
 import com.recruit.biz.security.RequireRoles;
@@ -46,13 +47,24 @@ public class InterviewController {
 
     @PostMapping
     @RequireRoles({"ADMIN", "HR"})
-    @Operation(summary = "创建面试安排")
+    @Operation(summary = "HR指派面试官")
     public Result<Long> create(
             @Valid @RequestBody InterviewCreateDTO dto
     ) {
         return Result.success(
                 interviewService.createInterview(dto)
         );
+    }
+
+    @PutMapping("/{id}/schedule")
+    @RequireRoles({"INTERVIEWER"})
+    @Operation(summary = "面试官预约并确认面试")
+    public Result<Void> schedule(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody InterviewScheduleDTO dto
+    ) {
+        interviewService.scheduleInterview(id, dto);
+        return Result.success();
     }
 
     @GetMapping("/me")
@@ -108,7 +120,7 @@ public class InterviewController {
 
     @PutMapping("/{id}")
     @RequireRoles({"ADMIN", "HR"})
-    @Operation(summary = "修改面试安排")
+    @Operation(summary = "HR重新指派面试官")
     public Result<Void> update(
             @PathVariable("id") Long id,
             @Valid @RequestBody InterviewUpdateDTO dto

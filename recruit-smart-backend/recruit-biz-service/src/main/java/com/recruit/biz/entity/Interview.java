@@ -20,6 +20,8 @@ public class Interview {
     private String location;
     private String status;
     private Long createdBy;
+    private LocalDateTime assignedAt;
+    private LocalDateTime scheduledAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

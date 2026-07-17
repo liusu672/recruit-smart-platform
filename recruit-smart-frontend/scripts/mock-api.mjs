@@ -382,6 +382,74 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (method === 'POST' && url.pathname === '/auth/register') {
+      const body = await readJson(request)
+      if (!body.username || !body.password || !body.confirmPassword || !body.name || !body.phone) {
+        fail(response, 400, '请完整填写注册信息')
+        return
+      }
+
+      if (body.password !== body.confirmPassword) {
+        fail(response, 400, '两次输入的密码不一致')
+        return
+      }
+
+      if (!/^1[3-9]\d{9}$/.test(String(body.phone))) {
+        fail(response, 400, '手机号格式不正确')
+        return
+      }
+
+      if (candidates.some((candidate) => candidate.phone === body.phone)) {
+        fail(response, 400, '手机号已被绑定，请联系HR')
+        return
+      }
+
+      const candidateId = nextCandidateId++
+      const userId = candidateId + 1000
+      candidates.push({
+        id: candidateId,
+        userId,
+        name: body.name,
+        gender: null,
+        phone: body.phone,
+        email: null,
+        education: null,
+        school: null,
+        major: null,
+        yearsOfExperience: 0,
+        currentStatus: 'AVAILABLE',
+        currentStatusText: '可应聘',
+        source: 'SELF_REGISTER',
+        sourceText: '候选人注册',
+        resumeCount: 0,
+        latestApplicationStatus: null,
+        latestApplicationStatusText: null,
+        latestJobTitle: null,
+        latestMatchScore: null,
+        lastActivityAt: new Date().toISOString(),
+        duplicateRisk: false,
+        resumes: [],
+        applications: [],
+      })
+
+      success(response, {
+        token: 'local-mock-token-register',
+        tokenType: 'Bearer',
+        userInfo: {
+          userId,
+          username: body.username,
+          realName: body.name,
+          phone: body.phone,
+          email: null,
+          roleCode: 'CANDIDATE',
+          roleName: '候选人',
+          roleId: 4,
+          status: 1,
+        },
+      })
+      return
+    }
+
     if (method === 'GET' && url.pathname === '/jobs/open') {
       const records = jobs.filter((job) => job.status === 'OPEN')
       success(response, { total: records.length, records })

@@ -4,11 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.recruit.biz.dto.PasswordUpdateDTO;
 import com.recruit.biz.dto.UserProfileUpdateDTO;
 import com.recruit.biz.entity.Candidate;
+import com.recruit.biz.entity.SysRole;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.CandidateMapper;
+import com.recruit.biz.mapper.SysRoleMapper;
 import com.recruit.biz.mapper.SysUserMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.UserService;
+import com.recruit.biz.vo.InterviewerOptionVO;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
 import jakarta.annotation.Resource;
@@ -17,11 +20,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Service
 public class UserServiceImpl implements UserService {
 
     @Resource
     private SysUserMapper sysUserMapper;
+
+    @Resource
+    private SysRoleMapper sysRoleMapper;
 
     @Resource
     private CandidateMapper candidateMapper;
@@ -113,6 +121,34 @@ public class UserServiceImpl implements UserService {
 
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
         sysUserMapper.updateById(user);
+    }
+
+    @Override
+    public List<InterviewerOptionVO> listInterviewers() {
+        SysRole role = sysRoleMapper.selectOne(
+                new LambdaQueryWrapper<SysRole>()
+                        .eq(SysRole::getRoleCode, "INTERVIEWER")
+        );
+        if (role == null) {
+            return List.of();
+        }
+
+        return sysUserMapper.selectList(
+                        new LambdaQueryWrapper<SysUser>()
+                                .eq(SysUser::getRoleId, role.getId())
+                                .eq(SysUser::getStatus, 1)
+                                .orderByAsc(SysUser::getRealName)
+                                .orderByAsc(SysUser::getId)
+                )
+                .stream()
+                .map(user -> {
+                    InterviewerOptionVO option = new InterviewerOptionVO();
+                    option.setId(user.getId());
+                    option.setUsername(user.getUsername());
+                    option.setRealName(user.getRealName());
+                    return option;
+                })
+                .toList();
     }
 
     private SysUser getUser(Long userId) {

@@ -2,14 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
 import {
+  completeInterview,
   generateInterviewQuestions,
   getInterviewTasks,
   getInterviewWorkspace,
+  scheduleInterview,
   saveInterviewFeedbackDraft,
   submitInterviewFeedback,
 } from '@/api/interviews'
 import {
+  applyDemoInterviewCompletion,
   applyDemoInterviewDraft,
+  applyDemoInterviewSchedule,
   applyDemoInterviewSubmit,
   getDemoInterviewPage,
   initialDemoInterviews,
@@ -17,6 +21,7 @@ import {
 import type {
   InterviewFeedbackRequest,
   InterviewQuestionRequest,
+  InterviewScheduleRequest,
   InterviewTaskQuery,
   InterviewWorkspace,
 } from '@/types/interview'
@@ -95,6 +100,22 @@ export function useInterviewWorkspace() {
     onSuccess: invalidateInterviews,
   })
 
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InterviewScheduleRequest }) => {
+      if (!demoMode.value) return scheduleInterview(id, data)
+      updateDemoInterview(id, (interview) => applyDemoInterviewSchedule(interview, data))
+    },
+    onSuccess: invalidateInterviews,
+  })
+
+  const completeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      if (!demoMode.value) return completeInterview(id)
+      updateDemoInterview(id, applyDemoInterviewCompletion)
+    },
+    onSuccess: invalidateInterviews,
+  })
+
   const submitMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: InterviewFeedbackRequest }) => {
       if (!demoMode.value) return submitInterviewFeedback(id, data)
@@ -148,6 +169,8 @@ export function useInterviewWorkspace() {
     taskQuery,
     workspaceQuery,
     draftMutation,
+    scheduleMutation,
+    completeMutation,
     submitMutation,
     questionMutation,
     applyFilters,

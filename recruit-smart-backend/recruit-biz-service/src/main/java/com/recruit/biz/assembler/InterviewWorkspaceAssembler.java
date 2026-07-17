@@ -68,7 +68,7 @@ public class InterviewWorkspaceAssembler {
                 interview.getMethod()
         );
         vo.setMethodText(
-                method == null ? "未知方式" : method.getDescription()
+                method == null ? "待确认" : method.getDescription()
         );
         vo.setLocation(interview.getLocation());
         vo.setStatus(interview.getStatus());
@@ -78,6 +78,8 @@ public class InterviewWorkspaceAssembler {
         vo.setStatusText(
                 status == null ? "未知状态" : status.getDescription()
         );
+        vo.setAssignedAt(interview.getAssignedAt());
+        vo.setScheduledAt(interview.getScheduledAt());
         vo.setInterviewerId(interview.getInterviewerId());
         vo.setInterviewerName(
                 interviewer == null ? null : interviewer.getRealName()
@@ -130,6 +132,8 @@ public class InterviewWorkspaceAssembler {
         vo.setLocation(detail.getLocation());
         vo.setStatus(detail.getStatus());
         vo.setStatusText(detail.getStatusText());
+        vo.setAssignedAt(detail.getAssignedAt());
+        vo.setScheduledAt(detail.getScheduledAt());
         vo.setInterviewerId(detail.getInterviewerId());
         vo.setInterviewerName(detail.getInterviewerName());
     }

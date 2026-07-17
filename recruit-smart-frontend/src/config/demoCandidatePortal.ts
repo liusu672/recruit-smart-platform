@@ -92,6 +92,8 @@ export const demoMyInterviews: PortalInterview[] = [
     location: '腾讯会议',
     status: 'SCHEDULED',
     statusText: '待面试',
+    assignedAt: '2026-07-17T09:00:00',
+    scheduledAt: '2026-07-17T10:00:00',
   },
 ]
 
@@ -135,6 +137,8 @@ export const demoInterviewerTasks: PortalInterview[] = [
     location: '腾讯会议',
     status: 'SCHEDULED',
     statusText: '待面试',
+    assignedAt: '2026-07-17T09:00:00',
+    scheduledAt: '2026-07-17T10:00:00',
   },
   {
     id: 502,
@@ -153,5 +157,7 @@ export const demoInterviewerTasks: PortalInterview[] = [
     location: '上海办公室 3A',
     status: 'COMPLETED',
     statusText: '待提交反馈',
+    assignedAt: '2026-07-14T09:00:00',
+    scheduledAt: '2026-07-14T10:00:00',
   },
 ]

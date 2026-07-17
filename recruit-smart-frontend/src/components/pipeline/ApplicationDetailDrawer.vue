@@ -17,6 +17,7 @@ import {
   openBlobPreview,
   saveBlobAsFile,
 } from '@/api/resumes'
+import { getInterviewStatusTone } from '@/config/interviews'
 import { getApplicationStatusTone } from '@/config/pipeline'
 import type { PipelineApplicationDetail, ScreeningDecision } from '@/types/pipeline'
 
@@ -33,6 +34,9 @@ defineProps<{
 const emit = defineEmits<{
   startScreening: [application: PipelineApplicationDetail]
   review: [decision: ScreeningDecision, application: PipelineApplicationDetail]
+  assignInterview: [application: PipelineApplicationDetail]
+  reassignInterview: [application: PipelineApplicationDetail]
+  cancelInterview: [application: PipelineApplicationDetail]
 }>()
 
 const activeTab = ref('summary')
@@ -184,12 +188,22 @@ async function downloadResume(application: PipelineApplicationDetail) {
           <section v-if="application.interview" class="application-detail__section">
             <h3><CalendarClock :size="16" :stroke-width="1.75" /> 面试安排</h3>
             <p>
-              {{ application.interview.round }} · {{ application.interview.interviewerName }} ·
+              {{ application.interview.roundText }} ·
+              {{ application.interview.interviewerName || '面试官待确认' }} ·
               {{ formatDate(application.interview.interviewTime) }}
             </p>
-            <span
-              >{{ application.interview.statusText }} · {{ application.interview.location }}</span
-            >
+            <div class="application-detail__interview-meta">
+              <span
+                class="rs-status-pill"
+                :class="`rs-status-pill--${getInterviewStatusTone(application.interview.status)}`"
+              >
+                {{ application.interview.statusText }}
+              </span>
+              <span>
+                {{ application.interview.methodText }} ·
+                {{ application.interview.location || '地点或会议待确认' }}
+              </span>
+            </div>
           </section>
 
           <section v-if="application.offer" class="application-detail__section">
@@ -256,6 +270,34 @@ async function downloadResume(application: PipelineApplicationDetail) {
           </el-button>
           <el-button type="primary" @click="emit('review', 'PASS', application)">
             初筛通过
+          </el-button>
+        </template>
+        <template
+          v-else-if="
+            canManage &&
+            application.interview &&
+            ['ASSIGNED', 'SCHEDULED'].includes(application.interview.status)
+          "
+        >
+          <el-button
+            v-if="application.interview.status === 'ASSIGNED'"
+            @click="emit('reassignInterview', application)"
+          >
+            重新指派
+          </el-button>
+          <el-button type="danger" plain @click="emit('cancelInterview', application)">
+            取消面试
+          </el-button>
+        </template>
+        <template
+          v-else-if="
+            canManage &&
+            (!application.interview || application.interview.status === 'CANCELED') &&
+            (application.status === 'SCREEN_PASSED' || application.status === 'INTERVIEWING')
+          "
+        >
+          <el-button type="primary" @click="emit('assignInterview', application)">
+            {{ application.interview?.status === 'CANCELED' ? '重新安排' : '指派面试官' }}
           </el-button>
         </template>
         <div v-else-if="!canManage" class="application-detail__readonly">
@@ -377,7 +419,8 @@ async function downloadResume(application: PipelineApplicationDetail) {
 }
 
 .application-detail__resume,
-.application-detail__resume-actions {
+.application-detail__resume-actions,
+.application-detail__interview-meta {
   display: flex;
   align-items: center;
   gap: var(--rs-space-2);

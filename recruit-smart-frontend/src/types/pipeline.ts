@@ -1,5 +1,6 @@
 import type { PagedData } from '@/types/api'
 import type { ApplicationStatus } from '@/types/candidate'
+import type { InterviewMethod, InterviewRound, InterviewStatus } from '@/types/interview'
 
 export type PipelineViewMode = 'BOARD' | 'TABLE'
 export type PipelineStageKey = 'NEW' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'CLOSED'
@@ -7,13 +8,18 @@ export type ScreeningDecision = 'PASS' | 'REJECT' | 'PENDING'
 
 export interface PipelineInterviewSummary {
   id: number
-  round: string
+  round: InterviewRound
+  roundText: string
   interviewerName: string
-  interviewTime: string
-  method: string
+  interviewerId: number
+  interviewTime: string | null
+  method: InterviewMethod | null
+  methodText: string
   location: string | null
-  status: string
+  status: InterviewStatus
   statusText: string
+  assignedAt: string | null
+  scheduledAt: string | null
   feedbackScore: number | null
   feedbackSuggestion: string | null
 }

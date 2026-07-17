@@ -1,4 +1,5 @@
 import type { JobPosition } from '@/types/job'
+import type { InterviewMethod, InterviewStatus } from '@/types/interview'
 
 export interface PageResponse<T> {
   total: number
@@ -69,12 +70,14 @@ export interface PortalInterview {
   interviewerName: string
   round: string
   roundText: string
-  interviewTime: string
-  method: string
+  interviewTime: string | null
+  method: InterviewMethod | null
   methodText: string
   location: string | null
-  status: string
+  status: InterviewStatus
   statusText: string
+  assignedAt: string | null
+  scheduledAt: string | null
 }
 
 export interface CandidateOffer {

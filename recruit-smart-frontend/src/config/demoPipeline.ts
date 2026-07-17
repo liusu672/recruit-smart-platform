@@ -1,11 +1,24 @@
 import { getApplicationStatusText, getScreeningDecisionStatus } from '@/config/pipeline'
+import { getInterviewRoundText, getInterviewStatusText } from '@/config/interviews'
+import type {
+  InterviewAssignmentRequest,
+  InterviewUpdateRequest,
+  InterviewerOption,
+} from '@/types/interview'
 import type {
   PipelineApplicationDetail,
   PipelineApplicationSummary,
+  PipelineInterviewSummary,
   PipelineQuery,
   PipelineReviewRequest,
   PipelineStatusUpdateRequest,
 } from '@/types/pipeline'
+
+export const demoInterviewerOptions: InterviewerOption[] = [
+  { id: 3, username: 'interviewer01', realName: '王面试官' },
+  { id: 4, username: 'interviewer02', realName: '刘晓' },
+  { id: 5, username: 'interviewer03', realName: '陈明' },
+]
 
 export const initialDemoPipeline: PipelineApplicationDetail[] = [
   {
@@ -170,13 +183,18 @@ export const initialDemoPipeline: PipelineApplicationDetail[] = [
     },
     interview: {
       id: 701,
-      round: '一面',
+      round: 'FIRST',
+      roundText: '一面',
+      interviewerId: 3,
       interviewerName: '陈明',
       interviewTime: '2026-07-16T14:00:00',
       method: 'ONLINE',
+      methodText: '线上面试',
       location: '腾讯会议 123-456-789',
       status: 'SCHEDULED',
       statusText: '待面试',
+      assignedAt: '2026-07-15T09:20:00',
+      scheduledAt: '2026-07-15T10:00:00',
       feedbackScore: null,
       feedbackSuggestion: null,
     },
@@ -292,13 +310,18 @@ export const initialDemoPipeline: PipelineApplicationDetail[] = [
     aiMatch: null,
     interview: {
       id: 702,
-      round: '二面',
+      round: 'SECOND',
+      roundText: '二面',
+      interviewerId: 4,
       interviewerName: '刘晓',
       interviewTime: '2026-07-12T15:00:00',
       method: 'OFFLINE',
+      methodText: '线下面试',
       location: '武汉研发中心 3A',
       status: 'COMPLETED',
       statusText: '已完成',
+      assignedAt: '2026-07-10T09:20:00',
+      scheduledAt: '2026-07-10T10:00:00',
       feedbackScore: 89,
       feedbackSuggestion: 'PASS',
     },
@@ -599,6 +622,127 @@ export function applyDemoScreeningDecision(
         occurredAt,
         source: 'BUSINESS' as const,
         relatedObject: `投递 #${application.id}`,
+      },
+    ],
+  }
+}
+
+export function applyDemoInterviewAssignment(
+  application: PipelineApplicationDetail,
+  request: InterviewAssignmentRequest,
+  occurredAt = new Date().toISOString(),
+) {
+  const interviewer = demoInterviewerOptions.find((item) => item.id === request.interviewerId)
+  if (!interviewer) throw new Error('演示面试官不存在')
+  if (application.status !== 'SCREEN_PASSED' && application.status !== 'INTERVIEWING') {
+    throw new Error('只有初筛通过的投递可以安排面试')
+  }
+  if (application.interview && ['ASSIGNED', 'SCHEDULED'].includes(application.interview.status)) {
+    throw new Error('该投递已经存在有效面试安排')
+  }
+
+  const interview: PipelineInterviewSummary = {
+    id: application.id * 100 + 1,
+    round: request.round,
+    roundText: getInterviewRoundText(request.round),
+    interviewerId: interviewer.id,
+    interviewerName: interviewer.realName,
+    interviewTime: null,
+    method: null,
+    methodText: '待确认',
+    location: null,
+    status: 'ASSIGNED',
+    statusText: getInterviewStatusText('ASSIGNED'),
+    assignedAt: occurredAt,
+    scheduledAt: null,
+    feedbackScore: null,
+    feedbackSuggestion: null,
+  }
+
+  return {
+    ...application,
+    status: 'INTERVIEWING' as const,
+    statusText: getApplicationStatusText('INTERVIEWING'),
+    interview,
+    lastActivityAt: occurredAt,
+    timeline: [
+      ...application.timeline,
+      {
+        id: `${application.id}-interview-assigned-${occurredAt}`,
+        title: '指派面试官',
+        description: `已指派${interviewer.realName}负责${interview.roundText}。`,
+        actorName: '当前 HR',
+        occurredAt,
+        source: 'BUSINESS' as const,
+        relatedObject: `面试 #${interview.id}`,
+      },
+    ],
+  }
+}
+
+export function applyDemoInterviewReassignment(
+  application: PipelineApplicationDetail,
+  request: InterviewUpdateRequest,
+  occurredAt = new Date().toISOString(),
+) {
+  const interview = application.interview
+  const interviewer = demoInterviewerOptions.find((item) => item.id === request.interviewerId)
+  if (!interview || interview.status !== 'ASSIGNED') {
+    throw new Error('只有待预约面试可以重新指派')
+  }
+  if (!interviewer) throw new Error('演示面试官不存在')
+
+  return {
+    ...application,
+    interview: {
+      ...interview,
+      interviewerId: interviewer.id,
+      interviewerName: interviewer.realName,
+      assignedAt: occurredAt,
+    },
+    lastActivityAt: occurredAt,
+    timeline: [
+      ...application.timeline,
+      {
+        id: `${application.id}-interview-reassigned-${occurredAt}`,
+        title: '重新指派面试官',
+        description: `已改为由${interviewer.realName}负责${interview.roundText}。`,
+        actorName: '当前 HR',
+        occurredAt,
+        source: 'BUSINESS' as const,
+        relatedObject: `面试 #${interview.id}`,
+      },
+    ],
+  }
+}
+
+export function applyDemoInterviewCancellation(
+  application: PipelineApplicationDetail,
+  occurredAt = new Date().toISOString(),
+) {
+  const interview = application.interview
+  if (!interview || !['ASSIGNED', 'SCHEDULED'].includes(interview.status)) {
+    throw new Error('只有待预约或待面试状态可以取消')
+  }
+
+  return {
+    ...application,
+    interview: {
+      ...interview,
+      status: 'CANCELED' as const,
+      statusText: getInterviewStatusText('CANCELED'),
+    },
+    lastActivityAt: occurredAt,
+    timeline: [
+      ...application.timeline,
+      {
+        id: `${application.id}-interview-canceled-${occurredAt}`,
+        title: '取消面试',
+        description: `已取消${interview.roundText}面试安排。`,
+        actorName: '当前 HR',
+        occurredAt,
+        source: 'BUSINESS' as const,
+        relatedObject: `面试 #${interview.id}`,
       },
     ],
   }

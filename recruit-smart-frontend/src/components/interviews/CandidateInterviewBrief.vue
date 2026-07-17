@@ -7,7 +7,8 @@ defineProps<{
   interview: InterviewWorkspace
 }>()
 
-function formatTime(value: string) {
+function formatTime(value: string | null) {
+  if (!value) return '待预约'
   return new Intl.DateTimeFormat('zh-CN', {
     month: 'long',
     day: 'numeric',

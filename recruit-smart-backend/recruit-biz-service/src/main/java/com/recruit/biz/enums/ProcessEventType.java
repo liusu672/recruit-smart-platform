@@ -13,6 +13,8 @@ public enum ProcessEventType {
     SCREENING_PENDING("筛选待定"),
     APPLICATION_REJECTED("终止招聘流程"),
     APPLICATION_WITHDRAWN("候选人撤回投递"),
+    INTERVIEW_ASSIGNED("指派面试官"),
+    INTERVIEW_SCHEDULED("面试官确认预约"),
     INTERVIEW_CREATED("创建面试安排"),
     INTERVIEW_UPDATED("修改面试安排"),
     INTERVIEW_CANCELED("取消面试"),

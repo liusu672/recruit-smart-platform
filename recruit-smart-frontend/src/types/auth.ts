@@ -17,6 +17,14 @@ export interface LoginRequest {
   password: string
 }
 
+export interface CandidateRegisterRequest {
+  username: string
+  password: string
+  confirmPassword: string
+  name: string
+  phone: string
+}
+
 export interface LoginUserInfo {
   userId: number
   username: string
