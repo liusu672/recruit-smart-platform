@@ -19,6 +19,7 @@ public class JobPosition {
     private BigDecimal salaryMin;
     private BigDecimal salaryMax;
     private Integer headcount;
+    private Integer requiredInterviewRounds;
     private String responsibilities;
     private String requirements;
     private String status;

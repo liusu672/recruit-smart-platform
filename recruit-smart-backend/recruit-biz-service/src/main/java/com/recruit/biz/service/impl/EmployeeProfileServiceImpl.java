@@ -108,6 +108,7 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
         vo.setAttendanceSummary(employee.getAttendanceSummary());
         vo.setSatisfactionFeedback(employee.getSatisfactionFeedback());
         vo.setTurnoverRiskLevel(employee.getTurnoverRiskLevel());
+        vo.setRiskAssessedAt(employee.getRiskAssessedAt());
         vo.setCreatedAt(employee.getCreatedAt());
         vo.setUpdatedAt(employee.getUpdatedAt());
 
@@ -190,7 +191,9 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
     private EmployeeSummaryVO toSummaryVO(EmployeeProfile employee) {
         EmployeeSummaryVO vo = new EmployeeSummaryVO();
         vo.setId(employee.getId());
+        vo.setUserId(employee.getUserId());
         vo.setCandidateId(employee.getCandidateId());
+        vo.setOnboardingId(employee.getOnboardingId());
         vo.setEmployeeNo(employee.getEmployeeNo());
         vo.setName(employee.getName());
         vo.setPhone(employee.getPhone());
@@ -199,6 +202,13 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
         vo.setPosition(employee.getPosition());
         vo.setEntryDate(employee.getEntryDate());
         vo.setStatus(employee.getStatus());
+        vo.setPerformanceSummary(employee.getPerformanceSummary());
+        vo.setAttendanceSummary(employee.getAttendanceSummary());
+        vo.setSatisfactionFeedback(employee.getSatisfactionFeedback());
+        vo.setTurnoverRiskLevel(employee.getTurnoverRiskLevel());
+        vo.setRiskAssessedAt(employee.getRiskAssessedAt());
+        vo.setCreatedAt(employee.getCreatedAt());
+        vo.setUpdatedAt(employee.getUpdatedAt());
 
         EmployeeStatus status = EmployeeStatus.fromCode(employee.getStatus());
         vo.setStatusText(

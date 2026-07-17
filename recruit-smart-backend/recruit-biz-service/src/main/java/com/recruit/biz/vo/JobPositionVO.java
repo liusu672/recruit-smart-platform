@@ -40,6 +40,11 @@ public class JobPositionVO {
     private Integer headcount;
 
     /**
+     * 要求完成的面试轮数，范围为1-3。
+     */
+    private Integer requiredInterviewRounds;
+
+    /**
      * 经验要求
      */
     private String experienceRequirement;

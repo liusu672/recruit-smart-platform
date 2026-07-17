@@ -10,6 +10,9 @@ USE recruit_smart;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS message_record;
+DROP TABLE IF EXISTS message_conversation_member;
+DROP TABLE IF EXISTS message_conversation;
 DROP TABLE IF EXISTS employee_profile;
 DROP TABLE IF EXISTS onboarding;
 DROP TABLE IF EXISTS offer;
@@ -65,6 +68,7 @@ CREATE TABLE job_position (
   salary_min DECIMAL(10,2) DEFAULT NULL COMMENT '最低薪资',
   salary_max DECIMAL(10,2) DEFAULT NULL COMMENT '最高薪资',
   headcount INT NOT NULL DEFAULT 1 COMMENT '招聘人数',
+  required_interview_rounds TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '要求面试轮数：1一面，2一面加二面，3一面加二面加HR面',
   responsibilities TEXT COMMENT '岗位职责',
   requirements TEXT COMMENT '任职要求',
   status VARCHAR(32) NOT NULL DEFAULT 'DRAFT' COMMENT '职位状态：DRAFT草稿，OPEN招聘中，PAUSED暂停，CLOSED关闭',
@@ -75,7 +79,8 @@ CREATE TABLE job_position (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   KEY idx_job_position_status (status),
   KEY idx_job_position_department (department),
-  KEY idx_job_position_created_by (created_by)
+  KEY idx_job_position_created_by (created_by),
+  CONSTRAINT chk_job_required_interview_rounds CHECK (required_interview_rounds BETWEEN 1 AND 3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='职位表';
 
 -- 4. Candidate table.
@@ -290,6 +295,7 @@ CREATE TABLE employee_profile (
   attendance_summary TEXT COMMENT '考勤摘要',
   satisfaction_feedback TEXT COMMENT '满意度或访谈反馈',
   turnover_risk_level VARCHAR(32) DEFAULT NULL COMMENT '离职风险等级：LOW，MEDIUM，HIGH',
+  risk_assessed_at DATETIME DEFAULT NULL COMMENT '最近一次离职风险评估时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   UNIQUE KEY uk_employee_no (employee_no),
@@ -298,6 +304,46 @@ CREATE TABLE employee_profile (
   KEY idx_employee_department (department),
   KEY idx_employee_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='员工档案表';
+
+-- 14. Message conversation table.
+CREATE TABLE message_conversation (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '会话ID',
+  application_id BIGINT NOT NULL COMMENT '关联投递记录ID',
+  last_message_preview VARCHAR(255) DEFAULT NULL COMMENT '最后一条消息摘要',
+  last_message_at DATETIME DEFAULT NULL COMMENT '最后一条消息时间',
+  created_by BIGINT DEFAULT NULL COMMENT '会话创建人用户ID，系统自动创建时为空',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY uk_message_conversation_application_id (application_id),
+  KEY idx_message_conversation_last_message_at (last_message_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='招聘流程消息会话表';
+
+-- 15. Message conversation member table.
+CREATE TABLE message_conversation_member (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '会话成员ID',
+  conversation_id BIGINT NOT NULL COMMENT '会话ID',
+  user_id BIGINT NOT NULL COMMENT '成员用户ID',
+  role_code VARCHAR(32) NOT NULL COMMENT '加入会话时的角色编码',
+  last_read_at DATETIME DEFAULT NULL COMMENT '最后已读时间',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY uk_message_member_conversation_user (conversation_id, user_id),
+  KEY idx_message_member_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='消息会话成员表';
+
+-- 16. Message record table.
+CREATE TABLE message_record (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '消息ID',
+  conversation_id BIGINT NOT NULL COMMENT '会话ID',
+  sender_id BIGINT DEFAULT NULL COMMENT '发送人用户ID，系统消息为空',
+  sender_role VARCHAR(32) NOT NULL COMMENT '发送人角色编码',
+  message_type VARCHAR(32) NOT NULL DEFAULT 'TEXT' COMMENT '消息类型：TEXT文本，SYSTEM系统通知，FILE附件',
+  content VARCHAR(5000) NOT NULL COMMENT '消息正文',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+  KEY idx_message_record_conversation_id (conversation_id, id),
+  KEY idx_message_record_sender_id (sender_id),
+  KEY idx_message_record_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='站内消息记录表';
 
 -- Seed data.
 -- The BCrypt hashes below correspond to the demo password: 123456.
@@ -315,18 +361,18 @@ INSERT INTO sys_user (id, username, password, real_name, phone, email, role_id, 
 (4, 'candidate01', '$2a$10$DXeibuKFK47H.le87RVs2uwMeTrqyf0OJm5MMFx6twyLyQah4HdT6', '张三', '13800000004', 'zhangsan@example.com', 4, 1);
 
 INSERT INTO job_position (
-  id, title, department, location, salary_min, salary_max, headcount,
+  id, title, department, location, salary_min, salary_max, headcount, required_interview_rounds,
   responsibilities, requirements, status, created_by, published_at
 ) VALUES
-(1, 'Java后端开发工程师', '研发部', '武汉', 9000.00, 15000.00, 3,
+(1, 'Java后端开发工程师', '研发部', '武汉', 9000.00, 15000.00, 3, 1,
  '负责招聘平台后端接口开发、业务流程实现和数据库设计。',
  '熟悉Java、Spring Boot、MySQL，了解微服务架构，有项目经验优先。',
  'OPEN', 2, '2026-07-09 09:00:00'),
-(2, 'AI算法实习生', 'AI实验室', '武汉', 5000.00, 9000.00, 2,
+(2, 'AI算法实习生', 'AI实验室', '武汉', 5000.00, 9000.00, 2, 2,
  '参与简历匹配、语义检索和面试反馈摘要等AI能力建设。',
  '了解Python、机器学习、向量检索或大模型应用，有RAG经验优先。',
  'OPEN', 2, '2026-07-09 09:30:00'),
-(3, '人力资源专员', '人力资源部', '武汉', 6000.00, 9000.00, 1,
+(3, '人力资源专员', '人力资源部', '武汉', 6000.00, 9000.00, 1, 1,
  '负责招聘流程跟进、候选人沟通和入职材料审核。',
  '具备良好的沟通能力，熟悉招聘流程，有校园招聘经验优先。',
  'DRAFT', 2, NULL);
@@ -427,14 +473,15 @@ INSERT INTO onboarding (
 INSERT INTO employee_profile (
   id, user_id, candidate_id, onboarding_id, employee_no, name, phone, email,
   department, position, entry_date, status, performance_summary,
-  attendance_summary, satisfaction_feedback, turnover_risk_level
+  attendance_summary, satisfaction_feedback, turnover_risk_level,
+  risk_assessed_at
 ) VALUES
 (1, NULL, 1, 1, 'EMP20260709001', '张三', '13900000001', 'zhangsan@example.com',
  '研发部', 'Java后端开发工程师', '2026-07-15', 'PROBATION',
  '初始入职员工，暂无绩效记录。',
  '初始入职员工，暂无考勤记录。',
  '入职意愿稳定，对岗位内容认可。',
- 'LOW');
+ 'LOW', '2026-07-15 18:00:00');
 
 INSERT INTO application_process_event (
   application_id, event_type, from_status, to_status, title, description,

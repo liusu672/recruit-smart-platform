@@ -28,6 +28,7 @@ public class EmployeeProfile {
     private String attendanceSummary;
     private String satisfactionFeedback;
     private String turnoverRiskLevel;
+    private LocalDateTime riskAssessedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -1,6 +1,7 @@
 package com.recruit.biz.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -29,6 +30,10 @@ public class JobPositionCreateDTO {
     @NotNull(message="人数需求不能为空")
     @Min(value=1,message="最少需要招收1人")
     private Integer headcount;
+    @Schema(description = "要求完成的面试轮数，1=一面，2=一面+二面，3=一面+二面+HR面", example = "2")
+    @Min(value = 1, message = "面试轮数不能少于1轮")
+    @Max(value = 3, message = "面试轮数不能超过3轮")
+    private Integer requiredInterviewRounds;
     @Schema(description = "岗位职责", example = "负责招聘平台后端接口开发、业务流程实现和数据库设计。")
     private String responsibilities;
     @Schema(description = "任职要求", example = "熟悉Java、Spring Boot、MySQL，了解微服务架构，有项目经验优先。")

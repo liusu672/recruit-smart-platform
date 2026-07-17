@@ -8,7 +8,9 @@ import com.recruit.biz.dto.InterviewScheduleDTO;
 import com.recruit.biz.dto.InterviewUpdateDTO;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
+import com.recruit.biz.entity.InterviewFeedback;
 import com.recruit.biz.entity.JobApplication;
+import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.SysRole;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.enums.InterviewStatus;
@@ -16,6 +18,7 @@ import com.recruit.biz.enums.JobApplicationStatus;
 import com.recruit.biz.enums.ProcessEventType;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewMapper;
+import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.mapper.JobPositionMapper;
 import com.recruit.biz.mapper.ResumeMapper;
@@ -54,6 +57,7 @@ class InterviewAssignmentFlowTest {
     @BeforeAll
     static void initializeTableInfo() {
         initializeTableInfo(Interview.class);
+        initializeTableInfo(InterviewFeedback.class);
         initializeTableInfo(JobApplication.class);
         initializeTableInfo(Candidate.class);
     }
@@ -67,6 +71,8 @@ class InterviewAssignmentFlowTest {
 
     @Mock
     private InterviewMapper interviewMapper;
+    @Mock
+    private InterviewFeedbackMapper interviewFeedbackMapper;
     @Mock
     private JobApplicationMapper jobApplicationMapper;
     @Mock
@@ -96,6 +102,7 @@ class InterviewAssignmentFlowTest {
                 JobApplicationStatus.SCREEN_PASSED.name()
         );
         when(jobApplicationMapper.selectById(10L)).thenReturn(application);
+        when(jobPositionMapper.selectById(40L)).thenReturn(job(1));
         when(sysUserMapper.selectById(6L)).thenReturn(interviewer(6L));
         when(sysRoleMapper.selectById(3L)).thenReturn(interviewerRole());
         when(interviewMapper.selectCount(any())).thenReturn(0L);
@@ -127,6 +134,73 @@ class InterviewAssignmentFlowTest {
                 "指派测试面试官负责FIRST轮面试",
                 com.recruit.biz.enums.ProcessRelatedType.INTERVIEW,
                 30L
+        );
+    }
+
+    @Test
+    void cannotCreateSecondRoundWhenJobRequiresOneRound() {
+        UserContext.set(new CurrentUser(2L, "hr", "HR"));
+        JobApplication application = application(
+                JobApplicationStatus.INTERVIEWING.name()
+        );
+        when(jobApplicationMapper.selectById(10L)).thenReturn(application);
+        when(jobPositionMapper.selectById(40L)).thenReturn(job(1));
+
+        assertThrows(
+                BusinessException.class,
+                () -> interviewService.createInterview(createSecondRoundDTO())
+        );
+        verify(interviewMapper, never()).insert(any(Interview.class));
+    }
+
+    @Test
+    void cannotCreateSecondRoundBeforeFirstRoundIsCompleted() {
+        UserContext.set(new CurrentUser(2L, "hr", "HR"));
+        JobApplication application = application(
+                JobApplicationStatus.INTERVIEWING.name()
+        );
+        when(jobApplicationMapper.selectById(10L)).thenReturn(application);
+        when(jobPositionMapper.selectById(40L)).thenReturn(job(2));
+        when(interviewMapper.selectCount(any())).thenReturn(0L);
+        when(interviewMapper.selectList(any())).thenReturn(java.util.List.of());
+
+        assertThrows(
+                BusinessException.class,
+                () -> interviewService.createInterview(createSecondRoundDTO())
+        );
+        verify(interviewMapper, never()).insert(any(Interview.class));
+    }
+
+    @Test
+    void canCreateSecondRoundAfterFirstRoundAndFeedbackAreCompleted() {
+        UserContext.set(new CurrentUser(2L, "hr", "HR"));
+        JobApplication application = application(
+                JobApplicationStatus.INTERVIEWING.name()
+        );
+        when(jobApplicationMapper.selectById(10L)).thenReturn(application);
+        when(jobPositionMapper.selectById(40L)).thenReturn(job(2));
+        when(interviewMapper.selectCount(any())).thenReturn(0L);
+        when(interviewMapper.selectList(any()))
+                .thenReturn(java.util.List.of(completedFirstInterview()));
+        when(interviewFeedbackMapper.selectCount(any())).thenReturn(1L);
+        when(sysUserMapper.selectById(6L)).thenReturn(interviewer(6L));
+        when(sysRoleMapper.selectById(3L)).thenReturn(interviewerRole());
+        doAnswer(invocation -> {
+            Interview interview = invocation.getArgument(0);
+            interview.setId(31L);
+            return 1;
+        }).when(interviewMapper).insert(any(Interview.class));
+
+        Long id = interviewService.createInterview(createSecondRoundDTO());
+
+        assertEquals(31L, id);
+        ArgumentCaptor<Interview> captor =
+                ArgumentCaptor.forClass(Interview.class);
+        verify(interviewMapper).insert(captor.capture());
+        assertEquals("SECOND", captor.getValue().getRound());
+        assertEquals(
+                InterviewStatus.ASSIGNED.name(),
+                captor.getValue().getStatus()
         );
     }
 
@@ -241,6 +315,12 @@ class InterviewAssignmentFlowTest {
         return dto;
     }
 
+    private InterviewCreateDTO createSecondRoundDTO() {
+        InterviewCreateDTO dto = createDTO();
+        dto.setRound("SECOND");
+        return dto;
+    }
+
     private JobApplication application(String status) {
         JobApplication application = new JobApplication();
         application.setId(10L);
@@ -260,6 +340,19 @@ class InterviewAssignmentFlowTest {
         interview.setStatus(InterviewStatus.ASSIGNED.name());
         interview.setAssignedAt(LocalDateTime.of(2026, 7, 17, 9, 0));
         return interview;
+    }
+
+    private Interview completedFirstInterview() {
+        Interview interview = assignedInterview();
+        interview.setStatus(InterviewStatus.COMPLETED.name());
+        return interview;
+    }
+
+    private JobPosition job(int requiredRounds) {
+        JobPosition job = new JobPosition();
+        job.setId(40L);
+        job.setRequiredInterviewRounds(requiredRounds);
+        return job;
     }
 
     private SysUser interviewer(Long id) {

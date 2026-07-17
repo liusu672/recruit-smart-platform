@@ -7,6 +7,7 @@ import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.ApplicationProcessEventMapper;
 import com.recruit.biz.security.CurrentUser;
 import com.recruit.biz.security.UserContext;
+import com.recruit.biz.service.MessageService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,8 @@ class ApplicationProcessEventServiceImplTest {
 
     @Mock
     private ApplicationProcessEventMapper applicationProcessEventMapper;
+    @Mock
+    private MessageService messageService;
     @InjectMocks
     private ApplicationProcessEventServiceImpl processEventService;
 
@@ -57,6 +60,10 @@ class ApplicationProcessEventServiceImplTest {
         assertEquals("HR", event.getOperatorRole());
         assertEquals("BUSINESS", event.getSourceType());
         assertNotNull(event.getOccurredAt());
+        verify(messageService).sendSystemMessage(
+                1L,
+                "简历初筛已通过，后续将安排面试。"
+        );
     }
 
     @Test

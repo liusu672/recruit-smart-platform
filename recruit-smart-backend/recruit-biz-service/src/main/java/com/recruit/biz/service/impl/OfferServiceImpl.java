@@ -8,17 +8,23 @@ import com.recruit.biz.dto.OfferHRQueryDTO;
 import com.recruit.biz.dto.OfferQueryDTO;
 import com.recruit.biz.dto.OfferUpdateDTO;
 import com.recruit.biz.entity.Candidate;
+import com.recruit.biz.entity.Interview;
+import com.recruit.biz.entity.InterviewFeedback;
 import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Offer;
 import com.recruit.biz.entity.Onboarding;
 import com.recruit.biz.enums.JobApplicationStatus;
+import com.recruit.biz.enums.InterviewRound;
+import com.recruit.biz.enums.InterviewStatus;
 import com.recruit.biz.enums.OfferStatus;
 import com.recruit.biz.enums.OnboardingMaterialStatus;
 import com.recruit.biz.enums.OnboardingStatus;
 import com.recruit.biz.enums.ProcessEventType;
 import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.CandidateMapper;
+import com.recruit.biz.mapper.InterviewFeedbackMapper;
+import com.recruit.biz.mapper.InterviewMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.mapper.JobPositionMapper;
 import com.recruit.biz.mapper.OfferMapper;
@@ -58,6 +64,12 @@ public class OfferServiceImpl implements OfferService {
     private CandidateMapper candidateMapper;
 
     @Resource
+    private InterviewMapper interviewMapper;
+
+    @Resource
+    private InterviewFeedbackMapper interviewFeedbackMapper;
+
+    @Resource
     private JobPositionMapper jobPositionMapper;
 
     @Resource
@@ -86,6 +98,8 @@ public class OfferServiceImpl implements OfferService {
                     "只有面试中的投递可以创建Offer"
             );
         }
+
+        validateRequiredInterviewsCompleted(application);
 
         Long offerCount = offerMapper.selectCount(
                 new LambdaQueryWrapper<Offer>()
@@ -231,6 +245,8 @@ public class OfferServiceImpl implements OfferService {
         vo.setDepartment(job == null ? null : job.getDepartment());
         vo.setCandidateId(application.getCandidateId());
         vo.setCandidateName(candidate == null ? null : candidate.getName());
+        vo.setPhone(candidate == null ? null : candidate.getPhone());
+        vo.setEmail(candidate == null ? null : candidate.getEmail());
         vo.setSalary(offer.getSalary());
         vo.setEntryDate(offer.getEntryDate());
         vo.setProbationMonths(offer.getProbationMonths());
@@ -277,6 +293,8 @@ public class OfferServiceImpl implements OfferService {
                     "当前投递状态不能发送Offer"
             );
         }
+
+        validateRequiredInterviewsCompleted(application);
 
         LocalDateTime now = LocalDateTime.now();
         int offerUpdated = offerMapper.update(
@@ -905,6 +923,76 @@ public class OfferServiceImpl implements OfferService {
             );
         }
         return offer;
+    }
+
+    private void validateRequiredInterviewsCompleted(
+            JobApplication application
+    ) {
+        JobPosition job = jobPositionMapper.selectById(application.getJobId());
+        if (job == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "投递记录关联的职位不存在"
+            );
+        }
+
+        int requiredRounds = job.getRequiredInterviewRounds() == null
+                ? 1
+                : job.getRequiredInterviewRounds();
+        List<Interview> completedInterviews = interviewMapper.selectList(
+                new LambdaQueryWrapper<Interview>()
+                        .eq(
+                                Interview::getApplicationId,
+                                application.getId()
+                        )
+                        .eq(
+                                Interview::getStatus,
+                                InterviewStatus.COMPLETED.name()
+                        )
+        );
+        if (completedInterviews.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "请先完成该职位要求的全部面试"
+            );
+        }
+
+        Set<Long> completedInterviewIds = completedInterviews.stream()
+                .map(Interview::getId)
+                .collect(Collectors.toSet());
+        Set<Long> submittedFeedbackInterviewIds = interviewFeedbackMapper
+                .selectList(
+                        new LambdaQueryWrapper<InterviewFeedback>()
+                                .in(
+                                        InterviewFeedback::getInterviewId,
+                                        completedInterviewIds
+                                )
+                                .eq(
+                                        InterviewFeedback::getState,
+                                        "SUBMITTED"
+                                )
+                )
+                .stream()
+                .map(InterviewFeedback::getInterviewId)
+                .collect(Collectors.toSet());
+
+        for (int order = 1; order <= requiredRounds; order++) {
+            InterviewRound requiredRound = InterviewRound.fromOrder(order);
+            boolean completedWithFeedback = completedInterviews.stream()
+                    .anyMatch(interview ->
+                            requiredRound.name().equals(interview.getRound())
+                                    && submittedFeedbackInterviewIds.contains(
+                                    interview.getId()
+                            )
+                    );
+            if (!completedWithFeedback) {
+                throw new BusinessException(
+                        ErrorCode.PARAM_ERROR,
+                        requiredRound.getDescription()
+                                + "尚未完成或反馈尚未提交"
+                );
+            }
+        }
     }
 
     private Candidate getCurrentCandidate() {

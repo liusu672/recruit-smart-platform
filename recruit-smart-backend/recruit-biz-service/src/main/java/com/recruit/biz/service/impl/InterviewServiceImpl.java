@@ -9,6 +9,7 @@ import com.recruit.biz.dto.InterviewScheduleDTO;
 import com.recruit.biz.dto.InterviewUpdateDTO;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
+import com.recruit.biz.entity.InterviewFeedback;
 import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
@@ -22,6 +23,7 @@ import com.recruit.biz.enums.ProcessEventType;
 import com.recruit.biz.enums.ProcessRelatedType;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewMapper;
+import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.JobApplicationMapper;
 import com.recruit.biz.mapper.JobPositionMapper;
 import com.recruit.biz.mapper.ResumeMapper;
@@ -51,6 +53,9 @@ public class InterviewServiceImpl implements InterviewService {
 
     @Resource
     private InterviewMapper interviewMapper;
+
+    @Resource
+    private InterviewFeedbackMapper interviewFeedbackMapper;
 
     @Resource
     private JobApplicationMapper jobApplicationMapper;
@@ -98,6 +103,8 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        validateInterviewRound(application, dto.getRound());
+
         SysUser interviewer = sysUserMapper.selectById(
                 dto.getInterviewerId()
         );
@@ -115,26 +122,6 @@ public class InterviewServiceImpl implements InterviewService {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
                     "指定用户不是面试官角色"
-            );
-        }
-
-        Long activeRoundCount = interviewMapper.selectCount(
-                new LambdaQueryWrapper<Interview>()
-                        .eq(
-                                Interview::getApplicationId,
-                                application.getId()
-                        )
-                        .eq(Interview::getRound, dto.getRound())
-                        .in(
-                                Interview::getStatus,
-                                InterviewStatus.ASSIGNED.name(),
-                                InterviewStatus.SCHEDULED.name()
-                        )
-        );
-        if (activeRoundCount > 0) {
-            throw new BusinessException(
-                    ErrorCode.PARAM_ERROR,
-                    "该轮面试已经存在有效指派或预约"
             );
         }
 
@@ -182,6 +169,98 @@ public class InterviewServiceImpl implements InterviewService {
         );
 
         return interview.getId();
+    }
+
+    private void validateInterviewRound(
+            JobApplication application,
+            String roundCode
+    ) {
+        InterviewRound round = InterviewRound.fromCode(roundCode);
+        if (round == null) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "面试轮次不正确"
+            );
+        }
+
+        JobPosition job = jobPositionMapper.selectById(application.getJobId());
+        if (job == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "投递记录关联的职位不存在"
+            );
+        }
+
+        int requiredRounds = job.getRequiredInterviewRounds() == null
+                ? 1
+                : job.getRequiredInterviewRounds();
+        if (round.getOrder() > requiredRounds) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "该职位只要求完成" + requiredRounds + "轮面试"
+            );
+        }
+
+        Long existingRoundCount = interviewMapper.selectCount(
+                new LambdaQueryWrapper<Interview>()
+                        .eq(Interview::getApplicationId, application.getId())
+                        .eq(Interview::getRound, round.name())
+                        .ne(Interview::getStatus, InterviewStatus.CANCELED.name())
+        );
+        if (existingRoundCount > 0) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    round.getDescription() + "已经存在，不能重复创建"
+            );
+        }
+
+        if (round.getOrder() == 1) {
+            return;
+        }
+
+        InterviewRound previousRound = InterviewRound.fromOrder(
+                round.getOrder() - 1
+        );
+        List<Interview> completedPreviousInterviews =
+                interviewMapper.selectList(
+                        new LambdaQueryWrapper<Interview>()
+                                .eq(
+                                        Interview::getApplicationId,
+                                        application.getId()
+                                )
+                                .eq(
+                                        Interview::getRound,
+                                        previousRound.name()
+                                )
+                                .eq(
+                                        Interview::getStatus,
+                                        InterviewStatus.COMPLETED.name()
+                                )
+                );
+        if (completedPreviousInterviews.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "请先完成" + previousRound.getDescription()
+            );
+        }
+
+        Set<Long> completedInterviewIds = completedPreviousInterviews.stream()
+                .map(Interview::getId)
+                .collect(Collectors.toSet());
+        Long submittedFeedbackCount = interviewFeedbackMapper.selectCount(
+                new LambdaQueryWrapper<InterviewFeedback>()
+                        .in(
+                                InterviewFeedback::getInterviewId,
+                                completedInterviewIds
+                        )
+                        .eq(InterviewFeedback::getState, "SUBMITTED")
+        );
+        if (submittedFeedbackCount == 0) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "请先提交" + previousRound.getDescription() + "反馈"
+            );
+        }
     }
 
     @Override

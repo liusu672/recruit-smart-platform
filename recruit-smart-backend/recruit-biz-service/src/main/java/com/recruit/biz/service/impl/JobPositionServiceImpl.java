@@ -47,6 +47,11 @@ public class JobPositionServiceImpl implements JobPositionService {
             throw new BusinessException(ErrorCode.PARAM_ERROR,"最高薪资不能低于最低薪资");
         }
         job.setHeadcount(dto.getHeadcount());
+        job.setRequiredInterviewRounds(
+                dto.getRequiredInterviewRounds() == null
+                        ? 1
+                        : dto.getRequiredInterviewRounds()
+        );
         job.setCreatedBy(UserContext.getUserId());
         job.setResponsibilities(dto.getResponsibilities());
         job.setRequirements(dto.getRequirements());
@@ -79,6 +84,20 @@ public class JobPositionServiceImpl implements JobPositionService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "最高薪资不能低于最低薪资");
         }
 
+        int oldRequiredRounds = oldJob.getRequiredInterviewRounds() == null
+                ? 1
+                : oldJob.getRequiredInterviewRounds();
+        int newRequiredRounds = dto.getRequiredInterviewRounds() == null
+                ? oldRequiredRounds
+                : dto.getRequiredInterviewRounds();
+        if (newRequiredRounds != oldRequiredRounds
+                && !JobPositionStatus.DRAFT.name().equals(oldJob.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "职位发布后不能修改面试轮数"
+            );
+        }
+
         JobPosition job = new JobPosition();
         job.setId(id);
         job.setTitle(dto.getTitle());
@@ -87,6 +106,7 @@ public class JobPositionServiceImpl implements JobPositionService {
         job.setSalaryMin(dto.getSalaryMin());
         job.setSalaryMax(dto.getSalaryMax());
         job.setHeadcount(dto.getHeadcount());
+        job.setRequiredInterviewRounds(newRequiredRounds);
         job.setResponsibilities(dto.getResponsibilities());
         job.setRequirements(dto.getRequirements());
 
@@ -174,6 +194,11 @@ public class JobPositionServiceImpl implements JobPositionService {
         vo.setDepartment(job.getDepartment());
         vo.setLocation(job.getLocation());
         vo.setHeadcount(job.getHeadcount());
+        vo.setRequiredInterviewRounds(
+                job.getRequiredInterviewRounds() == null
+                        ? 1
+                        : job.getRequiredInterviewRounds()
+        );
         vo.setStatus(job.getStatus());
         vo.setCreatedAt(job.getCreatedAt());
         vo.setUpdatedAt(job.getUpdatedAt());

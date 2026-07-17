@@ -16,6 +16,8 @@ public class OfferDetailVO {
     private String department;
     private Long candidateId;
     private String candidateName;
+    private String phone;
+    private String email;
     private BigDecimal salary;
     private LocalDate entryDate;
     private Integer probationMonths;
