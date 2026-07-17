@@ -82,7 +82,7 @@ The current roles are `ADMIN`, `HR`, `INTERVIEWER`, and `CANDIDATE`.
 - Frontend route and button checks improve UX only. Backend services must enforce real authorization and data ownership.
 - Preserve the original target in the `redirect` query when sending unauthenticated users to login.
 
-Current public routes are `/login` and `/register`. Candidate registration has frontend validation only; the backend registration endpoint is not implemented. Candidate verification-code login is also UI-only while the backend supports username/password login.
+Current public routes are `/login` and `/register`. Candidate registration submits to the backend `/auth/register` endpoint and establishes the returned candidate session. Candidate verification-code login is UI-only while the backend supports username/password login.
 
 ## API And State Boundaries
 
@@ -129,7 +129,6 @@ Name unit tests `*.spec.ts`. Keep tests deterministic and use `npm test -- --run
 
 Do not accidentally present the following as completed production functionality:
 
-- candidate registration backend submission;
 - verification-code authentication;
 - HR 聚合页仍有部分临时契约；候选人端公开职位与 `/me` 接口、面试官本人任务接口已经按后端 Controller 接入；
 - administrator governance APIs for users, roles, dictionaries, audit logs, and system health;

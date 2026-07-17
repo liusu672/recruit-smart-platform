@@ -1,6 +1,12 @@
 import { http, unwrapResult } from '@/api/http'
 import { ApiError } from '@/types/api'
-import type { LoginPayload, LoginRequest, LoginResponse, UserRole } from '@/types/auth'
+import type {
+  CandidateRegisterRequest,
+  LoginPayload,
+  LoginRequest,
+  LoginResponse,
+  UserRole,
+} from '@/types/auth'
 import type { AuthUser } from '@/types/auth'
 
 export function normalizeRole(roleCode: string | null | undefined): UserRole {
@@ -19,6 +25,15 @@ export function normalizeRole(roleCode: string | null | undefined): UserRole {
 
 export async function login(request: LoginRequest): Promise<LoginPayload> {
   const response = await unwrapResult<LoginResponse>(http.post('/auth/login', request))
+  return toLoginPayload(response)
+}
+
+export async function register(request: CandidateRegisterRequest): Promise<LoginPayload> {
+  const response = await unwrapResult<LoginResponse>(http.post('/auth/register', request))
+  return toLoginPayload(response)
+}
+
+export function toLoginPayload(response: LoginResponse): LoginPayload {
   const userInfo = response.userInfo
   const user: AuthUser = {
     id: String(userInfo.userId),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, LockKeyhole, Mail, UserRound } from 'lucide-vue-next'
+import { CheckCircle2, LockKeyhole, Mail, Phone, UserRound } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
 import candidateRocketImage from '@/assets/login-candidate-rocket.png'
@@ -7,7 +7,8 @@ import { useCandidateRegister } from '@/composables/useCandidateRegister'
 import '@/styles/login.scss'
 import '@/styles/register.scss'
 
-const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
+const { fieldErrors, form, formError, formNotice, isSubmitting, submitRegister } =
+  useCandidateRegister()
 </script>
 
 <template>
@@ -52,6 +53,8 @@ const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
           </div>
 
           <form class="login-form" novalidate @submit.prevent="submitRegister">
+            <div v-if="formError" class="login-alert" role="alert">{{ formError }}</div>
+
             <div v-if="formNotice" class="register-notice" role="status">
               <CheckCircle2 class="icon small" :stroke-width="1.75" aria-hidden="true" />
               <span>{{ formNotice }}</span>
@@ -74,20 +77,38 @@ const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
             </div>
 
             <div class="login-field" :class="{ 'has-error': fieldErrors.username }">
-              <label class="field-label" for="register-username">手机号 / 邮箱 / 账号</label>
+              <label class="field-label" for="register-username">登录账号</label>
               <div class="login-input-wrap">
                 <Mail class="icon small" :stroke-width="1.75" aria-hidden="true" />
                 <input
                   id="register-username"
                   v-model="form.username"
                   class="login-input"
-                  placeholder="请输入登录账号"
+                  placeholder="请输入 4-32 位登录账号"
                   autocomplete="username"
                   :aria-invalid="Boolean(fieldErrors.username)"
                 />
               </div>
               <div class="login-field-error">
-                {{ fieldErrors.username || '请输入手机号、邮箱或账号。' }}
+                {{ fieldErrors.username || '登录账号用于后续登录。' }}
+              </div>
+            </div>
+
+            <div class="login-field" :class="{ 'has-error': fieldErrors.phone }">
+              <label class="field-label" for="register-phone">手机号</label>
+              <div class="login-input-wrap">
+                <Phone class="icon small" :stroke-width="1.75" aria-hidden="true" />
+                <input
+                  id="register-phone"
+                  v-model="form.phone"
+                  class="login-input"
+                  placeholder="请输入 11 位手机号"
+                  autocomplete="tel"
+                  :aria-invalid="Boolean(fieldErrors.phone)"
+                />
+              </div>
+              <div class="login-field-error">
+                {{ fieldErrors.phone || '用于候选人档案绑定和招聘联系。' }}
               </div>
             </div>
 
@@ -106,7 +127,7 @@ const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
                 />
               </div>
               <div class="login-field-error">
-                {{ fieldErrors.password || '密码至少需要 6 位。' }}
+                {{ fieldErrors.password || '密码需要 6-32 位。' }}
               </div>
             </div>
 
@@ -129,7 +150,9 @@ const { fieldErrors, form, formNotice, submitRegister } = useCandidateRegister()
               </div>
             </div>
 
-            <button class="button primary full" type="submit">创建候选人账号</button>
+            <button class="button primary full" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? '注册中' : '创建候选人账号' }}
+            </button>
             <div class="login-note">注册后请使用相同账号登录，完善简历和求职偏好。</div>
           </form>
         </aside>

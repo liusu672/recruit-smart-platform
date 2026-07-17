@@ -1,23 +1,36 @@
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+import { register } from '@/api/auth'
+import { useSessionStore } from '@/stores/session'
+import { ApiError } from '@/types/api'
 
 interface CandidateRegisterForm {
   realName: string
   username: string
+  phone: string
   password: string
   confirmPassword: string
 }
 
 export function useCandidateRegister() {
+  const router = useRouter()
+  const session = useSessionStore()
+
   const form = reactive<CandidateRegisterForm>({
     realName: '',
     username: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   })
   const fieldErrors = reactive<Record<string, string>>({})
+  const formError = ref('')
   const formNotice = ref('')
+  const isSubmitting = ref(false)
 
   function clearFeedback() {
+    formError.value = ''
     formNotice.value = ''
     Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key])
   }
@@ -26,20 +39,46 @@ export function useCandidateRegister() {
     clearFeedback()
 
     if (!form.realName.trim()) fieldErrors.realName = '请输入真实姓名。'
-    if (!form.username.trim()) fieldErrors.username = '请输入手机号、邮箱或账号。'
-    if (form.password.length < 6) fieldErrors.password = '密码至少需要 6 位。'
+    if (form.username.trim().length < 4 || form.username.trim().length > 32)
+      fieldErrors.username = '登录账号需要 4-32 位。'
+    if (!/^1[3-9]\d{9}$/.test(form.phone.trim())) fieldErrors.phone = '请输入有效的 11 位手机号。'
+    if (form.password.length < 6 || form.password.length > 32)
+      fieldErrors.password = '密码需要 6-32 位。'
     if (form.confirmPassword !== form.password)
       fieldErrors.confirmPassword = '两次输入的密码不一致。'
 
     return Object.keys(fieldErrors).length === 0
   }
 
-  function submitRegister() {
-    if (!validate()) return
-
-    // 当前后端只提供登录接口，先明确告知用户，不伪造注册成功状态。
-    formNotice.value = '注册页面已就绪，候选人注册接口尚未接入，请联系管理员开通账号。'
+  function normalizeError(error: unknown) {
+    if (error instanceof ApiError) return error.message
+    if (error instanceof Error) return error.message
+    return '注册失败，请稍后重试。'
   }
 
-  return { fieldErrors, form, formNotice, submitRegister }
+  async function submitRegister() {
+    if (!validate() || isSubmitting.value) return
+
+    isSubmitting.value = true
+
+    try {
+      const payload = await register({
+        username: form.username.trim(),
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        name: form.realName.trim(),
+        phone: form.phone.trim(),
+      })
+
+      session.setSession(payload)
+      formNotice.value = '注册成功，正在进入候选人中心。'
+      await router.push('/')
+    } catch (error) {
+      formError.value = normalizeError(error)
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  return { fieldErrors, form, formError, formNotice, isSubmitting, submitRegister }
 }
