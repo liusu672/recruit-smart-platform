@@ -17,7 +17,7 @@ public class InterviewTaskQueryDTO {
 
     @Schema(description = "面试状态", example = "SCHEDULED")
     @Pattern(
-            regexp = "^(SCHEDULED|COMPLETED|CANCELED|REINTERVIEW)$",
+            regexp = "^(ASSIGNED|SCHEDULED|COMPLETED|CANCELED|REINTERVIEW)$",
             message = "面试状态不正确"
     )
     private String status;

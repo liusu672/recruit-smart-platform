@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum InterviewStatus {
+    ASSIGNED("待面试官预约"),
     SCHEDULED("待面试"),
     COMPLETED("已完成"),
     CANCELED("已取消"),

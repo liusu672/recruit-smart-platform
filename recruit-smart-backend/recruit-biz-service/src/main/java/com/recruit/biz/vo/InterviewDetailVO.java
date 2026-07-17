@@ -26,6 +26,8 @@ public class InterviewDetailVO {
     private String location;
     private String status;
     private String statusText;
+    private LocalDateTime assignedAt;
+    private LocalDateTime scheduledAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

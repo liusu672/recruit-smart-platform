@@ -20,6 +20,8 @@ public class InterviewTaskSummaryVO {
     private String location;
     private String status;
     private String statusText;
+    private LocalDateTime assignedAt;
+    private LocalDateTime scheduledAt;
     private Long interviewerId;
     private String interviewerName;
     private String feedbackState;

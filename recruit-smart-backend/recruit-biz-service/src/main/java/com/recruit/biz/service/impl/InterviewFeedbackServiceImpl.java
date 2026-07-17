@@ -55,10 +55,14 @@ public class InterviewFeedbackServiceImpl
             InterviewFeedbackDraftDTO dto
     ) {
         Interview interview = requireOwnedInterview(interviewId);
-        if (InterviewStatus.CANCELED.name().equals(interview.getStatus())) {
+        boolean canSaveDraft = InterviewStatus.SCHEDULED.name()
+                .equals(interview.getStatus())
+                || InterviewStatus.COMPLETED.name()
+                .equals(interview.getStatus());
+        if (!canSaveDraft) {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
-                    "已取消的面试不能保存反馈草稿"
+                    "只有已确认预约或已完成的面试可以保存反馈草稿"
             );
         }
 

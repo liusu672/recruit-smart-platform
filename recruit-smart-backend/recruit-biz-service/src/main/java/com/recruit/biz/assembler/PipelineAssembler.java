@@ -188,12 +188,27 @@ public class PipelineAssembler {
     }
 
     public Interview selectCurrentInterview(List<Interview> interviews) {
-        return interviews.stream()
+        Interview scheduled = interviews.stream()
                 .filter(interview -> InterviewStatus.SCHEDULED.name()
                         .equals(interview.getStatus()))
                 .min(Comparator.comparing(
                         Interview::getInterviewTime,
                         Comparator.nullsLast(Comparator.naturalOrder())
+                ))
+                .orElse(null);
+        if (scheduled != null) {
+            return scheduled;
+        }
+
+        return interviews.stream()
+                .filter(interview -> InterviewStatus.ASSIGNED.name()
+                        .equals(interview.getStatus()))
+                .max(Comparator.comparing(
+                        Interview::getAssignedAt,
+                        Comparator.nullsFirst(Comparator.naturalOrder())
+                ).thenComparing(
+                        Interview::getId,
+                        Comparator.nullsFirst(Comparator.naturalOrder())
                 ))
                 .orElseGet(() -> interviews.stream()
                         .max(Comparator.comparing(
@@ -251,6 +266,8 @@ public class PipelineAssembler {
         vo.setLocation(interview.getLocation());
         vo.setStatus(interview.getStatus());
         vo.setStatusText(interviewStatusText(interview.getStatus()));
+        vo.setAssignedAt(interview.getAssignedAt());
+        vo.setScheduledAt(interview.getScheduledAt());
         if (feedback != null) {
             vo.setFeedbackScore(feedback.getScore());
             vo.setFeedbackSuggestion(feedback.getSuggestion());
@@ -420,6 +437,9 @@ public class PipelineAssembler {
             times.add(aiMatch.getUpdatedAt());
         }
         for (Interview interview : interviews) {
+            times.add(interview.getAssignedAt());
+            times.add(interview.getScheduledAt());
+            times.add(interview.getInterviewTime());
             times.add(interview.getCreatedAt());
             times.add(interview.getUpdatedAt());
         }
@@ -465,7 +485,7 @@ public class PipelineAssembler {
 
     private String interviewMethodText(String code) {
         InterviewMethod method = InterviewMethod.fromCode(code);
-        return method == null ? "未知方式" : method.getDescription();
+        return method == null ? "待确认" : method.getDescription();
     }
 
     private String interviewStatusText(String code) {

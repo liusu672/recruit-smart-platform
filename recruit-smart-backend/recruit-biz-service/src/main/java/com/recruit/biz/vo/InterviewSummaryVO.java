@@ -22,6 +22,8 @@ public class InterviewSummaryVO {
     private String location;
     private String status;
     private String statusText;
+    private LocalDateTime assignedAt;
+    private LocalDateTime scheduledAt;
     private Integer feedbackScore;
     private String feedbackSuggestion;
 }

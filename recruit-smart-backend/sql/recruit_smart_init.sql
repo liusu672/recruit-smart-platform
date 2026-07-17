@@ -199,11 +199,13 @@ CREATE TABLE interview (
   application_id BIGINT NOT NULL COMMENT '投递记录ID',
   interviewer_id BIGINT NOT NULL COMMENT '面试官用户ID',
   round VARCHAR(32) NOT NULL DEFAULT 'FIRST' COMMENT '面试轮次：FIRST一面，SECOND二面，HR表示HR面',
-  interview_time DATETIME NOT NULL COMMENT '面试时间',
-  method VARCHAR(32) NOT NULL DEFAULT 'ONLINE' COMMENT '面试方式：ONLINE线上，OFFLINE线下，PHONE电话',
+  interview_time DATETIME DEFAULT NULL COMMENT '面试官确认的面试时间，待预约时为空',
+  method VARCHAR(32) DEFAULT NULL COMMENT '面试方式：ONLINE线上，OFFLINE线下，PHONE电话',
   location VARCHAR(255) DEFAULT NULL COMMENT '面试地点或会议链接',
-  status VARCHAR(32) NOT NULL DEFAULT 'SCHEDULED' COMMENT '状态：SCHEDULED待面试，COMPLETED已完成，CANCELED已取消，REINTERVIEW需复试',
+  status VARCHAR(32) NOT NULL DEFAULT 'ASSIGNED' COMMENT '状态：ASSIGNED待预约，SCHEDULED待面试，COMPLETED已完成，CANCELED已取消，REINTERVIEW为旧版复试状态',
   created_by BIGINT NOT NULL COMMENT '创建人用户ID',
+  assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'HR指派时间',
+  scheduled_at DATETIME DEFAULT NULL COMMENT '面试官确认预约时间',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   KEY idx_interview_application_id (application_id),
@@ -388,10 +390,10 @@ INSERT INTO ai_match_result (
 
 INSERT INTO interview (
   id, application_id, interviewer_id, round, interview_time,
-  method, location, status, created_by
+  method, location, status, created_by, assigned_at, scheduled_at
 ) VALUES
-(1, 1, 3, 'FIRST', '2026-07-09 14:00:00', 'ONLINE', '腾讯会议：123-456-789', 'COMPLETED', 2),
-(2, 2, 3, 'FIRST', '2026-07-10 10:00:00', 'ONLINE', '腾讯会议：987-654-321', 'SCHEDULED', 2);
+(1, 1, 3, 'FIRST', '2026-07-09 14:00:00', 'ONLINE', '腾讯会议：123-456-789', 'COMPLETED', 2, '2026-07-09 11:00:00', '2026-07-09 11:05:00'),
+(2, 2, 3, 'FIRST', '2026-07-10 10:00:00', 'ONLINE', '腾讯会议：987-654-321', 'SCHEDULED', 2, '2026-07-09 11:10:00', '2026-07-09 11:15:00');
 
 INSERT INTO interview_feedback (
   id, interview_id, interviewer_id, state, scorecard_json, score,
@@ -447,9 +449,12 @@ INSERT INTO application_process_event (
 (1, 'SCREENING_PASSED', 'SCREENING', 'SCREEN_PASSED', '筛选通过',
  'Java基础较好，项目经历匹配',
  2, 'HR', 'BUSINESS', 'APPLICATION', 1, '2026-07-09 10:30:00'),
-(1, 'INTERVIEW_CREATED', NULL, 'SCHEDULED', '创建面试安排',
- '创建一面安排，面试方式为线上',
+(1, 'INTERVIEW_ASSIGNED', NULL, 'ASSIGNED', '指派面试官',
+ '指派面试官负责一面',
  2, 'HR', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 11:00:00'),
+(1, 'INTERVIEW_SCHEDULED', 'ASSIGNED', 'SCHEDULED', '面试官确认预约',
+ '确认一面时间与线上会议地址',
+ 3, 'INTERVIEWER', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 11:05:00'),
 (1, 'INTERVIEW_COMPLETED', 'SCHEDULED', 'COMPLETED', '完成面试',
  '面试已完成，等待面试官提交反馈',
  3, 'INTERVIEWER', 'BUSINESS', 'INTERVIEW', 1, '2026-07-09 15:00:00'),
@@ -486,9 +491,12 @@ INSERT INTO application_process_event (
 (2, 'SCREENING_PASSED', 'SCREENING', 'SCREEN_PASSED', '筛选通过',
  'AI方向匹配度较高，安排一面',
  2, 'HR', 'BUSINESS', 'APPLICATION', 2, '2026-07-09 11:00:00'),
-(2, 'INTERVIEW_CREATED', NULL, 'SCHEDULED', '创建面试安排',
- '创建一面安排，面试方式为线上',
+(2, 'INTERVIEW_ASSIGNED', NULL, 'ASSIGNED', '指派面试官',
+ '指派面试官负责一面',
  2, 'HR', 'BUSINESS', 'INTERVIEW', 2, '2026-07-09 11:10:00'),
+(2, 'INTERVIEW_SCHEDULED', 'ASSIGNED', 'SCHEDULED', '面试官确认预约',
+ '确认一面时间与线上会议地址',
+ 3, 'INTERVIEWER', 'BUSINESS', 'INTERVIEW', 2, '2026-07-09 11:15:00'),
 (3, 'APPLICATION_SUBMITTED', NULL, 'SUBMITTED', '候选人提交投递',
  'HR录入候选人投递记录',
  2, 'HR', 'BUSINESS', 'APPLICATION', 3, '2026-07-09 10:40:00'),

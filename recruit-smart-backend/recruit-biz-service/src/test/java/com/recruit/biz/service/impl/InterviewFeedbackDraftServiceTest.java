@@ -109,6 +109,17 @@ class InterviewFeedbackDraftServiceTest {
     }
 
     @Test
+    void saveDraftRejectsInterviewBeforeScheduling() {
+        when(interviewMapper.selectById(1L)).thenReturn(interview("ASSIGNED"));
+
+        assertThrows(
+                BusinessException.class,
+                () -> interviewFeedbackService.saveDraft(1L, draftDTO())
+        );
+        verify(interviewFeedbackMapper, never()).selectOne(any());
+    }
+
+    @Test
     void submitFeedbackPromotesExistingDraft() {
         when(interviewMapper.selectById(1L)).thenReturn(interview("COMPLETED"));
         InterviewFeedback draft = new InterviewFeedback();

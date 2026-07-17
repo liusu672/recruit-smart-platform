@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruit.biz.dto.InterviewCreateDTO;
 import com.recruit.biz.dto.InterviewQueryDTO;
+import com.recruit.biz.dto.InterviewScheduleDTO;
 import com.recruit.biz.dto.InterviewUpdateDTO;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
@@ -38,6 +39,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,44 +118,23 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
-        Long scheduledCount = interviewMapper.selectCount(
+        Long activeRoundCount = interviewMapper.selectCount(
                 new LambdaQueryWrapper<Interview>()
                         .eq(
                                 Interview::getApplicationId,
                                 application.getId()
                         )
                         .eq(Interview::getRound, dto.getRound())
-                        .eq(
+                        .in(
                                 Interview::getStatus,
+                                InterviewStatus.ASSIGNED.name(),
                                 InterviewStatus.SCHEDULED.name()
                         )
         );
-        if (scheduledCount > 0) {
+        if (activeRoundCount > 0) {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
-                    "该轮面试已经存在待面试安排"
-            );
-        }
-
-        Long timeConflictCount = interviewMapper.selectCount(
-                new LambdaQueryWrapper<Interview>()
-                        .eq(
-                                Interview::getInterviewerId,
-                                dto.getInterviewerId()
-                        )
-                        .eq(
-                                Interview::getInterviewTime,
-                                dto.getInterviewTime()
-                        )
-                        .eq(
-                                Interview::getStatus,
-                                InterviewStatus.SCHEDULED.name()
-                        )
-        );
-        if (timeConflictCount > 0) {
-            throw new BusinessException(
-                    ErrorCode.PARAM_ERROR,
-                    "面试官该时间已有其他面试安排"
+                    "该轮面试已经存在有效指派或预约"
             );
         }
 
@@ -161,11 +142,9 @@ public class InterviewServiceImpl implements InterviewService {
         interview.setApplicationId(application.getId());
         interview.setInterviewerId(dto.getInterviewerId());
         interview.setRound(dto.getRound());
-        interview.setInterviewTime(dto.getInterviewTime());
-        interview.setMethod(dto.getMethod());
-        interview.setLocation(dto.getLocation().trim());
-        interview.setStatus(InterviewStatus.SCHEDULED.name());
+        interview.setStatus(InterviewStatus.ASSIGNED.name());
         interview.setCreatedBy(UserContext.getUserId());
+        interview.setAssignedAt(LocalDateTime.now());
         interviewMapper.insert(interview);
 
         if (JobApplicationStatus.SCREEN_PASSED.name()
@@ -193,11 +172,11 @@ public class InterviewServiceImpl implements InterviewService {
 
         processEventService.record(
                 application.getId(),
-                ProcessEventType.INTERVIEW_CREATED,
+                ProcessEventType.INTERVIEW_ASSIGNED,
                 null,
-                InterviewStatus.SCHEDULED.name(),
-                "创建" + dto.getRound() + "轮面试，面试时间："
-                        + dto.getInterviewTime(),
+                InterviewStatus.ASSIGNED.name(),
+                "指派" + interviewer.getRealName()
+                        + "负责" + dto.getRound() + "轮面试",
                 ProcessRelatedType.INTERVIEW,
                 interview.getId()
         );
@@ -250,6 +229,8 @@ public class InterviewServiceImpl implements InterviewService {
         vo.setMethod(interview.getMethod());
         vo.setLocation(interview.getLocation());
         vo.setStatus(interview.getStatus());
+        vo.setAssignedAt(interview.getAssignedAt());
+        vo.setScheduledAt(interview.getScheduledAt());
         vo.setCreatedAt(interview.getCreatedAt());
         vo.setUpdatedAt(interview.getUpdatedAt());
 
@@ -261,7 +242,7 @@ public class InterviewServiceImpl implements InterviewService {
                 interview.getMethod()
         );
         vo.setMethodText(
-                method == null ? "未知方式" : method.getDescription()
+                method == null ? "待确认" : method.getDescription()
         );
         InterviewStatus status = InterviewStatus.fromCode(
                 interview.getStatus()
@@ -277,21 +258,80 @@ public class InterviewServiceImpl implements InterviewService {
     @Transactional(rollbackFor = Exception.class)
     public void updateInterview(Long id, InterviewUpdateDTO dto) {
         Interview interview = requireInterview(id);
-        if (!InterviewStatus.SCHEDULED.name()
+        if (!InterviewStatus.ASSIGNED.name()
                 .equals(interview.getStatus())) {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
-                    "只有待面试状态可以修改安排"
+                    "只有待预约状态可以重新指派面试官"
             );
         }
 
-        requireInterviewer(dto.getInterviewerId());
+        SysUser interviewer = requireInterviewer(dto.getInterviewerId());
+        if (dto.getInterviewerId().equals(interview.getInterviewerId())) {
+            return;
+        }
+
+        int updated = interviewMapper.update(
+                null,
+                new LambdaUpdateWrapper<Interview>()
+                        .eq(Interview::getId, id)
+                        .eq(
+                                Interview::getStatus,
+                                InterviewStatus.ASSIGNED.name()
+                        )
+                        .set(
+                                Interview::getInterviewerId,
+                                dto.getInterviewerId()
+                        )
+                        .set(Interview::getAssignedAt, LocalDateTime.now())
+        );
+
+        if (updated != 1) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "修改面试安排失败，记录可能已被其他人处理"
+            );
+        }
+
+        processEventService.record(
+                interview.getApplicationId(),
+                ProcessEventType.INTERVIEW_UPDATED,
+                InterviewStatus.ASSIGNED.name(),
+                InterviewStatus.ASSIGNED.name(),
+                "重新指派" + interviewer.getRealName()
+                        + "负责" + interview.getRound() + "轮面试",
+                ProcessRelatedType.INTERVIEW,
+                interview.getId()
+        );
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void scheduleInterview(Long id, InterviewScheduleDTO dto) {
+        Interview interview = requireInterview(id);
+        if (!UserContext.getUserId().equals(interview.getInterviewerId())) {
+            throw new BusinessException(
+                    ErrorCode.FORBIDDEN,
+                    "只有被指派的面试官可以预约面试"
+            );
+        }
+
+        boolean firstSchedule = InterviewStatus.ASSIGNED.name()
+                .equals(interview.getStatus());
+        boolean reschedule = InterviewStatus.SCHEDULED.name()
+                .equals(interview.getStatus());
+        if (!firstSchedule && !reschedule) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "当前面试状态不允许预约或调整时间"
+            );
+        }
 
         Long timeConflictCount = interviewMapper.selectCount(
                 new LambdaQueryWrapper<Interview>()
                         .eq(
                                 Interview::getInterviewerId,
-                                dto.getInterviewerId()
+                                interview.getInterviewerId()
                         )
                         .eq(
                                 Interview::getInterviewTime,
@@ -310,17 +350,15 @@ public class InterviewServiceImpl implements InterviewService {
             );
         }
 
+        LocalDateTime scheduledAt = LocalDateTime.now();
         int updated = interviewMapper.update(
                 null,
                 new LambdaUpdateWrapper<Interview>()
                         .eq(Interview::getId, id)
+                        .eq(Interview::getStatus, interview.getStatus())
                         .eq(
-                                Interview::getStatus,
-                                InterviewStatus.SCHEDULED.name()
-                        )
-                        .set(
                                 Interview::getInterviewerId,
-                                dto.getInterviewerId()
+                                UserContext.getUserId()
                         )
                         .set(
                                 Interview::getInterviewTime,
@@ -331,22 +369,29 @@ public class InterviewServiceImpl implements InterviewService {
                                 Interview::getLocation,
                                 dto.getLocation().trim()
                         )
+                        .set(
+                                Interview::getStatus,
+                                InterviewStatus.SCHEDULED.name()
+                        )
+                        .set(Interview::getScheduledAt, scheduledAt)
         );
-
         if (updated != 1) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_ERROR,
-                    "修改面试安排失败，记录可能已被其他人处理"
+                    "确认面试预约失败，记录可能已被其他人处理"
             );
         }
 
         processEventService.record(
                 interview.getApplicationId(),
-                ProcessEventType.INTERVIEW_UPDATED,
+                firstSchedule
+                        ? ProcessEventType.INTERVIEW_SCHEDULED
+                        : ProcessEventType.INTERVIEW_UPDATED,
+                interview.getStatus(),
                 InterviewStatus.SCHEDULED.name(),
-                InterviewStatus.SCHEDULED.name(),
-                "面试时间调整为" + dto.getInterviewTime()
-                        + "，方式：" + dto.getMethod(),
+                (firstSchedule ? "确认面试预约：" : "调整面试预约：")
+                        + dto.getInterviewTime() + "，方式："
+                        + dto.getMethod(),
                 ProcessRelatedType.INTERVIEW,
                 interview.getId()
         );
@@ -356,11 +401,14 @@ public class InterviewServiceImpl implements InterviewService {
     @Transactional(rollbackFor = Exception.class)
     public void cancelInterview(Long id) {
         Interview interview = requireInterview(id);
-        if (!InterviewStatus.SCHEDULED.name()
-                .equals(interview.getStatus())) {
+        String currentStatus = interview.getStatus();
+        boolean canCancel = InterviewStatus.ASSIGNED.name()
+                .equals(currentStatus)
+                || InterviewStatus.SCHEDULED.name().equals(currentStatus);
+        if (!canCancel) {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
-                    "只有待面试状态可以取消"
+                    "只有待预约或待面试状态可以取消"
             );
         }
 
@@ -370,7 +418,7 @@ public class InterviewServiceImpl implements InterviewService {
                         .eq(Interview::getId, id)
                         .eq(
                                 Interview::getStatus,
-                                InterviewStatus.SCHEDULED.name()
+                                currentStatus
                         )
                         .set(
                                 Interview::getStatus,
@@ -388,7 +436,7 @@ public class InterviewServiceImpl implements InterviewService {
         processEventService.record(
                 interview.getApplicationId(),
                 ProcessEventType.INTERVIEW_CANCELED,
-                InterviewStatus.SCHEDULED.name(),
+                currentStatus,
                 InterviewStatus.CANCELED.name(),
                 "取消" + interview.getRound() + "轮面试",
                 ProcessRelatedType.INTERVIEW,
@@ -485,7 +533,8 @@ public class InterviewServiceImpl implements InterviewService {
 
         LambdaQueryWrapper<Interview> wrapper =
                 new LambdaQueryWrapper<Interview>()
-                        .in(Interview::getApplicationId, applicationIds);
+                        .in(Interview::getApplicationId, applicationIds)
+                        .isNotNull(Interview::getScheduledAt);
 
         return queryInterviews(wrapper, dto);
     }
@@ -654,6 +703,8 @@ public class InterviewServiceImpl implements InterviewService {
         vo.setMethod(interview.getMethod());
         vo.setLocation(interview.getLocation());
         vo.setStatus(interview.getStatus());
+        vo.setAssignedAt(interview.getAssignedAt());
+        vo.setScheduledAt(interview.getScheduledAt());
 
         InterviewRound round = InterviewRound.fromCode(interview.getRound());
         vo.setRoundText(
@@ -663,7 +714,7 @@ public class InterviewServiceImpl implements InterviewService {
                 interview.getMethod()
         );
         vo.setMethodText(
-                method == null ? "未知方式" : method.getDescription()
+                method == null ? "待确认" : method.getDescription()
         );
         InterviewStatus status = InterviewStatus.fromCode(
                 interview.getStatus()
@@ -726,6 +777,12 @@ public class InterviewServiceImpl implements InterviewService {
         }
 
         if ("CANDIDATE".equals(roleCode)) {
+            if (interview.getScheduledAt() == null) {
+                throw new BusinessException(
+                        ErrorCode.FORBIDDEN,
+                        "面试尚未确认预约，候选人暂不可查看"
+                );
+            }
             JobApplication application = jobApplicationMapper.selectById(
                     interview.getApplicationId()
             );
