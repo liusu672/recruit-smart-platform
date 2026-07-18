@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Eye, Pencil, RotateCcw, Send } from 'lucide-vue-next'
-
+import HrStatusBadge from '@/components/hr/HrStatusBadge.vue'
 import {
   canEditOffer,
   canRevokeOffer,
@@ -72,9 +71,11 @@ function formatDate(value: string | null) {
     </el-table-column>
     <el-table-column label="状态" width="104" align="center">
       <template #default="{ row }: { row: OfferRecord }">
-        <span :class="`rs-status-pill rs-status-pill--${getOfferStatusTone(row.status)}`">
-          {{ row.statusText }}
-        </span>
+        <HrStatusBadge
+          :status="row.status"
+          :label="row.statusText"
+          :tone="getOfferStatusTone(row.status)"
+        />
       </template>
     </el-table-column>
     <el-table-column label="发送时间" width="144">
@@ -82,34 +83,45 @@ function formatDate(value: string | null) {
         <span class="offer-number">{{ row.sentAt ? formatDate(row.sentAt) : '尚未发送' }}</span>
       </template>
     </el-table-column>
-    <el-table-column label="操作" width="188" fixed="right" align="right">
+    <el-table-column label="操作" width="220" fixed="right" align="right">
       <template #default="{ row }: { row: OfferRecord }">
         <div class="offer-actions" @click.stop>
-          <el-tooltip content="查看 Offer" placement="top">
-            <el-button circle :icon="Eye" aria-label="查看 Offer" @click="emit('select', row)" />
-          </el-tooltip>
-          <el-tooltip v-if="canEditOffer(row.status)" content="编辑草稿" placement="top">
-            <el-button circle :icon="Pencil" aria-label="编辑草稿" @click="emit('edit', row)" />
-          </el-tooltip>
-          <el-tooltip v-if="canSendOffer(row.status)" content="发送 Offer" placement="top">
-            <el-button
-              circle
-              type="primary"
-              :icon="Send"
-              aria-label="发送 Offer"
-              @click="emit('send', row)"
-            />
-          </el-tooltip>
-          <el-tooltip v-if="canRevokeOffer(row.status)" content="撤回 Offer" placement="top">
-            <el-button
-              circle
-              type="danger"
-              plain
-              :icon="RotateCcw"
-              aria-label="撤回 Offer"
-              @click="emit('revoke', row)"
-            />
-          </el-tooltip>
+          <el-button class="offer-actions__view" link type="primary" @click="emit('select', row)"
+            >查看</el-button
+          >
+          <el-button
+            v-if="canEditOffer(row.status)"
+            class="offer-actions__edit"
+            link
+            type="primary"
+            @click="emit('edit', row)"
+            >编辑</el-button
+          >
+          <span v-else class="hr-action-placeholder offer-actions__edit" aria-hidden="true"
+            >--</span
+          >
+          <el-button
+            v-if="canSendOffer(row.status)"
+            class="offer-actions__send"
+            link
+            type="primary"
+            @click="emit('send', row)"
+            >发送</el-button
+          >
+          <span v-else class="hr-action-placeholder offer-actions__send" aria-hidden="true"
+            >--</span
+          >
+          <el-button
+            v-if="canRevokeOffer(row.status)"
+            class="offer-actions__revoke"
+            link
+            type="danger"
+            @click="emit('revoke', row)"
+            >撤回</el-button
+          >
+          <span v-else class="hr-action-placeholder offer-actions__revoke" aria-hidden="true"
+            >--</span
+          >
         </div>
       </template>
     </el-table-column>
@@ -119,11 +131,11 @@ function formatDate(value: string | null) {
 <style scoped lang="scss">
 .offer-candidate,
 .offer-actions {
-  display: flex;
   align-items: center;
 }
 
 .offer-candidate {
+  display: flex;
   gap: var(--rs-space-2);
 }
 
@@ -155,7 +167,25 @@ function formatDate(value: string | null) {
 }
 
 .offer-actions {
-  justify-content: flex-end;
-  gap: var(--rs-space-1);
+  display: grid;
+  justify-content: end;
+  grid-template-columns: repeat(4, 40px);
+  gap: var(--rs-space-2);
+}
+
+.offer-actions__view {
+  grid-column: 1;
+}
+
+.offer-actions__edit {
+  grid-column: 2;
+}
+
+.offer-actions__send {
+  grid-column: 3;
+}
+
+.offer-actions__revoke {
+  grid-column: 4;
 }
 </style>

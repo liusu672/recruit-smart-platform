@@ -84,6 +84,10 @@ export function useInterviewWorkspace() {
     ])
   }
 
+  async function invalidateInterviewTasks() {
+    await queryClient.invalidateQueries({ queryKey: ['interview-tasks'] })
+  }
+
   function updateDemoInterview(
     id: number,
     updater: (interview: InterviewWorkspace) => InterviewWorkspace,
@@ -98,7 +102,8 @@ export function useInterviewWorkspace() {
       if (!demoMode.value) return saveInterviewFeedbackDraft(id, data)
       updateDemoInterview(id, (interview) => applyDemoInterviewDraft(interview, data))
     },
-    onSuccess: invalidateInterviews,
+    // 草稿保存期间保留本地正在继续输入的内容，只刷新任务列表中的反馈状态。
+    onSuccess: invalidateInterviewTasks,
   })
 
   const scheduleMutation = useMutation({

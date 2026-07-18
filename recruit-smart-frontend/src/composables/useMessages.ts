@@ -12,6 +12,9 @@ import {
 
 const streamStatus = ref<'idle' | 'connected' | 'reconnecting'>('idle')
 const streamError = ref<Error | null>(null)
+const streamFailureCount = ref(0)
+const streamLastSyncedAt = ref<string | null>(null)
+let retryStreamHandler: (() => void) | null = null
 
 export function useMessages() {
   const queryClient = useQueryClient()
@@ -47,12 +50,6 @@ export function useMessages() {
         pageSize: messagePageSize.value,
       })
     },
-  })
-
-  const unreadQuery = useQuery({
-    queryKey: ['message-unread-count'],
-    queryFn: getUnreadMessageCount,
-    refetchInterval: 30_000,
   })
 
   const sendMutation = useMutation({
@@ -92,11 +89,13 @@ export function useMessages() {
     messagePageSize,
     conversationsQuery,
     messagesQuery,
-    unreadQuery,
     sendMutation,
     markReadMutation,
     streamStatus,
     streamError,
+    streamFailureCount,
+    streamLastSyncedAt,
+    retryStream: () => retryStreamHandler?.(),
     selectConversation,
   }
 }
@@ -108,35 +107,65 @@ export function useMessageNotifications() {
     queryFn: getUnreadMessageCount,
     refetchInterval: 30_000,
   })
-  const streamController = new AbortController()
+  let streamController: AbortController | null = null
 
-  onMounted(() => {
+  function startStream() {
+    streamController?.abort()
+    streamController = new AbortController()
+    const controller = streamController
+    streamStatus.value = 'idle'
+
     void subscribeToMessageStream({
-      signal: streamController.signal,
+      signal: controller.signal,
       onStatus(status) {
         streamStatus.value = status
-        if (status === 'connected') streamError.value = null
+        if (status === 'connected') {
+          streamError.value = null
+          streamFailureCount.value = 0
+          streamLastSyncedAt.value = new Date().toISOString()
+        }
       },
-      onEvent() {
+      onEvent(event) {
+        streamLastSyncedAt.value =
+          event.type === 'message-updated' && event.changedAt
+            ? event.changedAt
+            : new Date().toISOString()
         void queryClient.invalidateQueries({ queryKey: ['message-conversations'] })
         void queryClient.invalidateQueries({ queryKey: ['conversation-messages'] })
         void queryClient.invalidateQueries({ queryKey: ['message-unread-count'] })
       },
       onError(error) {
+        streamFailureCount.value += 1
         streamError.value = error
       },
     }).catch((error: unknown) => {
-      if (!streamController.signal.aborted) {
+      if (!controller.signal.aborted) {
         streamStatus.value = 'reconnecting'
+        streamFailureCount.value += 1
         streamError.value = error instanceof Error ? error : new Error('消息实时连接失败')
       }
     })
+  }
+
+  onMounted(() => {
+    retryStreamHandler = startStream
+    startStream()
   })
 
   onBeforeUnmount(() => {
-    streamController.abort()
+    streamController?.abort()
+    streamController = null
+    if (retryStreamHandler === startStream) retryStreamHandler = null
     streamStatus.value = 'idle'
     streamError.value = null
+    streamFailureCount.value = 0
   })
-  return { unreadQuery, streamStatus, streamError }
+  return {
+    unreadQuery,
+    streamStatus,
+    streamError,
+    failureCount: streamFailureCount,
+    lastSyncedAt: streamLastSyncedAt,
+    retryStream: startStream,
+  }
 }

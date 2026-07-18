@@ -6,6 +6,17 @@ export type InterviewStatus = 'ASSIGNED' | 'SCHEDULED' | 'COMPLETED' | 'CANCELED
 export type InterviewSuggestion = 'PASS' | 'REJECT' | 'PENDING'
 export type InterviewFeedbackState = 'EMPTY' | 'DRAFT' | 'SUBMITTED'
 
+export type InterviewerTaskStage =
+  'SCHEDULE' | 'ATTEND' | 'FEEDBACK' | 'SUBMITTED' | 'CANCELED' | 'REINTERVIEW'
+
+export type InterviewDraftSaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'error'
+
+export interface InterviewScoreOption {
+  value: 1 | 2 | 3 | 4
+  label: string
+  description: string
+}
+
 export interface InterviewerOption {
   id: number
   username: string

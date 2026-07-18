@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
-import { stdout } from 'node:process'
+import { env, stdout } from 'node:process'
+import { clearInterval, setInterval } from 'node:timers'
 import { URL } from 'node:url'
 
 import { interviewTasks } from './mock-interview-data.mjs'
@@ -9,10 +10,251 @@ import { materialStatusText, onboardings, onboardingStatusText } from './mock-on
 import { offers, offerStatusText } from './mock-offer-data.mjs'
 import { getPipelineStatusText, pipelineApplications } from './mock-pipeline-data.mjs'
 
-const port = 8080
+const port = Number(env.MOCK_API_PORT ?? 9000)
 let nextJobId = 104
 let nextCandidateId = 204
 let nextOfferId = 805
+let nextAdminUserId = 11
+let currentUser = {
+  userId: 1,
+  username: 'candidate',
+  realName: '当前候选人',
+  phone: '13900000101',
+  email: 'candidate@example.com',
+  roleCode: 'CANDIDATE',
+  roleName: '候选人',
+  roleId: 4,
+  status: 1,
+}
+const adminRoles = [
+  {
+    id: 1,
+    roleCode: 'ADMIN',
+    roleName: '系统管理员',
+    description: '维护系统账号与治理配置',
+  },
+  { id: 2, roleCode: 'HR', roleName: '招聘 HR', description: '管理招聘主流程与员工档案' },
+  {
+    id: 3,
+    roleCode: 'INTERVIEWER',
+    roleName: '面试官',
+    description: '处理本人面试任务与反馈',
+  },
+  { id: 4, roleCode: 'CANDIDATE', roleName: '候选人', description: '维护求职资料与投递进度' },
+]
+const adminUsers = [
+  {
+    id: 1,
+    username: 'admin',
+    realName: '本地管理员',
+    phone: '13900000001',
+    email: 'admin@recruit.local',
+    roleId: 1,
+    roleCode: 'ADMIN',
+    roleName: '系统管理员',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-18T14:56:00',
+    createdAt: '2026-05-06T09:20:00',
+    updatedAt: '2026-07-18T14:56:00',
+  },
+  {
+    id: 2,
+    username: 'hr01',
+    realName: '林清妍',
+    phone: '13900000021',
+    email: 'lin.qingyan@example.com',
+    roleId: 2,
+    roleCode: 'HR',
+    roleName: '招聘 HR',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-18T13:42:00',
+    createdAt: '2026-05-08T10:16:00',
+    updatedAt: '2026-07-12T11:24:00',
+  },
+  {
+    id: 3,
+    username: 'interviewer01',
+    realName: '王珩',
+    phone: '13900000031',
+    email: 'wang.heng@example.com',
+    roleId: 3,
+    roleCode: 'INTERVIEWER',
+    roleName: '面试官',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-18T13:28:00',
+    createdAt: '2026-05-12T15:40:00',
+    updatedAt: '2026-06-28T16:12:00',
+  },
+  {
+    id: 4,
+    username: 'candidate_zhang',
+    realName: '张晨',
+    phone: '13900000101',
+    email: 'zhangchen@example.com',
+    roleId: 4,
+    roleCode: 'CANDIDATE',
+    roleName: '候选人',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-18T09:36:00',
+    createdAt: '2026-07-02T11:08:00',
+    updatedAt: '2026-07-15T10:20:00',
+  },
+  {
+    id: 5,
+    username: 'hr02',
+    realName: '周慕晴',
+    phone: '13900000022',
+    email: 'zhou.muqing@example.com',
+    roleId: 2,
+    roleCode: 'HR',
+    roleName: '招聘 HR',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-17T17:18:00',
+    createdAt: '2026-05-20T14:32:00',
+    updatedAt: '2026-07-08T09:52:00',
+  },
+  {
+    id: 6,
+    username: 'interviewer02',
+    realName: '陈砚舟',
+    phone: '13900000032',
+    email: 'chen.yanzhou@example.com',
+    roleId: 3,
+    roleCode: 'INTERVIEWER',
+    roleName: '面试官',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-16T16:04:00',
+    createdAt: '2026-05-26T09:44:00',
+    updatedAt: '2026-06-30T13:26:00',
+  },
+  {
+    id: 7,
+    username: 'candidate_chen',
+    realName: '陈思悦',
+    phone: '13900000103',
+    email: 'chensiyue@example.com',
+    roleId: 4,
+    roleCode: 'CANDIDATE',
+    roleName: '候选人',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: '2026-07-17T16:10:00',
+    createdAt: '2026-07-06T10:22:00',
+    updatedAt: '2026-07-17T16:05:00',
+  },
+  {
+    id: 8,
+    username: 'candidate_luo',
+    realName: '罗亦宁',
+    phone: '13900000108',
+    email: 'luo.yining@example.com',
+    roleId: 4,
+    roleCode: 'CANDIDATE',
+    roleName: '候选人',
+    status: 0,
+    statusText: '已禁用',
+    lastLoginAt: '2026-07-08T10:24:00',
+    createdAt: '2026-06-18T09:14:00',
+    updatedAt: '2026-07-10T15:46:00',
+  },
+  {
+    id: 9,
+    username: 'interviewer03',
+    realName: '许知远',
+    phone: '13900000033',
+    email: 'xu.zhiyuan@example.com',
+    roleId: 3,
+    roleCode: 'INTERVIEWER',
+    roleName: '面试官',
+    status: 0,
+    statusText: '已禁用',
+    lastLoginAt: null,
+    createdAt: '2026-07-09T14:18:00',
+    updatedAt: '2026-07-11T10:08:00',
+  },
+  {
+    id: 10,
+    username: 'candidate_gu',
+    realName: '顾南乔',
+    phone: null,
+    email: 'gu.nanqiao@example.com',
+    roleId: 4,
+    roleCode: 'CANDIDATE',
+    roleName: '候选人',
+    status: 1,
+    statusText: '已启用',
+    lastLoginAt: null,
+    createdAt: '2026-07-17T11:38:00',
+    updatedAt: '2026-07-17T11:38:00',
+  },
+]
+let nextMessageId = 4
+const messageConversations = [
+  {
+    id: 1,
+    applicationId: 401,
+    jobId: 101,
+    jobTitle: 'Java 后端开发工程师',
+    candidateId: 201,
+    candidateName: '张晨',
+    applicationStatus: 'INTERVIEWING',
+    lastMessagePreview: '好的，我会提前进入会议。',
+    lastMessageAt: '2026-07-18T13:20:00',
+    unreadCount: 1,
+    createdAt: '2026-07-15T10:00:00',
+  },
+  {
+    id: 2,
+    applicationId: 403,
+    jobId: 103,
+    jobTitle: 'UI/UX 设计师',
+    candidateId: 203,
+    candidateName: '陈思悦',
+    applicationStatus: 'INTERVIEWING',
+    lastMessagePreview: '感谢通知，作品集已经更新。',
+    lastMessageAt: '2026-07-17T16:05:00',
+    unreadCount: 0,
+    createdAt: '2026-07-14T09:30:00',
+  },
+]
+const conversationMessages = [
+  {
+    id: 1,
+    conversationId: 1,
+    senderId: 3,
+    senderName: '王面试官',
+    senderRole: 'INTERVIEWER',
+    messageType: 'TEXT',
+    content: '你好，明天下午的线上面试安排保持不变，请提前五分钟进入会议。',
+    createdAt: '2026-07-18T13:10:00',
+  },
+  {
+    id: 2,
+    conversationId: 1,
+    senderId: 4,
+    senderName: '张晨',
+    senderRole: 'CANDIDATE',
+    messageType: 'TEXT',
+    content: '好的，我会提前进入会议。',
+    createdAt: '2026-07-18T13:20:00',
+  },
+  {
+    id: 3,
+    conversationId: 2,
+    senderId: 6,
+    senderName: '陈思悦',
+    senderRole: 'CANDIDATE',
+    messageType: 'TEXT',
+    content: '感谢通知，作品集已经更新。',
+    createdAt: '2026-07-17T16:05:00',
+  },
+]
 const jobs = [
   {
     id: 101,
@@ -310,6 +552,14 @@ function findOnboarding(response, id) {
   return record
 }
 
+function toBackendOnboarding(record) {
+  return {
+    ...record,
+    phone: record.candidatePhone,
+    email: record.candidateEmail,
+  }
+}
+
 function findEmployee(response, id) {
   const record = employees.find((item) => item.id === id)
   if (!record) fail(response, 404, '员工档案不存在')
@@ -322,9 +572,28 @@ function candidateStatusText(status) {
   return '可应聘'
 }
 
+function requireAdmin(response) {
+  if (currentUser.roleCode === 'ADMIN') return true
+  fail(response, 403, '只有系统管理员可以访问用户管理')
+  return false
+}
+
+function findAdminRole(response, id) {
+  const role = adminRoles.find((item) => item.id === id)
+  if (!role) fail(response, 400, '角色不存在')
+  return role
+}
+
+function findAdminUser(response, id) {
+  const user = adminUsers.find((item) => item.id === id)
+  if (!user) fail(response, 404, '系统用户不存在')
+  return user
+}
+
 const server = createServer(async (request, response) => {
   const method = request.method ?? 'GET'
   const url = new URL(request.url ?? '/', `http://127.0.0.1:${port}`)
+  if (url.pathname.startsWith('/api/')) url.pathname = url.pathname.slice(4)
 
   try {
     if (method === 'POST' && url.pathname === '/auth/login') {
@@ -350,34 +619,368 @@ const server = createServer(async (request, response) => {
             : roleCode === 'CANDIDATE'
               ? '候选人'
               : '招聘 HR'
+      currentUser = {
+        userId: 1,
+        username: body.username,
+        realName:
+          roleCode === 'ADMIN'
+            ? '本地管理员'
+            : roleCode === 'INTERVIEWER'
+              ? '王面试官'
+              : roleCode === 'CANDIDATE'
+                ? '当前候选人'
+                : '本地 HR',
+        phone: null,
+        email: null,
+        roleCode,
+        roleName,
+        roleId:
+          roleCode === 'ADMIN'
+            ? 1
+            : roleCode === 'INTERVIEWER'
+              ? 3
+              : roleCode === 'CANDIDATE'
+                ? 4
+                : 2,
+        status: 1,
+      }
       success(response, {
         token: 'local-mock-token',
         tokenType: 'Bearer',
-        userInfo: {
-          userId: 1,
-          username: body.username,
-          realName:
-            roleCode === 'ADMIN'
-              ? '本地管理员'
-              : roleCode === 'INTERVIEWER'
-                ? '王面试官'
-                : roleCode === 'CANDIDATE'
-                  ? '当前候选人'
-                  : '本地 HR',
-          phone: null,
-          email: null,
-          roleCode,
-          roleName,
-          roleId:
-            roleCode === 'ADMIN'
-              ? 1
-              : roleCode === 'INTERVIEWER'
-                ? 3
-                : roleCode === 'CANDIDATE'
-                  ? 4
-                  : 2,
-          status: 1,
+        userInfo: currentUser,
+      })
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/admin/roles') {
+      if (!requireAdmin(response)) return
+      success(response, adminRoles)
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/admin/users') {
+      if (!requireAdmin(response)) return
+      const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 10)
+      const keyword = (url.searchParams.get('keyword') ?? '').trim().toLocaleLowerCase()
+      const roleId = Number(url.searchParams.get('roleId') ?? 0)
+      const statusParam = url.searchParams.get('status')
+      const filtered = adminUsers
+        .filter(
+          (user) =>
+            (!keyword ||
+              [user.username, user.realName, user.phone, user.email]
+                .filter(Boolean)
+                .some((value) => value.toLocaleLowerCase().includes(keyword))) &&
+            (!roleId || user.roleId === roleId) &&
+            (statusParam === null || user.status === Number(statusParam)),
+        )
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      const start = (pageNum - 1) * pageSize
+      success(response, {
+        total: filtered.length,
+        records: filtered.slice(start, start + pageSize),
+      })
+      return
+    }
+
+    if (method === 'POST' && url.pathname === '/admin/users') {
+      if (!requireAdmin(response)) return
+      const body = await readJson(request)
+      const role = findAdminRole(response, Number(body.roleId))
+      if (!role) return
+      if (!body.username || !body.password || !body.realName) {
+        fail(response, 400, '登录账号、初始密码和真实姓名不能为空')
+        return
+      }
+      if (adminUsers.some((user) => user.username.toLowerCase() === body.username.toLowerCase())) {
+        fail(response, 400, '登录账号已存在')
+        return
+      }
+      const now = new Date().toISOString()
+      const user = {
+        id: nextAdminUserId++,
+        username: body.username.trim(),
+        realName: body.realName.trim(),
+        phone: body.phone?.trim() || null,
+        email: body.email?.trim() || null,
+        roleId: role.id,
+        roleCode: role.roleCode,
+        roleName: role.roleName,
+        status: 1,
+        statusText: '已启用',
+        lastLoginAt: null,
+        createdAt: now,
+        updatedAt: now,
+      }
+      adminUsers.unshift(user)
+      success(response, user.id)
+      return
+    }
+
+    const adminUserDetailMatch = url.pathname.match(/^\/admin\/users\/(\d+)$/)
+    if (method === 'GET' && adminUserDetailMatch) {
+      if (!requireAdmin(response)) return
+      const user = findAdminUser(response, Number(adminUserDetailMatch[1]))
+      if (user) success(response, user)
+      return
+    }
+
+    if (method === 'PUT' && adminUserDetailMatch) {
+      if (!requireAdmin(response)) return
+      const user = findAdminUser(response, Number(adminUserDetailMatch[1]))
+      if (!user) return
+      const body = await readJson(request)
+      Object.assign(user, {
+        realName: body.realName?.trim() || user.realName,
+        phone: body.phone?.trim() || null,
+        email: body.email?.trim() || null,
+        updatedAt: new Date().toISOString(),
+      })
+      success(response)
+      return
+    }
+
+    const adminUserStatusMatch = url.pathname.match(/^\/admin\/users\/(\d+)\/status$/)
+    if (method === 'PUT' && adminUserStatusMatch) {
+      if (!requireAdmin(response)) return
+      const user = findAdminUser(response, Number(adminUserStatusMatch[1]))
+      if (!user) return
+      if (user.id === currentUser.userId) {
+        fail(response, 400, '不能禁用当前登录账号')
+        return
+      }
+      const body = await readJson(request)
+      user.status = Number(body.status) === 0 ? 0 : 1
+      user.statusText = user.status === 1 ? '已启用' : '已禁用'
+      user.updatedAt = new Date().toISOString()
+      success(response)
+      return
+    }
+
+    const adminUserRoleMatch = url.pathname.match(/^\/admin\/users\/(\d+)\/role$/)
+    if (method === 'PUT' && adminUserRoleMatch) {
+      if (!requireAdmin(response)) return
+      const user = findAdminUser(response, Number(adminUserRoleMatch[1]))
+      if (!user) return
+      if (user.id === currentUser.userId) {
+        fail(response, 400, '不能修改当前登录账号的角色')
+        return
+      }
+      const body = await readJson(request)
+      const role = findAdminRole(response, Number(body.roleId))
+      if (!role) return
+      Object.assign(user, {
+        roleId: role.id,
+        roleCode: role.roleCode,
+        roleName: role.roleName,
+        updatedAt: new Date().toISOString(),
+      })
+      success(response)
+      return
+    }
+
+    const adminPasswordMatch = url.pathname.match(/^\/admin\/users\/(\d+)\/reset-password$/)
+    if (method === 'PUT' && adminPasswordMatch) {
+      if (!requireAdmin(response)) return
+      const user = findAdminUser(response, Number(adminPasswordMatch[1]))
+      if (!user) return
+      if (user.id === currentUser.userId) {
+        fail(response, 400, '请通过账户与安全修改当前账号密码')
+        return
+      }
+      const body = await readJson(request)
+      if (
+        !body.newPassword ||
+        body.newPassword.length < 6 ||
+        body.newPassword.length > 32 ||
+        body.newPassword !== body.confirmPassword
+      ) {
+        fail(response, 400, '新密码必须为 6-32 位，且两次输入保持一致')
+        return
+      }
+      user.updatedAt = new Date().toISOString()
+      success(response)
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/messages/conversations') {
+      const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20)
+      const start = (pageNum - 1) * pageSize
+      success(response, {
+        total: messageConversations.length,
+        records: messageConversations.slice(start, start + pageSize),
+      })
+      return
+    }
+
+    if (method === 'POST' && url.pathname === '/messages/conversations') {
+      const body = await readJson(request)
+      const existing = messageConversations.find(
+        (conversation) => conversation.applicationId === Number(body.applicationId),
+      )
+      if (existing) {
+        success(response, existing.id)
+        return
+      }
+      fail(response, 404, '当前投递没有可用的本地会话数据')
+      return
+    }
+
+    const conversationMessagesMatch = url.pathname.match(
+      /^\/messages\/conversations\/(\d+)\/messages$/,
+    )
+    if (method === 'GET' && conversationMessagesMatch) {
+      const conversationId = Number(conversationMessagesMatch[1])
+      const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 50)
+      const records = conversationMessages
+        .filter((message) => message.conversationId === conversationId)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+        .map((message) => ({
+          ...message,
+          mine: message.senderRole === currentUser.roleCode,
+        }))
+      const start = (pageNum - 1) * pageSize
+      success(response, { total: records.length, records: records.slice(start, start + pageSize) })
+      return
+    }
+
+    if (method === 'POST' && conversationMessagesMatch) {
+      const conversationId = Number(conversationMessagesMatch[1])
+      const conversation = messageConversations.find((item) => item.id === conversationId)
+      const body = await readJson(request)
+      if (!conversation || !body.content?.trim()) {
+        fail(response, 400, '消息内容不能为空')
+        return
+      }
+      const now = new Date().toISOString()
+      const record = {
+        id: nextMessageId++,
+        conversationId,
+        senderId: currentUser.userId,
+        senderName: currentUser.realName,
+        senderRole: currentUser.roleCode,
+        messageType: 'TEXT',
+        content: body.content.trim(),
+        createdAt: now,
+      }
+      conversationMessages.push(record)
+      Object.assign(conversation, {
+        lastMessagePreview: record.content,
+        lastMessageAt: now,
+        unreadCount: 0,
+      })
+      success(response, record.id)
+      return
+    }
+
+    const conversationReadMatch = url.pathname.match(/^\/messages\/conversations\/(\d+)\/read$/)
+    if (method === 'PUT' && conversationReadMatch) {
+      const conversation = messageConversations.find(
+        (item) => item.id === Number(conversationReadMatch[1]),
+      )
+      if (!conversation) {
+        fail(response, 404, '消息会话不存在')
+        return
+      }
+      conversation.unreadCount = 0
+      success(response)
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/messages/unread-count') {
+      success(
+        response,
+        messageConversations.reduce((total, conversation) => total + conversation.unreadCount, 0),
+      )
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/messages/stream') {
+      response.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+      response.write(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`)
+      const heartbeat = setInterval(() => response.write(': heartbeat\n\n'), 15_000)
+      request.on('close', () => clearInterval(heartbeat))
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/dashboard/overview') {
+      const pendingScreeningRecords = pipelineApplications.filter((item) =>
+        ['SUBMITTED', 'SCREENING'].includes(item.status),
+      )
+      const pendingFeedbackRecords = interviewTasks.filter(
+        (item) => item.status === 'COMPLETED' && item.feedbackState !== 'SUBMITTED',
+      )
+      const activeOfferRecords = offers.filter((item) => ['DRAFT', 'SENT'].includes(item.status))
+      const reviewingOnboardingRecords = onboardings.filter((item) => item.status === 'REVIEWING')
+
+      success(response, {
+        metrics: {
+          pendingScreening: pendingScreeningRecords.length,
+          pendingFeedback: pendingFeedbackRecords.length,
+          activeOffers: activeOfferRecords.length,
+          reviewingOnboardings: reviewingOnboardingRecords.length,
         },
+        tasks: [
+          ...pendingScreeningRecords.slice(0, 2).map((item) => ({
+            type: 'SCREENING',
+            relatedId: item.id,
+            applicationId: item.id,
+            candidateId: item.candidateId,
+            candidateName: item.candidateName,
+            jobId: item.jobId,
+            jobTitle: item.jobTitle,
+            title: item.status === 'SUBMITTED' ? '开始候选人筛选' : '完成候选人筛选',
+            status: item.status,
+            statusText: item.statusText,
+            occurredAt: item.lastActivityAt,
+          })),
+          ...pendingFeedbackRecords.slice(0, 2).map((item) => ({
+            type: 'INTERVIEW_FEEDBACK',
+            relatedId: item.id,
+            applicationId: item.applicationId,
+            candidateId: item.candidateId,
+            candidateName: item.candidateName,
+            jobId: null,
+            jobTitle: item.jobTitle,
+            title: '等待面试反馈',
+            status: item.feedbackState,
+            statusText: item.feedbackStateText,
+            occurredAt: item.interviewTime,
+          })),
+          ...activeOfferRecords.slice(0, 2).map((item) => ({
+            type: 'OFFER',
+            relatedId: item.id,
+            applicationId: item.applicationId,
+            candidateId: item.candidateId,
+            candidateName: item.candidateName,
+            jobId: null,
+            jobTitle: item.jobTitle,
+            title: item.status === 'DRAFT' ? '复核 Offer 草稿' : '跟进候选人回复',
+            status: item.status,
+            statusText: item.statusText,
+            occurredAt: item.updatedAt,
+          })),
+          ...reviewingOnboardingRecords.slice(0, 2).map((item) => ({
+            type: 'ONBOARDING',
+            relatedId: item.id,
+            applicationId: null,
+            candidateId: item.candidateId,
+            candidateName: item.candidateName,
+            jobId: null,
+            jobTitle: item.jobTitle,
+            title: '审核入职材料',
+            status: item.status,
+            statusText: item.statusText,
+            occurredAt: item.updatedAt,
+          })),
+        ],
       })
       return
     }
@@ -432,21 +1035,53 @@ const server = createServer(async (request, response) => {
         applications: [],
       })
 
+      currentUser = {
+        userId,
+        username: body.username,
+        realName: body.name,
+        phone: body.phone,
+        email: null,
+        roleCode: 'CANDIDATE',
+        roleName: '候选人',
+        roleId: 4,
+        status: 1,
+      }
       success(response, {
         token: 'local-mock-token-register',
         tokenType: 'Bearer',
-        userInfo: {
-          userId,
-          username: body.username,
-          realName: body.name,
-          phone: body.phone,
-          email: null,
-          roleCode: 'CANDIDATE',
-          roleName: '候选人',
-          roleId: 4,
-          status: 1,
-        },
+        userInfo: currentUser,
       })
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/auth/me') {
+      success(response, currentUser)
+      return
+    }
+
+    if (method === 'PUT' && url.pathname === '/users/me') {
+      const body = await readJson(request)
+      currentUser = {
+        ...currentUser,
+        realName: body.realName ?? currentUser.realName,
+        phone: body.phone ?? currentUser.phone,
+        email: body.email ?? currentUser.email,
+      }
+      success(response, null)
+      return
+    }
+
+    if (method === 'PUT' && url.pathname === '/users/me/password') {
+      const body = await readJson(request)
+      if (!body.oldPassword || !body.newPassword || !body.confirmPassword) {
+        fail(response, 400, '请完整填写密码信息')
+        return
+      }
+      if (body.newPassword !== body.confirmPassword) {
+        fail(response, 400, '两次输入的新密码不一致')
+        return
+      }
+      success(response, null)
       return
     }
 
@@ -575,11 +1210,15 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    if (method === 'GET' && url.pathname === '/candidates') {
+    if (method === 'GET' && ['/candidate', '/candidates'].includes(url.pathname)) {
       const keyword = (url.searchParams.get('keyword') ?? '').toLocaleLowerCase()
       const education = url.searchParams.get('education') ?? ''
       const school = (url.searchParams.get('school') ?? '').toLocaleLowerCase()
-      const yearsOfExperienceMin = Number(url.searchParams.get('yearsOfExperienceMin') ?? 0)
+      const yearsOfExperienceMin = Number(
+        url.searchParams.get('minYearsOfExperience') ??
+          url.searchParams.get('yearsOfExperienceMin') ??
+          0,
+      )
       const currentStatus = url.searchParams.get('currentStatus') ?? ''
       const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
       const pageSize = Number(url.searchParams.get('pageSize') ?? 10)
@@ -606,14 +1245,14 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    const candidateDetailMatch = url.pathname.match(/^\/candidates\/(\d+)$/)
+    const candidateDetailMatch = url.pathname.match(/^\/candidates?\/(\d+)$/)
     if (method === 'GET' && candidateDetailMatch) {
       const candidate = findCandidate(response, Number(candidateDetailMatch[1]))
       if (candidate) success(response, candidate)
       return
     }
 
-    if (method === 'POST' && url.pathname === '/candidates') {
+    if (method === 'POST' && ['/candidate', '/candidates'].includes(url.pathname)) {
       const body = await readJson(request)
       if (!body.name || (!body.phone && !body.email)) {
         fail(response, 400, '候选人姓名及手机号或邮箱不能为空')
@@ -659,6 +1298,28 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (method === 'PUT' && candidateDetailMatch) {
+      const candidate = findCandidate(response, Number(candidateDetailMatch[1]))
+      if (!candidate) return
+      const body = await readJson(request)
+      Object.assign(candidate, {
+        name: body.name ?? candidate.name,
+        gender: body.gender ?? candidate.gender,
+        phone: body.phone ?? candidate.phone,
+        email: body.email ?? candidate.email,
+        education: body.education ?? candidate.education,
+        school: body.school ?? candidate.school,
+        major: body.major ?? candidate.major,
+        yearsOfExperience: body.yearsOfExperience ?? candidate.yearsOfExperience,
+        currentStatus: body.currentStatus ?? candidate.currentStatus,
+        currentStatusText: candidateStatusText(body.currentStatus ?? candidate.currentStatus),
+        source: body.source ?? candidate.source,
+        lastActivityAt: new Date().toISOString(),
+      })
+      success(response, null)
+      return
+    }
+
     if (method === 'GET' && url.pathname === '/applications/pipeline') {
       const keyword = (url.searchParams.get('keyword') ?? '').toLocaleLowerCase()
       const jobId = Number(url.searchParams.get('jobId') ?? 0)
@@ -681,7 +1342,11 @@ const server = createServer(async (request, response) => {
       const start = (pageNum - 1) * pageSize
       success(response, {
         total: filtered.length,
-        records: filtered.slice(start, start + pageSize),
+        records: filtered.slice(start, start + pageSize).map((application) => ({
+          ...application,
+          matchScore: application.aiMatch?.matchScore ?? null,
+          recommendLevel: application.aiMatch?.recommendLevel ?? null,
+        })),
       })
       return
     }
@@ -689,7 +1354,13 @@ const server = createServer(async (request, response) => {
     const pipelineDetailMatch = url.pathname.match(/^\/applications\/(\d+)\/pipeline$/)
     if (method === 'GET' && pipelineDetailMatch) {
       const application = findPipelineApplication(response, Number(pipelineDetailMatch[1]))
-      if (application) success(response, application)
+      if (application) {
+        success(response, {
+          ...application,
+          matchScore: application.aiMatch?.matchScore ?? null,
+          recommendLevel: application.aiMatch?.recommendLevel ?? null,
+        })
+      }
       return
     }
 
@@ -1039,8 +1710,12 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    if (method === 'GET' && url.pathname === '/onboardings') {
-      const keyword = (url.searchParams.get('keyword') ?? '').toLocaleLowerCase()
+    if (method === 'GET' && ['/onboarding', '/onboardings'].includes(url.pathname)) {
+      const keyword = (
+        url.searchParams.get('candidateKeyword') ??
+        url.searchParams.get('keyword') ??
+        ''
+      ).toLocaleLowerCase()
       const status = url.searchParams.get('status') ?? ''
       const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
       const pageSize = Number(url.searchParams.get('pageSize') ?? 10)
@@ -1055,15 +1730,127 @@ const server = createServer(async (request, response) => {
       const start = (pageNum - 1) * pageSize
       success(response, {
         total: filtered.length,
-        records: filtered.slice(start, start + pageSize),
+        records: filtered.slice(start, start + pageSize).map(toBackendOnboarding),
       })
       return
     }
 
-    const onboardingDetailMatch = url.pathname.match(/^\/onboardings\/(\d+)$/)
+    const onboardingDetailMatch = url.pathname.match(/^\/onboardings?\/(\d+)$/)
     if (method === 'GET' && onboardingDetailMatch) {
       const record = findOnboarding(response, Number(onboardingDetailMatch[1]))
-      if (record) success(response, record)
+      if (record) success(response, toBackendOnboarding(record))
+      return
+    }
+
+    const onboardingApproveMatch = url.pathname.match(/^\/onboarding\/(\d+)\/approve-materials$/)
+    if (method === 'PUT' && onboardingApproveMatch) {
+      const record = findOnboarding(response, Number(onboardingApproveMatch[1]))
+      if (!record) return
+      if (record.status !== 'REVIEWING' || record.materialStatus !== 'REVIEWING') {
+        fail(response, 400, '当前入职流程不能审核通过')
+        return
+      }
+      Object.assign(record, {
+        status: 'APPROVED',
+        statusText: onboardingStatusText('APPROVED'),
+        currentStep: '等待入职',
+        materialStatus: 'APPROVED',
+        materialStatusText: materialStatusText('APPROVED'),
+        remark: null,
+        updatedAt: new Date().toISOString(),
+      })
+      success(response)
+      return
+    }
+
+    const onboardingRejectMatch = url.pathname.match(/^\/onboarding\/(\d+)\/reject-materials$/)
+    if (method === 'PUT' && onboardingRejectMatch) {
+      const record = findOnboarding(response, Number(onboardingRejectMatch[1]))
+      if (!record) return
+      if (record.status !== 'REVIEWING' || record.materialStatus !== 'REVIEWING') {
+        fail(response, 400, '当前入职流程不能驳回材料')
+        return
+      }
+      const body = await readJson(request)
+      if (!body.reason?.trim()) {
+        fail(response, 400, '请填写材料驳回原因')
+        return
+      }
+      Object.assign(record, {
+        status: 'PENDING',
+        statusText: onboardingStatusText('PENDING'),
+        currentStep: '重新提交材料',
+        materialStatus: 'REJECTED',
+        materialStatusText: materialStatusText('REJECTED'),
+        remark: body.reason.trim(),
+        updatedAt: new Date().toISOString(),
+      })
+      success(response)
+      return
+    }
+
+    const onboardingCompletePutMatch = url.pathname.match(/^\/onboarding\/(\d+)\/complete$/)
+    if (method === 'PUT' && onboardingCompletePutMatch) {
+      const record = findOnboarding(response, Number(onboardingCompletePutMatch[1]))
+      if (!record) return
+      if (record.status !== 'APPROVED' || record.materialStatus !== 'APPROVED') {
+        fail(response, 400, '只有审核通过的入职流程可以完成入职')
+        return
+      }
+      const now = new Date().toISOString()
+      Object.assign(record, {
+        status: 'ONBOARDED',
+        statusText: onboardingStatusText('ONBOARDED'),
+        currentStep: '入职完成',
+        remark: 'HR 已确认员工到岗。',
+        completedAt: now,
+        updatedAt: now,
+      })
+      if (!employees.some((item) => item.onboardingId === record.id)) {
+        employees.unshift({
+          id: Math.max(1000, ...employees.map((item) => item.id)) + 1,
+          userId: null,
+          candidateId: record.candidateId,
+          onboardingId: record.id,
+          employeeNo: `EMP${record.id}`,
+          name: record.candidateName,
+          phone: record.candidatePhone,
+          email: record.candidateEmail,
+          department: record.department,
+          position: record.jobTitle,
+          entryDate: record.entryDate,
+          status: 'PROBATION',
+          statusText: '试用期',
+          performanceSummary: '新入职员工，暂无绩效记录。',
+          attendanceSummary: '新入职员工，暂无考勤记录。',
+          satisfactionFeedback: null,
+          turnoverRiskLevel: null,
+          riskAssessedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+      }
+      success(response)
+      return
+    }
+
+    const onboardingCancelMatch = url.pathname.match(/^\/onboarding\/(\d+)\/cancel$/)
+    if (method === 'PUT' && onboardingCancelMatch) {
+      const record = findOnboarding(response, Number(onboardingCancelMatch[1]))
+      if (!record) return
+      const body = await readJson(request)
+      if (!body.reason?.trim()) {
+        fail(response, 400, '请填写取消原因')
+        return
+      }
+      Object.assign(record, {
+        status: 'CANCELED',
+        statusText: onboardingStatusText('CANCELED'),
+        currentStep: '入职流程已取消',
+        remark: body.reason.trim(),
+        updatedAt: new Date().toISOString(),
+      })
+      success(response)
       return
     }
 

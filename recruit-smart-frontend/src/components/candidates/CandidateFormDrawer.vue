@@ -155,7 +155,7 @@ async function submit() {
     @update:model-value="emit('update:visible', $event)"
   >
     <el-alert
-      title="手机号为后端必填字段，也用于重复候选人识别。"
+      title="手机号为必填信息，也用于识别重复候选人。"
       type="info"
       :closable="false"
       show-icon

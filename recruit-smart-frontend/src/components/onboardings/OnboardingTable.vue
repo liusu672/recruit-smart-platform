@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, Eye, FileCheck2, RotateCcw, UserRoundCheck, XCircle } from 'lucide-vue-next'
-
+import HrStatusBadge from '@/components/hr/HrStatusBadge.vue'
 import {
   canCancelOnboarding,
   canCompleteOnboarding,
@@ -10,7 +9,11 @@ import {
 } from '@/config/onboardings'
 import type { OnboardingRecord } from '@/types/onboarding'
 
-defineProps<{ records: OnboardingRecord[]; loading: boolean; allowStartReview: boolean }>()
+const props = defineProps<{
+  records: OnboardingRecord[]
+  loading: boolean
+  allowStartReview: boolean
+}>()
 const emit = defineEmits<{
   select: [record: OnboardingRecord]
   start: [record: OnboardingRecord]
@@ -26,6 +29,21 @@ function formatDate(value: string) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(value))
+}
+
+function getProgress(record: OnboardingRecord) {
+  if (record.status === 'CANCELED') return 0
+  if (record.status === 'ONBOARDED') return 3
+  if (record.status === 'APPROVED' || record.status === 'REVIEWING') return 2
+  return 1
+}
+
+function hasPrimaryAction(record: OnboardingRecord) {
+  return (
+    (props.allowStartReview && canStartOnboardingReview(record.status)) ||
+    canReviewOnboardingMaterial(record.status) ||
+    canCompleteOnboarding(record.status, record.materialStatus)
+  )
 }
 </script>
 
@@ -57,12 +75,16 @@ function formatDate(value: string) {
         </div></template
       ></el-table-column
     >
-    <el-table-column label="当前节点" min-width="132" prop="currentStep" />
-    <el-table-column label="材料" width="100" align="center"
-      ><template #default="{ row }: { row: OnboardingRecord }">{{
-        row.materialStatusText
-      }}</template></el-table-column
-    >
+    <el-table-column label="办理进度" min-width="230">
+      <template #default="{ row }: { row: OnboardingRecord }">
+        <div class="onboarding-progress">
+          <div class="onboarding-progress__steps" aria-hidden="true">
+            <span v-for="index in 3" :key="index" :class="{ active: index <= getProgress(row) }" />
+          </div>
+          <small>{{ row.currentStep }} · {{ row.materialStatusText }}</small>
+        </div>
+      </template>
+    </el-table-column>
     <el-table-column label="预计入职" width="128"
       ><template #default="{ row }: { row: OnboardingRecord }"
         ><span class="number">{{ formatDate(row.entryDate) }}</span></template
@@ -70,72 +92,97 @@ function formatDate(value: string) {
     >
     <el-table-column label="状态" width="100" align="center"
       ><template #default="{ row }: { row: OnboardingRecord }"
-        ><span :class="`rs-status-pill rs-status-pill--${getOnboardingStatusTone(row.status)}`">{{
-          row.statusText
-        }}</span></template
-      ></el-table-column
-    >
-    <el-table-column label="操作" width="224" fixed="right" align="right"
+        ><HrStatusBadge
+          :status="row.status"
+          :label="row.statusText"
+          :tone="getOnboardingStatusTone(row.status)" /></template
+    ></el-table-column>
+    <el-table-column label="操作" width="292" fixed="right" align="right"
       ><template #default="{ row }: { row: OnboardingRecord }"
         ><div class="actions" @click.stop>
-          <el-tooltip content="查看入职详情"
-            ><el-button circle :icon="Eye" aria-label="查看入职详情" @click="emit('select', row)"
-          /></el-tooltip>
-          <el-tooltip
+          <el-button class="actions__view" link type="primary" @click="emit('select', row)"
+            >查看详情</el-button
+          >
+          <el-button
             v-if="allowStartReview && canStartOnboardingReview(row.status)"
-            content="开始材料审核"
-            ><el-button
-              circle
-              type="primary"
-              :icon="FileCheck2"
-              aria-label="开始材料审核"
-              @click="emit('start', row)"
-          /></el-tooltip>
-          <template v-if="canReviewOnboardingMaterial(row.status)"
-            ><el-tooltip content="材料通过"
-              ><el-button
-                circle
-                type="success"
-                :icon="CheckCircle2"
-                aria-label="材料通过"
-                @click="emit('approve', row)" /></el-tooltip
-            ><el-tooltip content="退回补充"
-              ><el-button
-                circle
-                type="danger"
-                plain
-                :icon="RotateCcw"
-                aria-label="退回补充"
-                @click="emit('reject', row)" /></el-tooltip
-          ></template>
-          <el-tooltip
+            class="actions__primary"
+            link
+            type="primary"
+            @click="emit('start', row)"
+            >开始审核</el-button
+          >
+          <template v-if="canReviewOnboardingMaterial(row.status)">
+            <el-button class="actions__primary" link type="primary" @click="emit('approve', row)"
+              >材料通过</el-button
+            >
+            <el-button class="actions__secondary" link type="danger" @click="emit('reject', row)"
+              >退回补充</el-button
+            >
+          </template>
+          <el-button
             v-if="canCompleteOnboarding(row.status, row.materialStatus)"
-            content="确认入职并生成员工档案"
-            ><el-button
-              circle
-              type="primary"
-              :icon="UserRoundCheck"
-              aria-label="确认入职并生成员工档案"
-              @click="emit('complete', row)"
-          /></el-tooltip>
-          <el-tooltip v-if="canCancelOnboarding(row.status)" content="取消入职流程"
-            ><el-button
-              circle
-              type="danger"
-              plain
-              :icon="XCircle"
-              aria-label="取消入职流程"
-              @click="emit('cancel', row)"
-          /></el-tooltip></div></template
-    ></el-table-column>
+            class="actions__primary"
+            link
+            type="primary"
+            @click="emit('complete', row)"
+            >确认入职</el-button
+          >
+          <span
+            v-if="!hasPrimaryAction(row)"
+            class="hr-action-placeholder actions__primary"
+            aria-hidden="true"
+            >--</span
+          >
+          <span
+            v-if="!canReviewOnboardingMaterial(row.status)"
+            class="hr-action-placeholder actions__secondary"
+            aria-hidden="true"
+            >--</span
+          >
+          <el-button
+            v-if="canCancelOnboarding(row.status)"
+            class="actions__danger"
+            link
+            type="danger"
+            @click="emit('cancel', row)"
+            >取消办理</el-button
+          >
+          <span v-else class="hr-action-placeholder actions__danger" aria-hidden="true">--</span>
+        </div></template
+      ></el-table-column
+    >
   </el-table>
 </template>
 
 <style scoped lang="scss">
 .person,
 .actions {
-  display: flex;
   align-items: center;
+}
+
+.person {
+  display: flex;
+}
+
+.onboarding-progress {
+  display: grid;
+  gap: 6px;
+}
+.onboarding-progress small {
+  color: var(--rs-text-tertiary);
+}
+.onboarding-progress__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.onboarding-progress__steps span {
+  height: 4px;
+  border-radius: var(--rs-radius-pill);
+  background: var(--rs-surface-muted);
+}
+.onboarding-progress__steps span.active {
+  background: var(--rs-blue-500);
 }
 .person {
   gap: var(--rs-space-2);
@@ -163,7 +210,21 @@ function formatDate(value: string) {
   font-variant-numeric: tabular-nums;
 }
 .actions {
-  justify-content: flex-end;
-  gap: var(--rs-space-1);
+  display: grid;
+  justify-content: end;
+  grid-template-columns: repeat(4, 56px);
+  gap: var(--rs-space-2);
+}
+.actions__view {
+  grid-column: 1;
+}
+.actions__primary {
+  grid-column: 2;
+}
+.actions__secondary {
+  grid-column: 3;
+}
+.actions__danger {
+  grid-column: 4;
 }
 </style>

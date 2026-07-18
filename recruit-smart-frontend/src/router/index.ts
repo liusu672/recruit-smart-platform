@@ -88,14 +88,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'settings',
         name: 'candidate-settings',
-        component: () => import('@/views/settings/SettingsView.vue'),
+        component: () => import('@/views/settings/CandidateSettingsView.vue'),
         meta: { title: '账户与安全', roles: ['CANDIDATE'] },
       },
     ],
   },
   {
     path: '/hr',
-    component: () => import('@/views/layout/ManagementShell.vue'),
+    component: () => import('@/views/layout/HrShell.vue'),
     meta: { roles: ['HR'] },
     children: [
       { path: '', redirect: '/hr/dashboard' },
@@ -162,14 +162,14 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'settings',
         name: 'hr-settings',
-        component: () => import('@/views/settings/SettingsView.vue'),
+        component: () => import('@/views/settings/AccountSettingsView.vue'),
         meta: { title: '账户与安全', roles: ['HR'] },
       },
     ],
   },
   {
     path: '/interviewer',
-    component: () => import('@/views/layout/ManagementShell.vue'),
+    component: () => import('@/views/layout/InterviewerShell.vue'),
     meta: { roles: ['INTERVIEWER'] },
     children: [
       { path: '', redirect: '/interviewer/dashboard' },
@@ -182,19 +182,19 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'interviews',
         name: 'interviewer-interviews',
-        component: () => import('@/views/interviews/InterviewsView.vue'),
+        component: () => import('@/views/interviewer/InterviewerInterviewsView.vue'),
         meta: { title: '我的面试', roles: ['INTERVIEWER'] },
       },
       {
         path: 'messages',
         name: 'interviewer-messages',
-        component: () => import('@/views/messages/MessagesView.vue'),
+        component: () => import('@/views/interviewer/InterviewerMessagesView.vue'),
         meta: { title: '消息中心', roles: ['INTERVIEWER'] },
       },
       {
         path: 'settings',
         name: 'interviewer-settings',
-        component: () => import('@/views/settings/SettingsView.vue'),
+        component: () => import('@/views/interviewer/InterviewerSettingsView.vue'),
         meta: { title: '账户与安全', roles: ['INTERVIEWER'] },
       },
     ],
@@ -214,8 +214,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'users',
         name: 'admin-users',
-        component: () => import('@/views/admin/AdminPendingView.vue'),
-        props: { feature: '用户管理', description: '创建、编辑和禁用系统账号。' },
+        component: () => import('@/views/admin/AdminUsersView.vue'),
         meta: { title: '用户管理', roles: ['ADMIN'] },
       },
       {
@@ -255,7 +254,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'settings',
         name: 'admin-settings',
-        component: () => import('@/views/settings/SettingsView.vue'),
+        component: () => import('@/views/settings/AccountSettingsView.vue'),
         meta: { title: '账户与安全', roles: ['ADMIN'] },
       },
     ],

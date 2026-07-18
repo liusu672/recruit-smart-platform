@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Eye, Pencil, Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { BriefcaseBusiness, MoreHorizontal, Plus } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import HrEmptyState from '@/components/hr/HrEmptyState.vue'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
+import HrStatusBadge from '@/components/hr/HrStatusBadge.vue'
 import JobDetailDrawer from '@/components/jobs/JobDetailDrawer.vue'
 import JobFormDrawer from '@/components/jobs/JobFormDrawer.vue'
 import { jobDepartmentOptions, jobStatusOptions, getJobStatusTone } from '@/config/jobs'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { useJobManagement } from '@/composables/useJobManagement'
-import type { JobPosition, JobQuery, JobUpdateRequest } from '@/types/job'
+import type { JobPosition, JobQuery, JobStatus, JobUpdateRequest } from '@/types/job'
 
 const {
   query,
@@ -26,17 +32,21 @@ const {
   isMutating,
   applyFilters,
   resetFilters,
-  useDemoData,
   useApiData,
   openDetail,
   closeDetail,
 } = useJobManagement()
 const router = useRouter()
+const urlFilters = useHrUrlFilters(['keyword', 'department', 'status', 'page', 'pageSize'])
 
 const filterForm = reactive<Pick<JobQuery, 'keyword' | 'department' | 'status'>>({
-  keyword: '',
-  department: '',
-  status: '',
+  keyword: urlFilters.readString('keyword'),
+  department: urlFilters.readString('department'),
+  status: urlFilters.readString('status') as JobStatus | '',
+})
+Object.assign(query, filterForm, {
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 10),
 })
 const formVisible = ref(false)
 const editingJob = ref<JobPosition | null>(null)
@@ -51,6 +61,10 @@ const total = computed(() => jobsQuery.data.value?.total ?? 0)
 const listError = computed(() => jobsQuery.error.value as Error | null)
 const detailError = computed(() => detailQuery.error.value as Error | null)
 const applicationsError = computed(() => applicationsQuery.error.value as Error | null)
+const activeFilterCount = computed(
+  () =>
+    [filterForm.keyword.trim(), filterForm.department, filterForm.status].filter(Boolean).length,
+)
 
 function formatDate(value: string | null) {
   if (!value) return '暂无记录'
@@ -63,12 +77,26 @@ function formatDate(value: string | null) {
 
 function runSearch() {
   applyFilters({ ...filterForm })
+  syncUrl(1)
 }
 
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', department: '', status: '' })
   resetFilters()
+  syncUrl(1)
 }
+
+function syncUrl(page = query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    department: filterForm.department,
+    status: filterForm.status,
+    page: page > 1 ? page : null,
+    pageSize: query.pageSize !== 10 ? query.pageSize : null,
+  })
+}
+
+watch([() => query.page, () => query.pageSize], () => syncUrl())
 
 function openCreate() {
   editingJob.value = null
@@ -175,17 +203,27 @@ async function confirmClose(job: JobPosition) {
     showError(error)
   }
 }
+
+function handleJobCommand(command: string, job: JobPosition) {
+  if (command === 'view') openDetail(job.id)
+  if (command === 'edit') openEdit(job)
+  if (command === 'publish') void confirmPublish(job)
+  if (command === 'pause') void confirmPause(job)
+  if (command === 'resume') void confirmResume(job)
+  if (command === 'close') void confirmClose(job)
+}
 </script>
 
 <template>
   <div class="jobs-view">
-    <header class="jobs-view__intro">
-      <div>
-        <h2 class="rs-section-title">职位列表</h2>
-        <p>维护职位草稿、发布状态与招聘人数，关键状态变更由 HR 人工确认。</p>
-      </div>
-      <el-button type="primary" :icon="Plus" @click="openCreate">创建职位</el-button>
-    </header>
+    <HrPageHeader
+      title="职位管理"
+      description="维护职位信息与招聘状态，所有关键变更均由 HR 人工确认。"
+    >
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreate">创建职位</el-button>
+      </template>
+    </HrPageHeader>
 
     <el-alert
       v-if="demoMode"
@@ -195,17 +233,23 @@ async function confirmClose(job: JobPosition) {
       show-icon
     >
       <template #default>
-        <el-button link type="primary" @click="useApiData">重新连接后端接口</el-button>
+        <el-button link type="primary" @click="useApiData">切换到真实数据</el-button>
       </template>
     </el-alert>
 
-    <section class="jobs-toolbar" aria-label="职位筛选">
+    <HrFilterBar
+      :loading="jobsQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="runSearch"
+      @reset="clearFilters"
+      @refresh="jobsQuery.refetch()"
+    >
       <el-input
         v-model="filterForm.keyword"
         clearable
         placeholder="搜索职位名称"
         class="jobs-toolbar__search"
-        @keyup.enter="runSearch"
       />
       <el-select v-model="filterForm.department" clearable placeholder="全部部门">
         <el-option
@@ -223,31 +267,15 @@ async function confirmClose(job: JobPosition) {
           :value="status.value"
         />
       </el-select>
-      <el-button type="primary" :icon="Search" @click="runSearch">查询</el-button>
-      <el-button :icon="RotateCcw" @click="clearFilters">重置</el-button>
-      <el-button
-        :icon="RefreshCw"
-        :loading="jobsQuery.isFetching.value"
-        aria-label="刷新职位列表"
-        @click="jobsQuery.refetch()"
-      >
-        刷新
-      </el-button>
-      <span class="jobs-toolbar__source"> 数据来源：{{ demoMode ? '演示数据' : '后端接口' }} </span>
-    </section>
+    </HrFilterBar>
 
-    <section v-if="listError && !demoMode" class="jobs-error" role="alert">
-      <div>
-        <h3>职位接口暂时不可用</h3>
-        <p>{{ listError.message }}。可以重试接口，或切换到明确标识的演示数据继续查看页面。</p>
-      </div>
-      <div class="jobs-error__actions">
-        <el-button :loading="jobsQuery.isFetching.value" @click="jobsQuery.refetch()"
-          >重试接口</el-button
-        >
-        <el-button type="primary" @click="useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    <HrErrorState
+      v-if="listError && !demoMode"
+      title="职位列表暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="jobsQuery.isFetching.value"
+      @retry="jobsQuery.refetch()"
+    />
 
     <section v-else class="jobs-table" aria-label="职位数据表格">
       <el-table
@@ -274,9 +302,7 @@ async function confirmClose(job: JobPosition) {
         </el-table-column>
         <el-table-column prop="salaryRange" label="月薪范围" min-width="150" align="right">
           <template #default="{ row }: { row: JobPosition }">
-            <span class="rs-tabular-number">{{
-              row.salaryRange ? `${row.salaryRange} 元` : '待补充'
-            }}</span>
+            <span class="rs-tabular-number">{{ row.salaryRange || '待补充' }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="headcount" label="招聘人数" width="100" align="right">
@@ -286,9 +312,11 @@ async function confirmClose(job: JobPosition) {
         </el-table-column>
         <el-table-column prop="statusText" label="状态" width="100">
           <template #default="{ row }: { row: JobPosition }">
-            <span class="rs-status-pill" :class="`rs-status-pill--${getJobStatusTone(row.status)}`">
-              {{ row.statusText }}
-            </span>
+            <HrStatusBadge
+              :status="row.status"
+              :label="row.statusText"
+              :tone="getJobStatusTone(row.status)"
+            />
           </template>
         </el-table-column>
         <el-table-column prop="updatedAt" label="最近更新" width="130" align="right">
@@ -296,36 +324,98 @@ async function confirmClose(job: JobPosition) {
             <span class="rs-tabular-number">{{ formatDate(row.updatedAt || row.createdAt) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="112" fixed="right" align="right">
+        <el-table-column label="操作" width="220" fixed="right" align="right">
           <template #default="{ row }: { row: JobPosition }">
             <div class="job-row-actions" @click.stop>
-              <el-tooltip content="查看详情" placement="top">
-                <el-button
-                  circle
-                  :icon="Eye"
-                  aria-label="查看职位详情"
-                  @click="openDetail(row.id)"
-                />
-              </el-tooltip>
-              <el-tooltip content="编辑职位" placement="top">
-                <el-button
-                  circle
-                  :icon="Pencil"
-                  :disabled="row.status === 'CLOSED'"
-                  aria-label="编辑职位"
-                  @click="openEdit(row)"
-                />
-              </el-tooltip>
+              <el-button
+                class="job-row-actions__view"
+                link
+                type="primary"
+                @click="openDetail(row.id)"
+                >查看</el-button
+              >
+              <el-button
+                v-if="row.status === 'DRAFT'"
+                class="job-row-actions__edit"
+                link
+                type="primary"
+                @click="openEdit(row)"
+                >编辑</el-button
+              >
+              <span v-else class="hr-action-placeholder job-row-actions__edit" aria-hidden="true"
+                >--</span
+              >
+              <el-button
+                v-if="row.status === 'DRAFT'"
+                class="job-row-actions__state"
+                link
+                type="primary"
+                @click="confirmPublish(row)"
+                >发布</el-button
+              >
+              <el-button
+                v-if="row.status === 'OPEN'"
+                class="job-row-actions__state"
+                link
+                type="primary"
+                @click="confirmPause(row)"
+                >暂停</el-button
+              >
+              <el-button
+                v-if="row.status === 'PAUSED'"
+                class="job-row-actions__state"
+                link
+                type="primary"
+                @click="confirmResume(row)"
+                >恢复</el-button
+              >
+              <span
+                v-if="row.status === 'CLOSED'"
+                class="hr-action-placeholder job-row-actions__state"
+                aria-hidden="true"
+                >--</span
+              >
+              <el-dropdown
+                v-if="row.status !== 'CLOSED'"
+                class="job-row-actions__more"
+                trigger="click"
+                @command="(command: string) => handleJobCommand(command, row)"
+              >
+                <el-button link :icon="MoreHorizontal" aria-label="更多职位操作">更多</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-if="row.status !== 'DRAFT'" command="edit"
+                      >编辑职位</el-dropdown-item
+                    >
+                    <el-dropdown-item command="view">查看详情</el-dropdown-item>
+                    <el-dropdown-item
+                      v-if="row.status === 'OPEN' || row.status === 'PAUSED'"
+                      divided
+                      command="close"
+                      >关闭职位</el-dropdown-item
+                    >
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <span v-else class="hr-action-placeholder job-row-actions__more" aria-hidden="true"
+                >--</span
+              >
             </div>
           </template>
         </el-table-column>
 
         <template #empty>
-          <div class="jobs-empty">
-            <h3>没有符合条件的职位</h3>
-            <p>调整筛选条件，或创建一个新的职位草稿。</p>
-            <el-button type="primary" :icon="Plus" @click="openCreate">创建职位</el-button>
-          </div>
+          <HrEmptyState
+            :icon="BriefcaseBusiness"
+            title="没有符合条件的职位"
+            description="调整筛选条件，或创建一个新的职位草稿。"
+          >
+            <template #actions
+              ><el-button type="primary" :icon="Plus" @click="openCreate"
+                >创建职位</el-button
+              ></template
+            >
+          </HrEmptyState>
         </template>
       </el-table>
 
@@ -335,7 +425,8 @@ async function confirmClose(job: JobPosition) {
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
           background
-          layout="prev, pager, next"
+          layout="sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
           :total="total"
         />
       </footer>
@@ -379,8 +470,10 @@ async function confirmClose(job: JobPosition) {
 .jobs-error,
 .jobs-pagination,
 .job-row-actions {
-  display: flex;
+  display: grid;
   align-items: center;
+  justify-content: end;
+  grid-template-columns: 40px 40px 40px 60px;
 }
 
 .jobs-view__intro,
@@ -444,8 +537,28 @@ async function confirmClose(job: JobPosition) {
 
 .jobs-error__actions,
 .job-row-actions {
-  display: flex;
   gap: var(--rs-space-2);
+}
+
+.jobs-error__actions {
+  display: flex;
+}
+
+.job-row-actions__view {
+  grid-column: 1;
+}
+
+.job-row-actions__edit {
+  grid-column: 2;
+}
+
+.job-row-actions__state {
+  grid-column: 3;
+}
+
+.job-row-actions__more {
+  grid-column: 4;
+  justify-self: start;
 }
 
 .jobs-table {

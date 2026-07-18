@@ -1,24 +1,35 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import OnboardingDetailDrawer from '@/components/onboardings/OnboardingDetailDrawer.vue'
 import OnboardingTable from '@/components/onboardings/OnboardingTable.vue'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { useOnboardingManagement } from '@/composables/useOnboardingManagement'
 import { onboardingStatusOptions } from '@/config/onboardings'
 import type { OnboardingRecord, OnboardingStatus } from '@/types/onboarding'
 
 const state = useOnboardingManagement()
 const route = useRoute()
+const urlFilters = useHrUrlFilters(['keyword', 'status', 'page', 'pageSize'])
 const filterForm = reactive<{ keyword: string; status: OnboardingStatus | '' }>({
-  keyword: '',
-  status: '',
+  keyword: urlFilters.readString('keyword'),
+  status: urlFilters.readString('status') as OnboardingStatus | '',
+})
+Object.assign(state.query, filterForm, {
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 10),
 })
 const records = computed(() => state.listQuery.data.value?.items ?? [])
 const total = computed(() => state.listQuery.data.value?.total ?? 0)
 const listError = computed(() => state.listQuery.error.value as Error | null)
 const detailError = computed(() => state.detailQuery.error.value as Error | null)
+const activeFilterCount = computed(
+  () => [filterForm.keyword.trim(), filterForm.status].filter(Boolean).length,
+)
 const detailVisible = computed({
   get: () => state.selectedId.value !== null,
   set: (value) => {
@@ -43,11 +54,22 @@ watch(
 
 function submitFilters() {
   state.applyFilters({ keyword: filterForm.keyword.trim(), status: filterForm.status })
+  syncUrl(1)
 }
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', status: '' })
   state.resetFilters()
+  syncUrl(1)
 }
+function syncUrl(page = state.query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    status: filterForm.status,
+    page: page > 1 ? page : null,
+    pageSize: state.query.pageSize !== 10 ? state.query.pageSize : null,
+  })
+}
+watch([() => state.query.page, () => state.query.pageSize], () => syncUrl())
 async function startReview(record: OnboardingRecord) {
   try {
     await ElMessageBox.confirm(
@@ -90,7 +112,7 @@ async function reviewMaterial(record: OnboardingRecord, decision: 'APPROVE' | 'R
 async function complete(record: OnboardingRecord) {
   try {
     await ElMessageBox.confirm(
-      `确认“${record.candidateName}”已于 ${record.entryDate} 入职？后端会自动生成员工编号并创建员工档案。`,
+      `确认“${record.candidateName}”已于 ${record.entryDate} 入职？系统会自动生成员工编号并创建员工档案。`,
       '生成员工档案',
       { confirmButtonText: '确认生成', cancelButtonText: '返回检查', type: 'warning' },
     )
@@ -138,52 +160,40 @@ async function cancel(record: OnboardingRecord) {
 
 <template>
   <div class="view">
-    <section class="intro">
-      <div>
-        <h2 class="rs-section-title">入职办理</h2>
-        <p>从已接受 Offer 开始审核材料，确认到岗后生成员工档案。</p>
-      </div>
-    </section>
+    <HrPageHeader
+      title="入职办理"
+      description="从已接受 Offer 开始审核材料，确认到岗后生成员工档案。"
+    />
     <section v-if="state.demoMode.value" class="source">
       <span><strong>演示数据模式</strong>：状态变更只保存在当前浏览器内存中。</span
-      ><el-button link @click="state.useApiData">返回入职接口</el-button>
+      ><el-button link @click="state.useApiData">切换到真实数据</el-button>
     </section>
-    <section class="toolbar" aria-label="入职筛选">
-      <el-input
-        v-model="filterForm.keyword"
-        placeholder="候选人、岗位或部门"
+    <HrFilterBar
+      :loading="state.listQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="submitFilters"
+      @reset="clearFilters"
+      @refresh="state.listQuery.refetch()"
+    >
+      <el-input v-model="filterForm.keyword" placeholder="候选人、岗位或部门" clearable /><el-select
+        v-model="filterForm.status"
+        placeholder="全部状态"
         clearable
-        @keyup.enter="submitFilters"
-      /><el-select v-model="filterForm.status" placeholder="全部状态" clearable
         ><el-option
           v-for="option in onboardingStatusOptions"
           :key="option.value"
           :label="option.label"
           :value="option.value"
       /></el-select>
-      <div>
-        <el-button type="primary" :icon="Search" @click="submitFilters">查询</el-button
-        ><el-button :icon="RotateCcw" @click="clearFilters">重置</el-button
-        ><el-tooltip content="刷新入职记录"
-          ><el-button
-            circle
-            :icon="RefreshCw"
-            :loading="state.listQuery.isFetching.value"
-            aria-label="刷新入职记录"
-            @click="state.listQuery.refetch()"
-        /></el-tooltip>
-      </div>
-    </section>
-    <section v-if="listError && !state.demoMode.value" class="error">
-      <div>
-        <h3>入职接口暂不可用</h3>
-        <p>{{ listError.message }}。请确认 Gateway、业务服务和当前账号权限正常。</p>
-      </div>
-      <div>
-        <el-button @click="state.listQuery.refetch()">重试接口</el-button
-        ><el-button type="primary" @click="state.useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    </HrFilterBar>
+    <HrErrorState
+      v-if="listError && !state.demoMode.value"
+      title="入职记录暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="state.listQuery.isFetching.value"
+      @retry="state.listQuery.refetch()"
+    />
     <section v-else class="table">
       <OnboardingTable
         :records="records"
@@ -197,14 +207,13 @@ async function cancel(record: OnboardingRecord) {
         @cancel="cancel"
       />
       <footer>
-        <span
-          >共 {{ total }} 条入职记录，数据来源：{{
-            state.demoMode.value ? '演示数据' : '入职接口'
-          }}</span
+        <span>共 {{ total }} 条入职记录</span
         ><el-pagination
           v-model:current-page="state.query.page"
+          v-model:page-size="state.query.pageSize"
           background
-          layout="prev, pager, next"
+          layout="sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
           :total="total"
         />
       </footer>

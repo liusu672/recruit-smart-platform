@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import { useUserSettings } from '@/composables/useUserSettings'
 import type { PasswordUpdateRequest, UserProfileUpdateRequest } from '@/types/user'
 
 const { userQuery, profileMutation, passwordMutation } = useUserSettings()
+const route = useRoute()
+const isHr = computed(() => route.path.startsWith('/hr/'))
 const profile = reactive<UserProfileUpdateRequest>({ realName: '', phone: '', email: '' })
 const password = reactive<PasswordUpdateRequest>({
   oldPassword: '',
@@ -54,15 +59,23 @@ async function savePassword() {
 
 <template>
   <div class="settings-view">
-    <header class="settings-view__intro">
+    <HrPageHeader v-if="isHr" title="账户与安全" description="维护当前登录账号的联系方式和密码。" />
+    <header v-else class="settings-view__intro">
       <div>
         <h2 class="rs-section-title">账户与安全</h2>
         <p>登录账号资料与候选人求职资料分开维护，修改后会同步当前会话。</p>
       </div>
     </header>
 
+    <HrErrorState
+      v-if="isHr && userQuery.error.value"
+      title="部分账户信息暂时无法加载"
+      description="请稍后重试，或联系系统管理员检查账户状态。"
+      :loading="userQuery.isFetching.value"
+      @retry="userQuery.refetch()"
+    />
     <el-alert
-      v-if="userQuery.error.value"
+      v-else-if="userQuery.error.value"
       type="error"
       :closable="false"
       show-icon
@@ -78,10 +91,16 @@ async function savePassword() {
       </div>
       <el-form label-position="top" @submit.prevent="saveProfile">
         <div class="settings-grid">
-          <el-form-item label="登录账号">
+          <div v-if="isHr" class="settings-readonly">
+            <span>登录账号</span><strong>{{ userQuery.data.value?.username ?? '加载中' }}</strong>
+          </div>
+          <div v-if="isHr" class="settings-readonly">
+            <span>账户角色</span><strong>{{ userQuery.data.value?.roleName ?? 'HR' }}</strong>
+          </div>
+          <el-form-item v-if="!isHr" label="登录账号">
             <el-input :model-value="userQuery.data.value?.username ?? ''" disabled />
           </el-form-item>
-          <el-form-item label="角色">
+          <el-form-item v-if="!isHr" label="角色">
             <el-input :model-value="userQuery.data.value?.roleName ?? ''" disabled />
           </el-form-item>
           <el-form-item label="真实姓名">
@@ -167,6 +186,22 @@ async function savePassword() {
 }
 .settings-grid--password {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.settings-readonly {
+  display: grid;
+  align-content: center;
+  min-height: 62px;
+  padding: 10px 12px;
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-subtle);
+}
+.settings-readonly span {
+  color: var(--rs-text-tertiary);
+  font-size: 12px;
+}
+.settings-readonly strong {
+  margin-top: 3px;
+  font-weight: 600;
 }
 @media (max-width: 1280px) {
   .settings-grid,

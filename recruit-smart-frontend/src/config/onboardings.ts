@@ -1,4 +1,5 @@
 import type { MaterialStatus, OnboardingStatus } from '@/types/onboarding'
+import type { HrStatusTone } from '@/types/hr'
 
 export const onboardingStatusOptions: Array<{ label: string; value: OnboardingStatus }> = [
   { label: '待提交', value: 'PENDING' },
@@ -12,9 +13,9 @@ export function getOnboardingStatusText(status: OnboardingStatus) {
   return onboardingStatusOptions.find((item) => item.value === status)?.label ?? status
 }
 
-export function getOnboardingStatusTone(status: OnboardingStatus) {
+export function getOnboardingStatusTone(status: OnboardingStatus): HrStatusTone {
   if (status === 'ONBOARDED' || status === 'APPROVED') return 'success'
-  if (status === 'CANCELED') return 'danger'
+  if (status === 'CANCELED') return 'neutral'
   if (status === 'REVIEWING') return 'info'
   return 'warning'
 }

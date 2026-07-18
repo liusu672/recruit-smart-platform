@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye } from 'lucide-vue-next'
+import HrStatusBadge from '@/components/hr/HrStatusBadge.vue'
 import { getEmployeeStatusTone, getTurnoverRiskText, getTurnoverRiskTone } from '@/config/employees'
 import type { EmployeeRecord } from '@/types/employee'
 defineProps<{ records: EmployeeRecord[]; loading: boolean }>()
@@ -10,6 +10,9 @@ function formatDate(value: string) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(value))
+}
+function formatAssessment(value: string | null) {
+  return value ? `评估于 ${formatDate(value)}` : '尚未评估'
 }
 </script>
 
@@ -44,16 +47,18 @@ function formatDate(value: string) {
       ></el-table-column
     ><el-table-column label="员工状态" width="104" align="center"
       ><template #default="{ row }: { row: EmployeeRecord }"
-        ><span :class="`rs-status-pill rs-status-pill--${getEmployeeStatusTone(row.status)}`">{{
-          row.statusText
-        }}</span></template
-      ></el-table-column
-    ><el-table-column label="AI 离职风险" width="128" align="center"
+        ><HrStatusBadge
+          :status="row.status"
+          :label="row.statusText"
+          :tone="getEmployeeStatusTone(row.status)" /></template></el-table-column
+    ><el-table-column label="离职倾向参考" min-width="150" align="center"
       ><template #default="{ row }: { row: EmployeeRecord }"
-        ><span
-          :class="`rs-status-pill rs-status-pill--${getTurnoverRiskTone(row.turnoverRiskLevel)}`"
-          >{{ getTurnoverRiskText(row.turnoverRiskLevel) }}</span
-        ></template
+        ><div class="risk-reference">
+          <HrStatusBadge
+            :label="getTurnoverRiskText(row.turnoverRiskLevel)"
+            :tone="getTurnoverRiskTone(row.turnoverRiskLevel)"
+          /><small>{{ formatAssessment(row.riskAssessedAt) }}</small>
+        </div></template
       ></el-table-column
     ><el-table-column label="联系方式" min-width="190"
       ><template #default="{ row }: { row: EmployeeRecord }"
@@ -62,13 +67,14 @@ function formatDate(value: string) {
           ><small>{{ row.email || '未提供' }}</small>
         </div></template
       ></el-table-column
-    ><el-table-column label="操作" width="76" fixed="right" align="right"
+    ><el-table-column label="操作" width="88" fixed="right" align="right"
       ><template #default="{ row }: { row: EmployeeRecord }"
         ><div @click.stop>
-          <el-tooltip content="查看员工档案"
-            ><el-button circle :icon="Eye" aria-label="查看员工档案" @click="emit('select', row)"
-          /></el-tooltip></div></template></el-table-column
-  ></el-table>
+          <el-button link type="primary" @click="emit('select', row)">查看</el-button>
+        </div></template
+      ></el-table-column
+    ></el-table
+  >
 </template>
 
 <style scoped lang="scss">
@@ -94,9 +100,18 @@ function formatDate(value: string) {
 .person small,
 .stack small {
   color: var(--rs-text-tertiary);
-  font-size: 12px;
+  font-size: 11px;
 }
 .number {
   font-variant-numeric: tabular-nums;
+}
+.risk-reference {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.risk-reference small {
+  color: var(--rs-text-tertiary);
+  font-size: 12px;
 }
 </style>

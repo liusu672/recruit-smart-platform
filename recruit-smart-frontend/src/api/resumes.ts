@@ -22,7 +22,10 @@ function parseContentDispositionFileName(value: string): string {
   return plain ? decodeURIComponent(plain) : ''
 }
 
-async function getResumeFile(id: number, action: 'download' | 'preview'): Promise<ResumeFileResponse> {
+async function getResumeFile(
+  id: number,
+  action: 'download' | 'preview',
+): Promise<ResumeFileResponse> {
   const response = await http.get<Blob>(`/resumes/${id}/${action}`, { responseType: 'blob' })
   const disposition = readHeader(response.headers, 'content-disposition')
   const contentType = readHeader(response.headers, 'content-type') || response.data.type

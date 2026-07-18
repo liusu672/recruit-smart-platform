@@ -47,7 +47,7 @@ Environment requirements:
 - Node.js 24 or newer.
 - npm 11 or newer.
 - Development server: `http://localhost:5173`.
-- `/api` is proxied to `http://localhost:8080` with the `/api` prefix removed.
+- `/api` is proxied to `http://localhost:9000`; the local Mock API accepts the same gateway prefix.
 - `npm run mock-api` is an explicit frontend-only fallback for local development. Never run it on the same port as the real backend or present its in-memory data as production data.
 
 Before handing off code, run at least:
@@ -131,7 +131,7 @@ Do not accidentally present the following as completed production functionality:
 
 - verification-code authentication;
 - HR 聚合页仍有部分临时契约；候选人端公开职位与 `/me` 接口、面试官本人任务接口已经按后端 Controller 接入；
-- administrator governance APIs for users, roles, dictionaries, audit logs, and system health;
+- administrator role-permission CRUD, dictionaries, audit logs, and system health APIs; user account management is implemented;
 - Vue Query adoption outside the completed job, candidate, pipeline, interview, Offer, onboarding, and employee modules.
 
 When implementing one of these, update `前端框架.md`, add the relevant tests, and remove the corresponding limitation only after the behavior is verified.

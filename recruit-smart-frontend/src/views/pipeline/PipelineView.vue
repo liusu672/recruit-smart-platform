@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Columns3, List, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
+import { Columns3, List } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
 
 import ApplicationDetailDrawer from '@/components/pipeline/ApplicationDetailDrawer.vue'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import PipelineBoard from '@/components/pipeline/PipelineBoard.vue'
 import PipelineTable from '@/components/pipeline/PipelineTable.vue'
 import ScreeningDecisionDialog from '@/components/pipeline/ScreeningDecisionDialog.vue'
 import { applicationStatusOptions, getPipelineStageKey, pipelineStages } from '@/config/pipeline'
 import { interviewRoundOptions } from '@/config/interviews'
 import { useRecruitmentPipeline } from '@/composables/useRecruitmentPipeline'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { getOrCreateConversation } from '@/api/messages'
 import { useSessionStore } from '@/stores/session'
 import type { ApplicationStatus } from '@/types/candidate'
@@ -40,11 +44,11 @@ const {
   interviewCancellationMutation,
   applyFilters,
   resetFilters,
-  useDemoData,
   useApiData,
   selectApplication,
   closeDetail,
 } = useRecruitmentPipeline()
+const urlFilters = useHrUrlFilters(['keyword', 'jobId', 'status', 'page', 'pageSize'])
 
 const viewMode = ref<PipelineViewMode>('BOARD')
 const decisionDialogVisible = ref(false)
@@ -61,9 +65,15 @@ const assignmentForm = reactive<{
   round: 'FIRST',
 })
 const filterForm = reactive({
-  keyword: '',
+  keyword: urlFilters.readString('keyword'),
   jobId: null as number | null,
-  status: '' as ApplicationStatus | '',
+  status: urlFilters.readString('status') as ApplicationStatus | '',
+})
+Object.assign(query, {
+  keyword: filterForm.keyword,
+  status: filterForm.status,
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 20),
 })
 
 const applications = computed(() => pipelineQuery.data.value?.items ?? [])
@@ -94,6 +104,9 @@ const interviewerOptions = computed(() => interviewerQuery.data.value ?? [])
 const assignmentSubmitting = computed(
   () =>
     interviewAssignmentMutation.isPending.value || interviewReassignmentMutation.isPending.value,
+)
+const activeFilterCount = computed(
+  () => [filterForm.keyword.trim(), filterForm.jobId, filterForm.status].filter(Boolean).length,
 )
 
 function parseRouteId(value: unknown) {
@@ -131,12 +144,26 @@ function submitFilters() {
     jobId: filterForm.jobId,
     status: filterForm.status as typeof query.status,
   })
+  syncUrl(1)
 }
 
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', jobId: null, status: '' })
   resetFilters()
+  syncUrl(1)
 }
+
+function syncUrl(page = query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    jobId: filterForm.jobId,
+    status: filterForm.status,
+    page: page > 1 ? page : null,
+    pageSize: query.pageSize !== 20 ? query.pageSize : null,
+  })
+}
+
+watch([() => query.page, () => query.pageSize], () => syncUrl())
 
 async function startScreening(application: PipelineApplicationSummary) {
   try {
@@ -271,35 +298,36 @@ async function contactCandidate(applicationId: number) {
 
 <template>
   <div class="pipeline-view">
-    <section class="pipeline-view__intro">
-      <div>
-        <h2 class="rs-section-title">招聘流程</h2>
-        <p>Board 用于团队协同，Table 用于精确筛选；关键状态变更始终由业务角色确认。</p>
-      </div>
-      <el-radio-group v-model="viewMode" aria-label="招聘流程视图">
-        <el-radio-button value="BOARD">
-          <Columns3 :size="15" :stroke-width="1.75" aria-hidden="true" />
-          看板
-        </el-radio-button>
-        <el-radio-button value="TABLE">
-          <List :size="15" :stroke-width="1.75" aria-hidden="true" />
-          表格
-        </el-radio-button>
-      </el-radio-group>
-    </section>
+    <HrPageHeader
+      title="招聘流程"
+      description="推进进行中的候选人，并将录用与结束记录从主流程中清晰分开。"
+    >
+      <template #actions>
+        <el-radio-group v-model="viewMode" aria-label="招聘流程视图">
+          <el-radio-button value="BOARD"
+            ><Columns3 :size="15" :stroke-width="1.75" />看板</el-radio-button
+          >
+          <el-radio-button value="TABLE"
+            ><List :size="15" :stroke-width="1.75" />表格</el-radio-button
+          >
+        </el-radio-group>
+      </template>
+    </HrPageHeader>
 
     <section v-if="demoMode" class="pipeline-source" aria-live="polite">
       <span><strong>演示数据模式</strong>：所有筛选结论只保存在当前浏览器内存中。</span>
-      <el-button link @click="useApiData">返回投递接口</el-button>
+      <el-button link @click="useApiData">切换到真实数据</el-button>
     </section>
 
-    <section class="pipeline-toolbar" aria-label="招聘流程筛选">
-      <el-input
-        v-model="filterForm.keyword"
-        placeholder="候选人、手机号或职位"
-        clearable
-        @keyup.enter="submitFilters"
-      />
+    <HrFilterBar
+      :loading="pipelineQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="submitFilters"
+      @reset="clearFilters"
+      @refresh="pipelineQuery.refetch()"
+    >
+      <el-input v-model="filterForm.keyword" placeholder="候选人、手机号或职位" clearable />
       <el-select v-model="filterForm.jobId" placeholder="全部职位" clearable>
         <el-option
           v-for="option in jobOptions"
@@ -316,20 +344,7 @@ async function contactCandidate(applicationId: number) {
           :value="option.value"
         />
       </el-select>
-      <div class="pipeline-toolbar__actions">
-        <el-button type="primary" :icon="Search" @click="submitFilters">查询</el-button>
-        <el-button :icon="RotateCcw" @click="clearFilters">重置</el-button>
-        <el-tooltip content="刷新招聘流程" placement="top">
-          <el-button
-            circle
-            :icon="RefreshCw"
-            :loading="pipelineQuery.isFetching.value"
-            aria-label="刷新招聘流程"
-            @click="pipelineQuery.refetch()"
-          />
-        </el-tooltip>
-      </div>
-    </section>
+    </HrFilterBar>
 
     <section class="pipeline-summary" aria-label="流程阶段概览">
       <div v-for="stage in stageSummary" :key="stage.key">
@@ -339,21 +354,13 @@ async function contactCandidate(applicationId: number) {
       <span class="pipeline-summary__total">共 {{ total }} 条投递</span>
     </section>
 
-    <section v-if="listError && !demoMode" class="pipeline-error" role="alert">
-      <div>
-        <h3>招聘流程接口尚不可用</h3>
-        <p>
-          {{ listError.message }}。后端目前还没有投递聚合
-          Controller，可以使用明确标识的演示数据继续开发。
-        </p>
-      </div>
-      <div>
-        <el-button :loading="pipelineQuery.isFetching.value" @click="pipelineQuery.refetch()">
-          重试接口
-        </el-button>
-        <el-button type="primary" @click="useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    <HrErrorState
+      v-if="listError && !demoMode"
+      title="招聘流程暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="pipelineQuery.isFetching.value"
+      @retry="pipelineQuery.refetch()"
+    />
 
     <section
       v-else
@@ -377,12 +384,13 @@ async function contactCandidate(applicationId: number) {
     </section>
 
     <footer v-if="viewMode === 'TABLE' && !listError" class="pipeline-pagination">
-      <span>第 {{ query.page }} 页 · 数据来源：{{ demoMode ? '演示数据' : '投递聚合接口' }}</span>
+      <span>共 {{ total }} 条投递</span>
       <el-pagination
         v-model:current-page="query.page"
         v-model:page-size="query.pageSize"
         background
-        layout="prev, pager, next"
+        layout="sizes, prev, pager, next"
+        :page-sizes="[20, 40, 80]"
         :total="total"
       />
     </footer>

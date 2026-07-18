@@ -25,6 +25,7 @@ export interface RoleNavItem {
   label: string
   to: string
   icon: Component
+  group?: string
 }
 
 export interface RoleWorkspaceConfig {
@@ -43,16 +44,16 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
     homePath: '/hr/dashboard',
     searchPlaceholder: '搜索职位、候选人或面试',
     navItems: [
-      { label: '工作台', to: '/hr/dashboard', icon: LayoutDashboard },
-      { label: '职位管理', to: '/hr/jobs', icon: ClipboardList },
-      { label: '候选人', to: '/hr/candidates', icon: UsersRound },
-      { label: '招聘流程', to: '/hr/pipeline', icon: BriefcaseBusiness },
-      { label: '面试安排', to: '/hr/interviews', icon: CalendarCheck },
-      { label: 'Offer 管理', to: '/hr/offers', icon: FileSignature },
-      { label: '入职办理', to: '/hr/onboardings', icon: UserRoundCheck },
-      { label: '员工档案', to: '/hr/employees', icon: ContactRound },
-      { label: '消息中心', to: '/hr/messages', icon: MessageCircle },
-      { label: '账户与安全', to: '/hr/settings', icon: Settings },
+      { label: '工作台', to: '/hr/dashboard', icon: LayoutDashboard, group: '概览' },
+      { label: '职位管理', to: '/hr/jobs', icon: ClipboardList, group: '招聘管理' },
+      { label: '候选人', to: '/hr/candidates', icon: UsersRound, group: '招聘管理' },
+      { label: '招聘流程', to: '/hr/pipeline', icon: BriefcaseBusiness, group: '招聘管理' },
+      { label: '面试安排', to: '/hr/interviews', icon: CalendarCheck, group: '招聘管理' },
+      { label: 'Offer 管理', to: '/hr/offers', icon: FileSignature, group: '招聘管理' },
+      { label: '入职办理', to: '/hr/onboardings', icon: UserRoundCheck, group: '员工管理' },
+      { label: '员工档案', to: '/hr/employees', icon: ContactRound, group: '员工管理' },
+      { label: '消息中心', to: '/hr/messages', icon: MessageCircle, group: '系统管理' },
+      { label: '账户与安全', to: '/hr/settings', icon: Settings, group: '系统管理' },
     ],
   },
   INTERVIEWER: {
@@ -61,10 +62,10 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
     homePath: '/interviewer/dashboard',
     searchPlaceholder: '搜索我的面试任务',
     navItems: [
-      { label: '工作台', to: '/interviewer/dashboard', icon: LayoutDashboard },
-      { label: '我的面试', to: '/interviewer/interviews', icon: CalendarCheck },
-      { label: '消息中心', to: '/interviewer/messages', icon: MessageCircle },
-      { label: '账户与安全', to: '/interviewer/settings', icon: Settings },
+      { label: '工作台', to: '/interviewer/dashboard', icon: LayoutDashboard, group: '面试任务' },
+      { label: '我的面试', to: '/interviewer/interviews', icon: CalendarCheck, group: '面试任务' },
+      { label: '消息中心', to: '/interviewer/messages', icon: MessageCircle, group: '沟通与账户' },
+      { label: '账户与安全', to: '/interviewer/settings', icon: Settings, group: '沟通与账户' },
     ],
   },
   ADMIN: {
@@ -73,14 +74,14 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
     homePath: '/admin/dashboard',
     searchPlaceholder: '搜索用户、角色或审计记录',
     navItems: [
-      { label: '治理概览', to: '/admin/dashboard', icon: ShieldCheck },
-      { label: '用户管理', to: '/admin/users', icon: UsersRound },
-      { label: '角色权限', to: '/admin/roles', icon: UserRoundCheck },
-      { label: '基础字典', to: '/admin/dictionaries', icon: Settings },
-      { label: '审计日志', to: '/admin/audit', icon: ScrollText },
-      { label: '系统状态', to: '/admin/system', icon: Activity },
-      { label: '消息中心', to: '/admin/messages', icon: MessageCircle },
-      { label: '账户与安全', to: '/admin/settings', icon: Settings },
+      { label: '治理概览', to: '/admin/dashboard', icon: ShieldCheck, group: '概览' },
+      { label: '用户管理', to: '/admin/users', icon: UsersRound, group: '账号与权限' },
+      { label: '角色权限', to: '/admin/roles', icon: UserRoundCheck, group: '账号与权限' },
+      { label: '基础字典', to: '/admin/dictionaries', icon: Settings, group: '系统治理' },
+      { label: '审计日志', to: '/admin/audit', icon: ScrollText, group: '系统治理' },
+      { label: '系统状态', to: '/admin/system', icon: Activity, group: '系统治理' },
+      { label: '消息中心', to: '/admin/messages', icon: MessageCircle, group: '沟通与账户' },
+      { label: '账户与安全', to: '/admin/settings', icon: Settings, group: '沟通与账户' },
     ],
   },
   CANDIDATE: {
@@ -89,16 +90,16 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
     homePath: '/candidate/home',
     searchPlaceholder: '搜索招聘职位或我的投递',
     navItems: [
-      { label: '求职首页', to: '/candidate/home', icon: LayoutDashboard },
-      { label: '招聘职位', to: '/candidate/jobs', icon: BriefcaseBusiness },
-      { label: '我的简历', to: '/candidate/resumes', icon: Files },
-      { label: '我的投递', to: '/candidate/applications', icon: ListChecks },
-      { label: '我的面试', to: '/candidate/interviews', icon: CalendarCheck },
-      { label: '我的 Offer', to: '/candidate/offers', icon: FileSignature },
-      { label: '入职资料', to: '/candidate/onboarding', icon: FileClock },
-      { label: '个人中心', to: '/candidate/profile', icon: UserRound },
-      { label: '消息中心', to: '/candidate/messages', icon: MessageCircle },
-      { label: '账户与安全', to: '/candidate/settings', icon: Settings },
+      { label: '求职首页', to: '/candidate/home', icon: LayoutDashboard, group: '求职流程' },
+      { label: '招聘职位', to: '/candidate/jobs', icon: BriefcaseBusiness, group: '求职流程' },
+      { label: '我的投递', to: '/candidate/applications', icon: ListChecks, group: '求职流程' },
+      { label: '我的面试', to: '/candidate/interviews', icon: CalendarCheck, group: '求职流程' },
+      { label: '我的 Offer', to: '/candidate/offers', icon: FileSignature, group: '求职流程' },
+      { label: '入职资料', to: '/candidate/onboarding', icon: FileClock, group: '求职流程' },
+      { label: '我的简历', to: '/candidate/resumes', icon: Files, group: '个人资料' },
+      { label: '个人中心', to: '/candidate/profile', icon: UserRound, group: '个人资料' },
+      { label: '消息中心', to: '/candidate/messages', icon: MessageCircle, group: '账户' },
+      { label: '账户与安全', to: '/candidate/settings', icon: Settings, group: '账户' },
     ],
   },
 }

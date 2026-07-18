@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { Eye, Plus, RefreshCw, RotateCcw, Search, X } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { Plus, UsersRound } from 'lucide-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
 
 import CandidateFormDrawer from '@/components/candidates/CandidateFormDrawer.vue'
 import CandidatePreviewPanel from '@/components/candidates/CandidatePreviewPanel.vue'
+import HrEmptyState from '@/components/hr/HrEmptyState.vue'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
+import HrStatusBadge from '@/components/hr/HrStatusBadge.vue'
 import {
   candidateEducationOptions,
   candidateStatusOptions,
@@ -12,18 +17,16 @@ import {
   getCandidateStatusTone,
 } from '@/config/candidates'
 import { useCandidateManagement } from '@/composables/useCandidateManagement'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import type {
   CandidateCreateRequest,
   CandidateDetail,
   CandidateQuery,
+  CandidateStatus,
   CandidateSummary,
 } from '@/types/candidate'
 
 type CandidateFormValue = CandidateCreateRequest
-
-interface CandidateTableRef {
-  clearSelection: () => void
-}
 
 const {
   query,
@@ -35,11 +38,22 @@ const {
   updateMutation,
   applyFilters,
   resetFilters,
-  useDemoData,
   useApiData,
   selectCandidate,
   closePreview,
 } = useCandidateManagement()
+const urlFilters = useHrUrlFilters([
+  'keyword',
+  'education',
+  'school',
+  'yearsOfExperienceMin',
+  'currentStatus',
+  'page',
+  'pageSize',
+])
+
+const initialYearsValue = urlFilters.readString('yearsOfExperienceMin')
+const initialYears = initialYearsValue === '' ? Number.NaN : Number(initialYearsValue)
 
 const filterForm = reactive<
   Pick<
@@ -47,20 +61,32 @@ const filterForm = reactive<
     'keyword' | 'education' | 'school' | 'yearsOfExperienceMin' | 'currentStatus'
   >
 >({
-  keyword: '',
-  education: '',
-  school: '',
-  yearsOfExperienceMin: null,
-  currentStatus: '',
+  keyword: urlFilters.readString('keyword'),
+  education: urlFilters.readString('education'),
+  school: urlFilters.readString('school'),
+  yearsOfExperienceMin: Number.isFinite(initialYears) && initialYears >= 0 ? initialYears : null,
+  currentStatus: urlFilters.readString('currentStatus') as CandidateStatus | '',
+})
+Object.assign(query, filterForm, {
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 10),
 })
 const formVisible = ref(false)
 const editingCandidate = ref<CandidateDetail | null>(null)
-const tableRef = ref<CandidateTableRef>()
-const selectedRows = ref<CandidateSummary[]>([])
 const candidates = computed(() => candidatesQuery.data.value?.items ?? [])
 const total = computed(() => candidatesQuery.data.value?.total ?? 0)
 const listError = computed(() => candidatesQuery.error.value as Error | null)
 const detailError = computed(() => detailQuery.error.value as Error | null)
+const activeFilterCount = computed(
+  () =>
+    [
+      filterForm.keyword.trim(),
+      filterForm.education,
+      filterForm.school,
+      filterForm.yearsOfExperienceMin,
+      filterForm.currentStatus,
+    ].filter((value) => value !== '' && value !== null).length,
+)
 
 function formatDate(value: string | null) {
   if (!value) return '暂无记录'
@@ -76,6 +102,7 @@ function formatDate(value: string | null) {
 function runSearch() {
   applyFilters({ ...filterForm })
   closePreview()
+  syncUrl(1)
 }
 
 function clearFilters() {
@@ -88,12 +115,28 @@ function clearFilters() {
   })
   resetFilters()
   closePreview()
+  syncUrl(1)
 }
 
-function clearSelection() {
-  tableRef.value?.clearSelection()
-  selectedRows.value = []
+function syncUrl(page = query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    education: filterForm.education,
+    school: filterForm.school,
+    yearsOfExperienceMin: filterForm.yearsOfExperienceMin,
+    currentStatus: filterForm.currentStatus,
+    page: page > 1 ? page : null,
+    pageSize: query.pageSize !== 10 ? query.pageSize : null,
+  })
 }
+
+function maskPhone(phone: string | null) {
+  if (!phone) return ''
+  if (phone.length < 7) return phone
+  return `${phone.slice(0, 3)}****${phone.slice(-4)}`
+}
+
+watch([() => query.page, () => query.pageSize], () => syncUrl())
 
 function showError(error: unknown) {
   ElMessage.error(error instanceof Error ? error.message : '操作失败，请稍后重试')
@@ -133,13 +176,11 @@ function openEditCandidate() {
 
 <template>
   <div class="candidates-view">
-    <header class="candidates-view__intro">
-      <div>
-        <h2 class="rs-section-title">候选人搜索与管理</h2>
-        <p>按业务资料检索候选人，并在不离开列表的情况下查看简历、投递和 AI 参考。</p>
-      </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateCandidate">录入候选人</el-button>
-    </header>
+    <HrPageHeader title="候选人" description="集中管理候选人资料、投递记录和招聘状态。">
+      <template #actions>
+        <el-button type="primary" :icon="Plus" @click="openCreateCandidate">录入候选人</el-button>
+      </template>
+    </HrPageHeader>
 
     <el-alert
       v-if="demoMode"
@@ -149,17 +190,19 @@ function openEditCandidate() {
       show-icon
     >
       <template #default>
-        <el-button link type="primary" @click="useApiData">重新连接候选人接口</el-button>
+        <el-button link type="primary" @click="useApiData">切换到真实数据</el-button>
       </template>
     </el-alert>
 
-    <section class="candidate-toolbar" aria-label="候选人筛选">
-      <el-input
-        v-model="filterForm.keyword"
-        clearable
-        placeholder="姓名、手机号或邮箱"
-        @keyup.enter="runSearch"
-      />
+    <HrFilterBar
+      :loading="candidatesQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="runSearch"
+      @reset="clearFilters"
+      @refresh="candidatesQuery.refetch()"
+    >
+      <el-input v-model="filterForm.keyword" clearable placeholder="姓名、手机号或邮箱" />
       <el-select v-model="filterForm.education" clearable placeholder="全部学历">
         <el-option
           v-for="education in candidateEducationOptions"
@@ -184,40 +227,15 @@ function openEditCandidate() {
           :value="status.value"
         />
       </el-select>
-      <div class="candidate-toolbar__actions">
-        <el-button type="primary" :icon="Search" @click="runSearch">查询</el-button>
-        <el-button :icon="RotateCcw" @click="clearFilters">重置</el-button>
-        <el-tooltip content="刷新候选人列表" placement="top">
-          <el-button
-            :icon="RefreshCw"
-            :loading="candidatesQuery.isFetching.value"
-            aria-label="刷新候选人列表"
-            @click="candidatesQuery.refetch()"
-          />
-        </el-tooltip>
-      </div>
-    </section>
+    </HrFilterBar>
 
-    <section v-if="selectedRows.length" class="candidate-selection" aria-live="polite">
-      <span>已选择 {{ selectedRows.length }} 位候选人</span>
-      <el-button link :icon="X" @click="clearSelection">清除选择</el-button>
-    </section>
-
-    <section v-if="listError && !demoMode" class="candidates-error" role="alert">
-      <div>
-        <h3>候选人接口暂不可用</h3>
-        <p>
-          {{ listError.message }}。请确认
-          Gateway、业务服务和当前账号权限正常，也可以切换到明确标识的演示数据继续评审。
-        </p>
-      </div>
-      <div class="candidates-error__actions">
-        <el-button :loading="candidatesQuery.isFetching.value" @click="candidatesQuery.refetch()">
-          重试接口
-        </el-button>
-        <el-button type="primary" @click="useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    <HrErrorState
+      v-if="listError && !demoMode"
+      title="候选人列表暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="candidatesQuery.isFetching.value"
+      @retry="candidatesQuery.refetch()"
+    />
 
     <section
       v-else
@@ -226,16 +244,13 @@ function openEditCandidate() {
     >
       <div class="candidate-table" aria-label="候选人数据表格">
         <el-table
-          ref="tableRef"
           v-loading="candidatesQuery.isLoading.value"
           :data="candidates"
           row-key="id"
           height="calc(100dvh - 308px)"
           highlight-current-row
-          @selection-change="(rows: CandidateSummary[]) => (selectedRows = rows)"
           @row-click="(row: CandidateSummary) => selectCandidate(row.id)"
         >
-          <el-table-column type="selection" width="48" />
           <el-table-column prop="name" label="候选人" min-width="190" fixed="left">
             <template #default="{ row }: { row: CandidateSummary }">
               <div class="candidate-name-cell">
@@ -244,7 +259,7 @@ function openEditCandidate() {
                 }}</span>
                 <div>
                   <strong>{{ row.name }}</strong>
-                  <span>{{ row.phone || row.email || '联系方式待补充' }}</span>
+                  <span>{{ maskPhone(row.phone) || row.email || '联系方式待补充' }}</span>
                 </div>
                 <el-tooltip v-if="row.duplicateRisk" content="联系方式可能重复" placement="top">
                   <span class="candidate-name-cell__risk" aria-label="联系方式可能重复">!</span>
@@ -269,13 +284,12 @@ function openEditCandidate() {
             <template #default="{ row }: { row: CandidateSummary }">
               <div class="candidate-two-line-cell">
                 <strong>{{ row.latestJobTitle || '暂无投递' }}</strong>
-                <span
+                <HrStatusBadge
                   v-if="row.latestApplicationStatus && row.latestApplicationStatusText"
-                  class="rs-status-pill"
-                  :class="`rs-status-pill--${getApplicationStatusTone(row.latestApplicationStatus)}`"
-                >
-                  {{ row.latestApplicationStatusText }}
-                </span>
+                  :status="row.latestApplicationStatus"
+                  :label="row.latestApplicationStatusText"
+                  :tone="getApplicationStatusTone(row.latestApplicationStatus)"
+                />
               </div>
             </template>
           </el-table-column>
@@ -287,20 +301,20 @@ function openEditCandidate() {
             sortable
           >
             <template #default="{ row }: { row: CandidateSummary }">
-              <span v-if="row.latestMatchScore !== null" class="candidate-score">
-                {{ row.latestMatchScore }}
-              </span>
+              <div v-if="row.latestMatchScore !== null" class="candidate-score">
+                <strong>{{ row.latestMatchScore }}</strong
+                ><small>仅供参考</small>
+              </div>
               <span v-else class="candidate-muted">暂无</span>
             </template>
           </el-table-column>
           <el-table-column prop="currentStatusText" label="人才状态" width="108">
             <template #default="{ row }: { row: CandidateSummary }">
-              <span
-                class="rs-status-pill"
-                :class="`rs-status-pill--${getCandidateStatusTone(row.currentStatus)}`"
-              >
-                {{ row.currentStatusText }}
-              </span>
+              <HrStatusBadge
+                :status="row.currentStatus"
+                :label="row.currentStatusText"
+                :tone="getCandidateStatusTone(row.currentStatus)"
+              />
             </template>
           </el-table-column>
           <el-table-column
@@ -314,41 +328,37 @@ function openEditCandidate() {
               <span class="rs-tabular-number">{{ formatDate(row.lastActivityAt) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="64" fixed="right" align="right">
+          <el-table-column label="操作" width="88" fixed="right" align="right">
             <template #default="{ row }: { row: CandidateSummary }">
               <div @click.stop>
-                <el-tooltip content="查看候选人" placement="top">
-                  <el-button
-                    circle
-                    :icon="Eye"
-                    aria-label="查看候选人"
-                    @click="selectCandidate(row.id)"
-                  />
-                </el-tooltip>
+                <el-button link type="primary" @click="selectCandidate(row.id)">查看</el-button>
               </div>
             </template>
           </el-table-column>
 
           <template #empty>
-            <div class="candidates-empty">
-              <h3>没有符合条件的候选人</h3>
-              <p>调整筛选条件，或由 HR 录入新的候选人资料。</p>
-              <el-button type="primary" :icon="Plus" @click="openCreateCandidate">
-                录入候选人
-              </el-button>
-            </div>
+            <HrEmptyState
+              :icon="UsersRound"
+              title="没有符合条件的候选人"
+              description="调整筛选条件，或由 HR 录入新的候选人资料。"
+            >
+              <template #actions
+                ><el-button type="primary" :icon="Plus" @click="openCreateCandidate"
+                  >录入候选人</el-button
+                ></template
+              >
+            </HrEmptyState>
           </template>
         </el-table>
 
         <footer class="candidate-pagination">
-          <span
-            >共 {{ total }} 位候选人 · 数据来源：{{ demoMode ? '演示数据' : '候选人接口' }}</span
-          >
+          <span>共 {{ total }} 位候选人</span>
           <el-pagination
             v-model:current-page="query.page"
             v-model:page-size="query.pageSize"
             background
-            layout="prev, pager, next"
+            layout="sizes, prev, pager, next"
+            :page-sizes="[10, 20, 50]"
             :total="total"
           />
         </footer>
@@ -516,7 +526,7 @@ function openEditCandidate() {
 .candidate-two-line-cell > span:not(.rs-status-pill) {
   overflow: hidden;
   color: var(--rs-text-tertiary);
-  font-size: 12px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -541,9 +551,19 @@ function openEditCandidate() {
 }
 
 .candidate-score {
-  color: var(--rs-success-700);
-  font-weight: 700;
+  display: grid;
+  justify-items: end;
+  color: var(--rs-blue-700);
   font-variant-numeric: tabular-nums;
+}
+
+.candidate-score strong {
+  font-weight: 700;
+}
+.candidate-score small {
+  color: var(--rs-text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .candidate-muted {

@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
+import { Plus } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { getPipelineApplications } from '@/api/pipeline'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import OfferDetailDrawer from '@/components/offers/OfferDetailDrawer.vue'
 import OfferFormDrawer from '@/components/offers/OfferFormDrawer.vue'
 import OfferTable from '@/components/offers/OfferTable.vue'
 import { useOfferManagement } from '@/composables/useOfferManagement'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { getDemoPipelinePage, initialDemoPipeline } from '@/config/demoPipeline'
 import { formatOfferSalary, offerStatusOptions, validateOfferForSend } from '@/config/offers'
 import type {
@@ -32,16 +36,20 @@ const {
   revokeMutation,
   applyFilters,
   resetFilters,
-  useDemoData,
   useApiData,
   openDetail,
   closeDetail,
 } = useOfferManagement()
 
 const route = useRoute()
+const urlFilters = useHrUrlFilters(['keyword', 'status', 'page', 'pageSize'])
 const filterForm = reactive<{ keyword: string; status: OfferStatus | '' }>({
-  keyword: '',
-  status: '',
+  keyword: urlFilters.readString('keyword'),
+  status: urlFilters.readString('status') as OfferStatus | '',
+})
+Object.assign(query, filterForm, {
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 10),
 })
 const formVisible = ref(false)
 const editingOffer = ref<OfferRecord | null>(null)
@@ -50,6 +58,9 @@ const offers = computed(() => offersQuery.data.value?.items ?? [])
 const total = computed(() => offersQuery.data.value?.total ?? 0)
 const listError = computed(() => offersQuery.error.value as Error | null)
 const detailError = computed(() => detailQuery.error.value as Error | null)
+const activeFilterCount = computed(
+  () => [filterForm.keyword.trim(), filterForm.status].filter(Boolean).length,
+)
 const eligibleApplicationsQuery = useQuery({
   queryKey: computed(() => ['offer-eligible-applications', demoMode.value ? 'demo' : 'api']),
   queryFn: async (): Promise<OfferCandidateOption[]> => {
@@ -107,12 +118,25 @@ watch(
 
 function submitFilters() {
   applyFilters({ keyword: filterForm.keyword.trim(), status: filterForm.status })
+  syncUrl(1)
 }
 
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', status: '' })
   resetFilters()
+  syncUrl(1)
 }
+
+function syncUrl(page = query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    status: filterForm.status,
+    page: page > 1 ? page : null,
+    pageSize: query.pageSize !== 10 ? query.pageSize : null,
+  })
+}
+
+watch([() => query.page, () => query.pageSize], () => syncUrl())
 
 function openCreateForm() {
   editingOffer.value = null
@@ -195,26 +219,31 @@ async function confirmRevoke(offer: OfferRecord) {
 
 <template>
   <div class="offers-view">
-    <section class="offers-view__intro">
-      <div>
-        <h2 class="rs-section-title">Offer 管理</h2>
-        <p>集中复核录用方案、发送记录和候选人回复，关键动作必须由 HR 确认。</p>
-      </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateForm">创建 Offer 草稿</el-button>
-    </section>
+    <HrPageHeader
+      title="Offer 管理"
+      description="集中复核录用方案、发送记录和候选人回复，关键动作必须由 HR 确认。"
+    >
+      <template #actions
+        ><el-button type="primary" :icon="Plus" @click="openCreateForm"
+          >创建 Offer 草稿</el-button
+        ></template
+      >
+    </HrPageHeader>
 
     <section v-if="demoMode" class="offer-source" aria-live="polite">
       <span><strong>演示数据模式</strong>：草稿、发送与撤回只保存在当前浏览器内存中。</span>
-      <el-button link @click="useApiData">返回 Offer 接口</el-button>
+      <el-button link @click="useApiData">切换到真实数据</el-button>
     </section>
 
-    <section class="offer-toolbar" aria-label="Offer 筛选">
-      <el-input
-        v-model="filterForm.keyword"
-        placeholder="候选人、职位或部门"
-        clearable
-        @keyup.enter="submitFilters"
-      />
+    <HrFilterBar
+      :loading="offersQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="submitFilters"
+      @reset="clearFilters"
+      @refresh="offersQuery.refetch()"
+    >
+      <el-input v-model="filterForm.keyword" placeholder="候选人、职位或部门" clearable />
       <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
         <el-option
           v-for="option in offerStatusOptions"
@@ -223,36 +252,15 @@ async function confirmRevoke(offer: OfferRecord) {
           :value="option.value"
         />
       </el-select>
-      <div class="offer-toolbar__actions">
-        <el-button type="primary" :icon="Search" @click="submitFilters">查询</el-button>
-        <el-button :icon="RotateCcw" @click="clearFilters">重置</el-button>
-        <el-tooltip content="刷新 Offer" placement="top">
-          <el-button
-            circle
-            :icon="RefreshCw"
-            :loading="offersQuery.isFetching.value"
-            aria-label="刷新 Offer"
-            @click="offersQuery.refetch()"
-          />
-        </el-tooltip>
-      </div>
-    </section>
+    </HrFilterBar>
 
-    <section v-if="listError && !demoMode" class="offer-error" role="alert">
-      <div>
-        <h3>Offer 接口暂不可用</h3>
-        <p>
-          {{ listError.message }}。请确认
-          Gateway、业务服务和当前账号权限正常，也可以使用演示数据继续评审。
-        </p>
-      </div>
-      <div>
-        <el-button :loading="offersQuery.isFetching.value" @click="offersQuery.refetch()">
-          重试接口
-        </el-button>
-        <el-button type="primary" @click="useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    <HrErrorState
+      v-if="listError && !demoMode"
+      title="Offer 列表暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="offersQuery.isFetching.value"
+      @retry="offersQuery.refetch()"
+    />
 
     <section v-else class="offer-table">
       <OfferTable
@@ -264,12 +272,13 @@ async function confirmRevoke(offer: OfferRecord) {
         @revoke="confirmRevoke"
       />
       <footer class="offer-pagination">
-        <span>共 {{ total }} 份 Offer，数据来源：{{ demoMode ? '演示数据' : 'Offer 接口' }}</span>
+        <span>共 {{ total }} 份 Offer</span>
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
           background
-          layout="prev, pager, next"
+          layout="sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
           :total="total"
         />
       </footer>

@@ -1,11 +1,10 @@
 function aiMatch(score, summary, risk) {
   return {
-    score,
-    level: score >= 80 ? 'HIGH' : score >= 60 ? 'MEDIUM' : 'LOW',
-    summary,
-    highlights: ['相关项目经历与目标岗位方向一致'],
-    risks: [risk],
-    suggestion: '建议由 HR 结合简历原文和面试证据作出判断。',
+    matchScore: score,
+    recommendLevel: score >= 80 ? 'HIGH' : score >= 60 ? 'MEDIUM' : 'LOW',
+    recommendReason: summary,
+    highlightSummary: '相关项目经历与目标岗位方向一致',
+    riskSummary: risk,
     modelName: 'demo-model',
     generatedAt: '2026-07-15T09:00:00',
   }

@@ -2,6 +2,10 @@
 @use './element-plus';
 @use './workspace-shell';
 @use './portal';
+@use './candidate';
+@use './hr';
+@use './interviewer';
+@use './admin';
 
 * {
   box-sizing: border-box;
@@ -98,6 +102,11 @@ a:hover {
 .rs-status-pill--danger {
   background: var(--rs-danger-050);
   color: var(--rs-danger-700);
+}
+
+.rs-status-pill--neutral {
+  background: var(--rs-surface-muted);
+  color: var(--rs-text-secondary);
 }
 
 :focus-visible {

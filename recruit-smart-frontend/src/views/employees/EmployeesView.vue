@@ -1,24 +1,36 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrFilterBar from '@/components/hr/HrFilterBar.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import EmployeeDetailDrawer from '@/components/employees/EmployeeDetailDrawer.vue'
 import EmployeeTable from '@/components/employees/EmployeeTable.vue'
 import { useEmployeeDirectory } from '@/composables/useEmployeeDirectory'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { employeeStatusOptions, getEmployeeStatusText } from '@/config/employees'
 import type { EmployeeStatus } from '@/types/employee'
 import type { TurnoverRiskResponse } from '@/types/ai'
 
 const state = useEmployeeDirectory()
+const urlFilters = useHrUrlFilters(['keyword', 'department', 'status', 'page', 'pageSize'])
 const filterForm = reactive<{ keyword: string; department: string; status: EmployeeStatus | '' }>({
-  keyword: '',
-  department: '',
-  status: '',
+  keyword: urlFilters.readString('keyword'),
+  department: urlFilters.readString('department'),
+  status: urlFilters.readString('status') as EmployeeStatus | '',
+})
+Object.assign(state.query, filterForm, {
+  page: urlFilters.readNumber('page', 1),
+  pageSize: urlFilters.readNumber('pageSize', 10),
 })
 const records = computed(() => state.listQuery.data.value?.items ?? [])
 const total = computed(() => state.listQuery.data.value?.total ?? 0)
 const listError = computed(() => state.listQuery.error.value as Error | null)
 const detailError = computed(() => state.detailQuery.error.value as Error | null)
+const activeFilterCount = computed(
+  () =>
+    [filterForm.keyword.trim(), filterForm.department, filterForm.status].filter(Boolean).length,
+)
 const detailVisible = computed({
   get: () => state.selectedId.value !== null,
   set: (value) => {
@@ -39,11 +51,23 @@ function submitFilters() {
     department: filterForm.department,
     status: filterForm.status,
   })
+  syncUrl(1)
 }
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', department: '', status: '' })
   state.resetFilters()
+  syncUrl(1)
 }
+function syncUrl(page = state.query.page) {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    department: filterForm.department,
+    status: filterForm.status,
+    page: page > 1 ? page : null,
+    pageSize: state.query.pageSize !== 10 ? state.query.pageSize : null,
+  })
+}
+watch([() => state.query.page, () => state.query.pageSize], () => syncUrl())
 
 async function updateStatus(status: EmployeeStatus) {
   const record = state.detailQuery.data.value
@@ -70,7 +94,7 @@ async function assessRisk() {
   const record = state.detailQuery.data.value
   if (!record) return
   if (state.demoMode.value) {
-    ElMessage.warning('演示数据不调用真实 AI 风险接口')
+    ElMessage.warning('演示模式不提供风险分析')
     return
   }
   try {
@@ -92,22 +116,26 @@ async function assessRisk() {
 
 <template>
   <div class="view">
-    <section class="intro">
-      <div>
-        <h2 class="rs-section-title">员工档案</h2>
-        <p>查看由已完成入职流程生成的员工资料、在职状态和辅助风险提示。</p>
-      </div>
-    </section>
+    <HrPageHeader
+      title="员工档案"
+      description="查看由已完成入职流程生成的员工资料、在职状态和辅助参考信息。"
+    />
     <section v-if="state.demoMode.value" class="source">
       <span><strong>演示数据模式</strong>：以下资料仅用于前端流程演示。</span
-      ><el-button link @click="state.useApiData">返回员工接口</el-button>
+      ><el-button link @click="state.useApiData">切换到真实数据</el-button>
     </section>
-    <section class="toolbar" aria-label="员工筛选">
+    <HrFilterBar
+      :loading="state.listQuery.isFetching.value"
+      :active-count="activeFilterCount"
+      :reset-disabled="activeFilterCount === 0"
+      @submit="submitFilters"
+      @reset="clearFilters"
+      @refresh="state.listQuery.refetch()"
+    >
       <el-input
         v-model="filterForm.keyword"
         placeholder="姓名、员工编号或岗位"
         clearable
-        @keyup.enter="submitFilters"
       /><el-select v-model="filterForm.department" placeholder="全部部门" clearable
         ><el-option
           v-for="department in departments"
@@ -121,29 +149,14 @@ async function assessRisk() {
           :label="option.label"
           :value="option.value"
       /></el-select>
-      <div>
-        <el-button type="primary" :icon="Search" @click="submitFilters">查询</el-button
-        ><el-button :icon="RotateCcw" @click="clearFilters">重置</el-button
-        ><el-tooltip content="刷新员工档案"
-          ><el-button
-            circle
-            :icon="RefreshCw"
-            :loading="state.listQuery.isFetching.value"
-            aria-label="刷新员工档案"
-            @click="state.listQuery.refetch()"
-        /></el-tooltip>
-      </div>
-    </section>
-    <section v-if="listError && !state.demoMode.value" class="error">
-      <div>
-        <h3>员工档案接口尚不可用</h3>
-        <p>{{ listError.message }}。后端目前只有 EmployeeProfile 实体与 Mapper。</p>
-      </div>
-      <div>
-        <el-button @click="state.listQuery.refetch()">重试接口</el-button
-        ><el-button type="primary" @click="state.useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    </HrFilterBar>
+    <HrErrorState
+      v-if="listError && !state.demoMode.value"
+      title="员工档案暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="state.listQuery.isFetching.value"
+      @retry="state.listQuery.refetch()"
+    />
     <section v-else class="table">
       <EmployeeTable
         :records="records"
@@ -151,14 +164,13 @@ async function assessRisk() {
         @select="state.openDetail($event.id)"
       />
       <footer>
-        <span
-          >共 {{ total }} 份员工档案，数据来源：{{
-            state.demoMode.value ? '演示数据' : '员工接口'
-          }}</span
+        <span>共 {{ total }} 份员工档案</span
         ><el-pagination
           v-model:current-page="state.query.page"
+          v-model:page-size="state.query.pageSize"
           background
-          layout="prev, pager, next"
+          layout="sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
           :total="total"
         />
       </footer>

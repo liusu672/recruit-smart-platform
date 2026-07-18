@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import { MessageCircle, RefreshCw, Send, WifiOff } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
+import SupportPageHeader from '@/components/shared/SupportPageHeader.vue'
 import { useMessages } from '@/composables/useMessages'
+import { useSessionStore } from '@/stores/session'
 
 const {
   selectedConversationId,
@@ -15,16 +18,26 @@ const {
   messagesQuery,
   sendMutation,
   streamStatus,
-  streamError,
+  streamFailureCount,
+  streamLastSyncedAt,
+  retryStream,
   selectConversation,
 } = useMessages()
 const route = useRoute()
+const session = useSessionStore()
 const draft = ref('')
 const messageList = ref<HTMLElement>()
 const conversations = computed(() => conversationsQuery.data.value?.items ?? [])
 const messages = computed(() => [...(messagesQuery.data.value?.items ?? [])].reverse())
 const conversationTotal = computed(() => conversationsQuery.data.value?.total ?? 0)
 const messageTotal = computed(() => messagesQuery.data.value?.total ?? 0)
+const isCandidate = computed(() => session.currentRole === 'CANDIDATE')
+const showConnectionWarning = computed(() => streamFailureCount.value >= 2)
+const pageDescription = computed(() => {
+  if (isCandidate.value) return '围绕投递记录与招聘方沟通，消息会保留在对应职位中。'
+  if (session.currentRole === 'INTERVIEWER') return '查看与候选人的面试通知、时间调整和招聘沟通。'
+  return '围绕招聘上下文查看通知、安排调整和候选人沟通。'
+})
 
 function parseConversationId(value: unknown) {
   const raw = Array.isArray(value) ? value[0] : value
@@ -40,7 +53,6 @@ watch(
   },
   { immediate: true },
 )
-
 watch(
   conversations,
   (items) => {
@@ -48,7 +60,6 @@ watch(
   },
   { immediate: true },
 )
-
 watch(messages, async () => {
   await nextTick()
   if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight
@@ -57,7 +68,7 @@ watch(messages, async () => {
 async function send() {
   const conversationId = selectedConversationId.value
   const content = draft.value.trim()
-  if (!conversationId || !content) return
+  if (!conversationId || !content || sendMutation.isPending.value) return
   try {
     await sendMutation.mutateAsync({ conversationId, content })
     draft.value = ''
@@ -69,77 +80,87 @@ async function send() {
 function formatTime(value: string | null) {
   return value ? new Date(value).toLocaleString('zh-CN') : '暂无消息'
 }
+
+function formatSyncTime(value: string | null) {
+  if (!value) return '尚未成功连接'
+  return new Date(value).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 </script>
 
 <template>
-  <div class="messages-view">
-    <header class="messages-view__intro">
-      <div>
-        <h2 class="rs-section-title">消息中心</h2>
-        <p>围绕投递记录沟通，所有消息都会保留在对应招聘上下文中。</p>
-      </div>
-      <span class="messages-status" :class="`messages-status--${streamStatus}`">
-        {{
-          streamStatus === 'connected'
-            ? '实时连接中'
-            : streamStatus === 'reconnecting'
-              ? '正在重连'
-              : '连接中'
-        }}
-      </span>
-    </header>
+  <div class="support-messages-view">
+    <SupportPageHeader title="消息中心" :description="pageDescription">
+      <template v-if="streamStatus !== 'connected'" #actions>
+        <span class="support-message-connection" role="status">
+          <span />{{ streamStatus === 'reconnecting' ? '正在重连' : '正在连接' }}
+        </span>
+      </template>
+    </SupportPageHeader>
 
-    <el-alert
-      v-if="streamError"
-      type="warning"
-      :closable="false"
-      show-icon
-      title="消息实时连接暂不可用，页面仍会定时刷新未读数。"
-    />
-
-    <section class="messages-workspace">
-      <aside class="messages-conversations">
-        <div v-if="conversationsQuery.isLoading.value" class="messages-empty">正在加载会话...</div>
+    <section class="support-messages-workspace">
+      <aside class="support-conversations">
+        <header>
+          <h2>会话</h2>
+          <span>{{ conversationTotal }}</span>
+        </header>
+        <div v-if="conversationsQuery.isLoading.value" class="support-messages-local-state">
+          <el-skeleton :rows="5" animated />
+        </div>
         <div
           v-else-if="conversationsQuery.error.value"
-          class="messages-empty messages-empty--error"
+          class="support-messages-local-state support-messages-local-state--error"
         >
-          {{
-            conversationsQuery.error.value instanceof Error
-              ? conversationsQuery.error.value.message
-              : '会话加载失败'
-          }}
+          <WifiOff :size="22" :stroke-width="1.75" />
+          <strong>会话暂时无法加载</strong>
+          <p>请检查网络后重新加载。</p>
+          <el-button
+            :icon="RefreshCw"
+            :loading="conversationsQuery.isFetching.value"
+            @click="conversationsQuery.refetch()"
+            >重新加载</el-button
+          >
         </div>
-        <button
-          v-for="conversation in conversations"
-          :key="conversation.id"
-          type="button"
-          class="conversation-item"
-          :class="{ 'conversation-item--active': selectedConversationId === conversation.id }"
-          @click="selectConversation(conversation.id)"
-        >
-          <span class="conversation-item__avatar">{{
-            conversation.candidateName.slice(0, 1)
-          }}</span>
-          <span class="conversation-item__body">
-            <strong>{{ conversation.candidateName }}</strong>
-            <small>{{ conversation.jobTitle }}</small>
-            <span>{{ conversation.lastMessagePreview || '暂无消息' }}</span>
-          </span>
-          <span v-if="conversation.unreadCount" class="conversation-item__unread">
-            {{ conversation.unreadCount > 99 ? '99+' : conversation.unreadCount }}
-          </span>
-        </button>
-        <div
-          v-if="!conversationsQuery.isLoading.value && !conversations.length"
-          class="messages-empty"
-        >
-          暂无投递消息会话。
+        <div v-else-if="conversations.length" class="support-conversation-list">
+          <button
+            v-for="conversation in conversations"
+            :key="conversation.id"
+            type="button"
+            :class="{
+              'support-conversation-item--active': selectedConversationId === conversation.id,
+            }"
+            @click="selectConversation(conversation.id)"
+          >
+            <span class="support-conversation-item__avatar">
+              {{ (isCandidate ? conversation.jobTitle : conversation.candidateName).slice(0, 1) }}
+            </span>
+            <span class="support-conversation-item__body">
+              <strong>{{
+                isCandidate ? conversation.jobTitle : conversation.candidateName
+              }}</strong>
+              <small>{{ isCandidate ? '招聘沟通' : conversation.jobTitle }}</small>
+              <span>{{ conversation.lastMessagePreview || '暂无消息' }}</span>
+            </span>
+            <span class="support-conversation-item__aside">
+              <small>{{
+                conversation.lastMessageAt
+                  ? new Date(conversation.lastMessageAt).toLocaleDateString('zh-CN')
+                  : ''
+              }}</small>
+              <span v-if="conversation.unreadCount">{{
+                conversation.unreadCount > 99 ? '99+' : conversation.unreadCount
+              }}</span>
+            </span>
+          </button>
+        </div>
+        <div v-else class="support-messages-local-state">
+          <MessageCircle :size="24" :stroke-width="1.75" />
+          <strong>暂无沟通记录</strong>
+          <p>{{ isCandidate ? '与招聘方的沟通会显示在这里。' : '候选人会话会显示在这里。' }}</p>
         </div>
         <el-pagination
           v-if="conversationTotal > conversationPageSize"
           v-model:current-page="conversationPage"
-          class="messages-pagination"
+          class="support-messages-pagination"
           small
           layout="prev, pager, next"
           :page-size="conversationPageSize"
@@ -147,29 +168,61 @@ function formatTime(value: string | null) {
         />
       </aside>
 
-      <section class="messages-thread">
-        <div v-if="selectedConversationId === null" class="messages-thread__empty">
-          <h3>选择一个会话</h3>
-          <p>从左侧选择投递记录后开始沟通。</p>
+      <section class="support-message-thread">
+        <div v-if="showConnectionWarning" class="support-message-warning" role="alert">
+          <WifiOff :size="18" :stroke-width="1.75" />
+          <div>
+            <strong>连接暂时中断</strong>
+            <p>
+              消息可能不是最新状态，系统仍在自动重试。上次成功连接：{{
+                formatSyncTime(streamLastSyncedAt)
+              }}
+            </p>
+          </div>
+          <el-button :icon="RefreshCw" @click="retryStream">立即重试</el-button>
+        </div>
+        <div v-if="selectedConversationId === null" class="support-message-thread__empty">
+          <MessageCircle :size="28" :stroke-width="1.75" />
+          <h2>选择左侧会话查看沟通记录</h2>
+          <p>
+            {{
+              isCandidate
+                ? '与招聘方的职位沟通和安排通知会展示在这里。'
+                : '与候选人的通知、安排调整和招聘沟通会展示在这里。'
+            }}
+          </p>
         </div>
         <template v-else>
-          <div ref="messageList" class="messages-thread__list">
-            <div v-if="messagesQuery.isLoading.value" class="messages-empty">正在加载消息...</div>
-            <div v-else-if="messagesQuery.error.value" class="messages-empty messages-empty--error">
-              {{
-                messagesQuery.error.value instanceof Error
-                  ? messagesQuery.error.value.message
-                  : '消息加载失败'
-              }}
+          <div ref="messageList" class="support-message-thread__list">
+            <div v-if="messagesQuery.isLoading.value" class="support-messages-local-state">
+              <el-skeleton :rows="6" animated />
             </div>
-            <div v-else-if="!messages.length" class="messages-empty">这个会话还没有消息。</div>
+            <div
+              v-else-if="messagesQuery.error.value"
+              class="support-messages-local-state support-messages-local-state--error"
+            >
+              <WifiOff :size="22" :stroke-width="1.75" />
+              <strong>消息暂时无法加载</strong>
+              <p>当前会话仍然保留，请重新加载消息。</p>
+              <el-button
+                :icon="RefreshCw"
+                :loading="messagesQuery.isFetching.value"
+                @click="messagesQuery.refetch()"
+                >重新加载</el-button
+              >
+            </div>
+            <div v-else-if="!messages.length" class="support-messages-local-state">
+              <MessageCircle :size="24" :stroke-width="1.75" />
+              <strong>这个会话还没有消息</strong>
+              <p>发送第一条消息开始沟通。</p>
+            </div>
             <article
               v-for="message in messages"
               :key="message.id"
-              class="message-bubble"
-              :class="{ 'message-bubble--mine': message.mine }"
+              class="support-message-bubble"
+              :class="{ 'support-message-bubble--mine': message.mine }"
             >
-              <div class="message-bubble__meta">
+              <div>
                 {{ message.mine ? '我' : message.senderName }} · {{ formatTime(message.createdAt) }}
               </div>
               <p>{{ message.content }}</p>
@@ -178,29 +231,30 @@ function formatTime(value: string | null) {
           <el-pagination
             v-if="messageTotal > messagePageSize"
             v-model:current-page="messagePage"
-            class="messages-pagination messages-pagination--thread"
+            class="support-messages-pagination support-messages-pagination--thread"
             small
             layout="prev, pager, next"
             :page-size="messagePageSize"
             :total="messageTotal"
           />
-          <form class="messages-composer" @submit.prevent="send">
+          <form class="support-message-composer" @submit.prevent="send">
             <el-input
               v-model="draft"
               type="textarea"
               :rows="3"
               maxlength="5000"
               show-word-limit
-              placeholder="输入消息，说明需要对方确认的事项"
+              placeholder="输入消息，Enter 换行后点击发送"
+              :disabled="sendMutation.isPending.value"
             />
             <el-button
-              type="primary"
               native-type="submit"
+              type="primary"
+              :icon="Send"
               :loading="sendMutation.isPending.value"
               :disabled="!draft.trim()"
+              >发送消息</el-button
             >
-              发送消息
-            </el-button>
           </form>
         </template>
       </section>
@@ -209,54 +263,66 @@ function formatTime(value: string | null) {
 </template>
 
 <style scoped lang="scss">
-.messages-view {
+.support-messages-view {
   display: grid;
-  gap: var(--rs-space-4);
-  min-height: calc(100dvh - 128px);
-}
-.messages-view__intro {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--rs-space-4);
-}
-.messages-view__intro p {
-  margin: var(--rs-space-1) 0 0;
-  color: var(--rs-text-secondary);
-}
-.messages-status {
-  padding: var(--rs-space-1) var(--rs-space-2);
-  border-radius: var(--rs-radius-pill);
-  background: var(--rs-surface-muted);
-  color: var(--rs-text-secondary);
-  font-size: 12px;
-}
-.messages-status--connected {
-  background: var(--rs-success-050);
-  color: var(--rs-success-700);
-}
-.messages-status--reconnecting {
-  background: var(--rs-warning-050);
-  color: var(--rs-warning-800);
-}
-.messages-workspace {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  height: 100%;
   min-height: 560px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--rs-space-4);
+}
+.support-message-connection {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-2);
+  color: var(--rs-warning-800);
+  font-size: 11px;
+}
+.support-message-connection > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--rs-warning-800);
+}
+.support-messages-workspace {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: var(--rs-support-conversation-width) minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid var(--rs-border-default);
   border-radius: var(--rs-radius-sm);
   background: var(--rs-surface-primary);
 }
-.messages-conversations {
+.support-conversations {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   border-right: 1px solid var(--rs-border-default);
-  background: var(--rs-surface-subtle);
 }
-.conversation-item {
+.support-conversations > header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 0 var(--rs-space-4);
+  border-bottom: 1px solid var(--rs-border-default);
+}
+.support-conversations h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.support-conversations header span {
+  color: var(--rs-text-secondary);
+}
+.support-conversation-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+.support-conversation-list > button {
+  display: grid;
   width: 100%;
-  gap: var(--rs-space-2);
+  min-height: 88px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--rs-space-3);
   padding: var(--rs-space-3);
   border: 0;
   border-bottom: 1px solid var(--rs-border-default);
@@ -265,121 +331,152 @@ function formatTime(value: string | null) {
   text-align: left;
   cursor: pointer;
 }
-.conversation-item:hover,
-.conversation-item--active {
-  background: var(--rs-surface-selected);
+.support-conversation-list > button:hover {
+  background: var(--rs-surface-subtle);
 }
-.conversation-item__avatar {
+.support-conversation-item--active {
+  background: var(--rs-surface-selected) !important;
+}
+.support-conversation-item__avatar {
   display: grid;
-  flex: 0 0 32px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border-radius: 50%;
-  background: var(--rs-action-primary);
-  color: var(--rs-white);
-  font-weight: 600;
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
+  font-weight: 700;
 }
-.conversation-item__body {
+.support-conversation-item__body,
+.support-conversation-item__aside {
   display: grid;
-  flex: 1;
+  align-content: start;
   min-width: 0;
-  gap: 2px;
 }
-.conversation-item__body strong,
-.conversation-item__body small,
-.conversation-item__body span {
+.support-conversation-item__body strong,
+.support-conversation-item__body small,
+.support-conversation-item__body > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.conversation-item__body small,
-.conversation-item__body span {
+.support-conversation-item__body small,
+.support-conversation-item__body > span {
+  color: var(--rs-text-secondary);
+  font-size: 11px;
+}
+.support-conversation-item__aside {
+  align-self: stretch;
+  justify-items: end;
+  align-content: space-between;
+}
+.support-conversation-item__aside small {
   color: var(--rs-text-tertiary);
   font-size: 12px;
 }
-.conversation-item__unread {
-  min-width: 24px;
-  padding: 2px 6px;
+.support-conversation-item__aside > span {
+  min-width: 22px;
+  padding: 2px 5px;
   border-radius: var(--rs-radius-pill);
-  background: var(--rs-danger-050);
-  color: var(--rs-danger-700);
+  background: var(--rs-danger-700);
+  color: var(--rs-white);
   font-size: 12px;
   text-align: center;
 }
-.messages-thread {
+.support-message-thread {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
 }
-.messages-thread__list {
+.support-message-warning {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--rs-space-3);
+  padding: var(--rs-space-3) var(--rs-space-4);
+  border-bottom: 1px solid var(--rs-border-default);
+  background: var(--rs-warning-050);
+  color: var(--rs-warning-800);
+}
+.support-message-warning p {
+  margin: var(--rs-space-1) 0 0;
+  color: var(--rs-text-secondary);
+  font-size: 12px;
+}
+.support-message-thread__list {
+  display: grid;
+  min-height: 0;
   align-content: start;
   gap: var(--rs-space-3);
   padding: var(--rs-space-6);
   overflow-y: auto;
 }
-.message-bubble {
+.support-message-bubble {
   max-width: 72%;
   padding: var(--rs-space-3);
-  border: 1px solid var(--rs-border-default);
   border-radius: var(--rs-radius-sm);
   background: var(--rs-surface-subtle);
 }
-.message-bubble--mine {
+.support-message-bubble--mine {
   justify-self: end;
-  border-color: var(--rs-blue-050);
   background: var(--rs-blue-050);
 }
-.message-bubble__meta {
+.support-message-bubble div {
   color: var(--rs-text-tertiary);
   font-size: 12px;
 }
-.message-bubble p {
+.support-message-bubble p {
   margin: var(--rs-space-2) 0 0;
   white-space: pre-wrap;
 }
-.messages-composer {
+.support-message-composer {
   display: grid;
-  gap: var(--rs-space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--rs-space-3);
   padding: var(--rs-space-4);
   border-top: 1px solid var(--rs-border-default);
 }
-.messages-composer .el-button {
-  justify-self: end;
-}
-.messages-empty,
-.messages-thread__empty {
+.support-messages-local-state,
+.support-message-thread__empty {
   display: grid;
   place-items: center;
-  min-height: 120px;
+  align-content: center;
+  gap: var(--rs-space-2);
+  min-height: 180px;
   padding: var(--rs-space-4);
-  color: var(--rs-text-tertiary);
+  color: var(--rs-text-secondary);
   text-align: center;
 }
-.messages-thread__empty h3,
-.messages-thread__empty p {
+.support-messages-local-state p,
+.support-message-thread__empty h2,
+.support-message-thread__empty p {
   margin: 0;
 }
-.messages-thread__empty p {
-  margin-top: var(--rs-space-2);
+.support-message-thread__empty {
+  min-height: 100%;
 }
-.messages-empty--error {
-  color: var(--rs-danger-700);
+.support-message-thread__empty h2 {
+  color: var(--rs-text-primary);
+  font-size: 16px;
 }
-.messages-pagination {
+.support-messages-local-state--error svg {
+  color: var(--rs-warning-800);
+}
+.support-messages-pagination {
   display: flex;
   justify-content: center;
-  padding: var(--rs-space-3);
+  padding: var(--rs-space-2);
   border-top: 1px solid var(--rs-border-default);
 }
-.messages-pagination--thread {
+.support-messages-pagination--thread {
   justify-content: flex-end;
   border-top: 0;
 }
 @media (max-width: 1280px) {
-  .messages-workspace {
-    grid-template-columns: 280px minmax(0, 1fr);
+  .support-messages-workspace {
+    grid-template-columns: 288px minmax(0, 1fr);
   }
 }
 </style>

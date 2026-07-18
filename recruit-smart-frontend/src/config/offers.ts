@@ -1,4 +1,5 @@
 import type { OfferRecord, OfferStatus } from '@/types/offer'
+import type { HrStatusTone } from '@/types/hr'
 
 export const offerStatusOptions: Array<{ label: string; value: OfferStatus }> = [
   { label: '草稿', value: 'DRAFT' },
@@ -14,11 +15,12 @@ export function getOfferStatusText(status: OfferStatus) {
   return offerStatusOptions.find((item) => item.value === status)?.label ?? status
 }
 
-export function getOfferStatusTone(status: OfferStatus) {
+export function getOfferStatusTone(status: OfferStatus): HrStatusTone {
   if (status === 'ACCEPTED') return 'success'
-  if (status === 'REJECTED' || status === 'REVOKED') return 'danger'
+  if (status === 'REJECTED') return 'danger'
+  if (status === 'REVOKED') return 'neutral'
   if (status === 'SENT') return 'info'
-  return 'warning'
+  return 'neutral'
 }
 
 export function canEditOffer(status: OfferStatus) {

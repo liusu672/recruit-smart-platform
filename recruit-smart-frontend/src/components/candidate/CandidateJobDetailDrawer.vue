@@ -8,6 +8,7 @@ defineProps<{
   job: JobPosition | null
   loading: boolean
   error: string
+  submitting?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -58,7 +59,12 @@ const emit = defineEmits<{
       </section>
     </div>
     <template v-if="job && !loading && !error" #footer>
-      <el-button type="primary" @click="emit('apply', job)">投递该职位</el-button>
+      <div class="candidate-job-detail__footer">
+        <span>投递前请确认默认简历内容已更新。</span>
+        <el-button type="primary" :loading="submitting" @click="emit('apply', job)"
+          >投递该职位</el-button
+        >
+      </div>
     </template>
   </el-drawer>
 </template>
@@ -110,5 +116,16 @@ const emit = defineEmits<{
   margin-top: var(--rs-space-2);
   color: var(--rs-text-secondary);
   white-space: pre-wrap;
+}
+.candidate-job-detail__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-4);
+  width: 100%;
+}
+.candidate-job-detail__footer span {
+  color: var(--rs-text-tertiary);
+  font-size: 12px;
 }
 </style>

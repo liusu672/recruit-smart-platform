@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Info } from 'lucide-vue-next'
+
+import CandidateStatusBadge from '@/components/candidate/CandidateStatusBadge.vue'
 import type { CandidateApplicationDetail } from '@/types/portal'
 
 defineProps<{
@@ -33,7 +36,7 @@ function formatDate(value: string | null) {
           <h2>{{ application.jobTitle }}</h2>
           <p>{{ application.department || '部门待定' }}</p>
         </div>
-        <span class="rs-status-pill rs-status-pill--info">{{ application.statusText }}</span>
+        <CandidateStatusBadge :status="application.status" :label="application.statusText" />
       </header>
       <dl>
         <div>
@@ -57,12 +60,10 @@ function formatDate(value: string | null) {
         <h3>处理说明</h3>
         <p>{{ application.rejectReason || application.hrNote }}</p>
       </section>
-      <el-alert
-        title="招聘状态由 HR 业务流程维护，AI 不会自动改变该状态。"
-        type="info"
-        :closable="false"
-        show-icon
-      />
+      <div class="application-detail__note">
+        <Info :size="17" :stroke-width="1.75" />
+        <span>投递状态由招聘流程更新，如需确认进展可以联系招聘方。</span>
+      </div>
     </div>
     <template v-if="application && !loading && !error" #footer>
       <el-button type="primary" @click="emit('contact', application.id)">联系招聘方</el-button>
@@ -119,5 +120,14 @@ function formatDate(value: string | null) {
 .application-detail section p {
   margin-top: var(--rs-space-2);
   color: var(--rs-text-secondary);
+}
+.application-detail__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--rs-space-2);
+  padding: var(--rs-space-3) var(--rs-space-4);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
 }
 </style>

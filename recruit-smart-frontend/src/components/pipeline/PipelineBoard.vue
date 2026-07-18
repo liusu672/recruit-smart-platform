@@ -23,18 +23,29 @@ const columns = computed(() =>
 )
 
 function formatActivity(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
+  const elapsed = Date.now() - new Date(value).getTime()
+  if (!Number.isFinite(elapsed) || elapsed < 0) return '刚刚更新'
+  const minutes = Math.floor(elapsed / 60_000)
+  if (minutes < 60) return `${Math.max(1, minutes)} 分钟前更新`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前更新`
+  const days = Math.floor(hours / 24)
+  return `${days} 天前更新`
 }
 </script>
 
 <template>
   <div class="pipeline-board" aria-label="招聘流程看板">
-    <section v-for="column in columns" :key="column.key" class="pipeline-column">
+    <section
+      v-for="column in columns"
+      :key="column.key"
+      class="pipeline-column"
+      :class="{
+        'pipeline-column--result': column.key === 'HIRED' || column.key === 'CLOSED',
+        'pipeline-column--hired': column.key === 'HIRED',
+        'pipeline-column--closed': column.key === 'CLOSED',
+      }"
+    >
       <header class="pipeline-column__header">
         <div>
           <strong>{{ column.label }}</strong>
@@ -53,9 +64,13 @@ function formatActivity(value: string) {
         >
           <span class="pipeline-card__heading">
             <strong>{{ application.candidateName }}</strong>
-            <span v-if="application.matchScore !== null" class="pipeline-card__score">
+            <span
+              v-if="application.matchScore !== null"
+              class="pipeline-card__score"
+              title="AI 匹配分仅供参考"
+            >
               <Sparkles :size="13" :stroke-width="1.75" aria-hidden="true" />
-              {{ application.matchScore }}
+              AI {{ application.matchScore }}
             </span>
           </span>
           <span class="pipeline-card__job">{{ application.jobTitle }}</span>
@@ -84,7 +99,8 @@ function formatActivity(value: string) {
 .pipeline-board {
   display: grid;
   min-width: 1320px;
-  grid-template-columns: repeat(6, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, minmax(220px, 1fr)) minmax(250px, 0.9fr);
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: var(--rs-space-3);
 }
 
@@ -95,6 +111,31 @@ function formatActivity(value: string) {
   border: 1px solid var(--rs-border-default);
   border-radius: var(--rs-radius-sm);
   background: var(--rs-surface-subtle);
+}
+
+.pipeline-column:nth-child(-n + 4) {
+  grid-row: 1 / span 2;
+}
+.pipeline-column--result {
+  margin-left: 8px;
+  min-height: 0;
+}
+.pipeline-column--hired {
+  grid-column: 5;
+  grid-row: 1;
+}
+.pipeline-column--closed {
+  grid-column: 5;
+  grid-row: 2;
+}
+.pipeline-column--hired .pipeline-column__header {
+  border-top: 3px solid var(--rs-success-700);
+}
+.pipeline-column--closed .pipeline-column__header {
+  border-top: 3px solid var(--rs-gray-400);
+}
+.pipeline-column:not(.pipeline-column--result) .pipeline-column__header {
+  border-top: 3px solid var(--rs-blue-500);
 }
 
 .pipeline-column__header {
@@ -196,8 +237,9 @@ function formatActivity(value: string) {
 }
 
 .pipeline-card__score {
+  flex: 0 0 auto;
   gap: var(--rs-space-1);
-  color: var(--rs-success-700);
+  color: var(--rs-blue-700);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
 }

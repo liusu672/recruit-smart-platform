@@ -1,4 +1,5 @@
 import type { ApplicationStatus } from '@/types/candidate'
+import type { HrStatusTone } from '@/types/hr'
 import type { PipelineStageKey, ScreeningDecision } from '@/types/pipeline'
 
 export interface PipelineStageDefinition {
@@ -81,10 +82,11 @@ export function getPipelineStageKey(status: ApplicationStatus): PipelineStageKey
   return pipelineStages.find((stage) => stage.statuses.includes(status))?.key ?? 'CLOSED'
 }
 
-export function getApplicationStatusTone(status: ApplicationStatus) {
+export function getApplicationStatusTone(status: ApplicationStatus): HrStatusTone {
   if (status === 'HIRED' || status === 'OFFERED') return 'success'
   if (status === 'SCREEN_REJECT' || status === 'REJECTED') return 'danger'
   if (status === 'SCREEN_PASSED' || status === 'INTERVIEWING') return 'info'
+  if (status === 'WITHDRAWN') return 'neutral'
   return 'warning'
 }
 

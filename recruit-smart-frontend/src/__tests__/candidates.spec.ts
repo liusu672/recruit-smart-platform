@@ -93,11 +93,12 @@ describe('candidate status tones', () => {
   it('keeps candidate and application state semantics consistent', () => {
     expect(getCandidateStatusTone('HIRED')).toBe('success')
     expect(getCandidateStatusTone('INTERVIEWING')).toBe('info')
-    expect(getCandidateStatusTone('AVAILABLE')).toBe('warning')
+    expect(getCandidateStatusTone('AVAILABLE')).toBe('neutral')
     expect(getApplicationStatusTone('OFFERED')).toBe('success')
     expect(getApplicationStatusTone('SCREEN_REJECT')).toBe('danger')
     expect(getApplicationStatusTone('SCREEN_PASSED')).toBe('info')
     expect(getApplicationStatusTone('SCREENING')).toBe('warning')
+    expect(getApplicationStatusTone('WITHDRAWN')).toBe('neutral')
   })
 })
 

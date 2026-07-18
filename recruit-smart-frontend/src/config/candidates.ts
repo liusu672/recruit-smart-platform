@@ -1,4 +1,5 @@
 import type { ApplicationStatus, CandidateSource, CandidateStatus } from '@/types/candidate'
+import type { HrStatusTone } from '@/types/hr'
 
 export const candidateStatusOptions: Array<{ label: string; value: CandidateStatus }> = [
   { label: '可应聘', value: 'AVAILABLE' },
@@ -14,15 +15,16 @@ export const candidateSourceOptions: Array<{ label: string; value: CandidateSour
   { label: '在线投递', value: 'ONLINE' },
 ]
 
-export function getCandidateStatusTone(status: CandidateStatus) {
+export function getCandidateStatusTone(status: CandidateStatus): HrStatusTone {
   if (status === 'HIRED') return 'success'
   if (status === 'INTERVIEWING') return 'info'
-  return 'warning'
+  return 'neutral'
 }
 
-export function getApplicationStatusTone(status: ApplicationStatus) {
+export function getApplicationStatusTone(status: ApplicationStatus): HrStatusTone {
   if (status === 'HIRED' || status === 'OFFERED') return 'success'
   if (status === 'SCREEN_REJECT' || status === 'REJECTED') return 'danger'
   if (status === 'INTERVIEWING' || status === 'SCREEN_PASSED') return 'info'
+  if (status === 'WITHDRAWN') return 'neutral'
   return 'warning'
 }

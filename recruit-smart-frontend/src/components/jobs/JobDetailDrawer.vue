@@ -58,7 +58,7 @@ function formatDate(value: string | null) {
     <div v-else-if="job" class="job-detail">
       <el-alert
         v-if="demoMode"
-        title="当前展示演示数据，操作不会写入后端。"
+        title="当前展示演示数据，操作不会保存到业务记录。"
         type="info"
         :closable="false"
         show-icon

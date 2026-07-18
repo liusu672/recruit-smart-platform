@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Download, Eye, FileText, Pencil, Trash2, Upload } from 'lucide-vue-next'
+import { Download, Eye, FileText, MoreHorizontal, Upload } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 import { getMyResumes, setMyDefaultResume, uploadMyResume } from '@/api/candidatePortal'
@@ -12,6 +12,11 @@ import {
   renameResume,
   saveBlobAsFile,
 } from '@/api/resumes'
+import CandidateEmptyState from '@/components/candidate/CandidateEmptyState.vue'
+import CandidateErrorState from '@/components/candidate/CandidateErrorState.vue'
+import CandidateListItem from '@/components/candidate/CandidateListItem.vue'
+import CandidatePageHeader from '@/components/candidate/CandidatePageHeader.vue'
+import CandidateStatusBadge from '@/components/candidate/CandidateStatusBadge.vue'
 import { usePortalResource } from '@/composables/usePortalResource'
 import { demoMyResumes } from '@/config/demoCandidatePortal'
 import type { ResumeSummary } from '@/types/portal'
@@ -20,9 +25,16 @@ const resource = usePortalResource(getMyResumes, demoMyResumes)
 const fileInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 const fileActionId = ref<number | null>(null)
+const defaultingId = ref<number | null>(null)
 
 function isPdfResume(resume: ResumeSummary) {
-  return resume.fileType?.toUpperCase() === 'PDF' || resume.resumeName.toLowerCase().endsWith('.pdf')
+  return (
+    resume.fileType?.toUpperCase() === 'PDF' || resume.resumeName.toLowerCase().endsWith('.pdf')
+  )
+}
+
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleDateString('zh-CN') : '时间未知'
 }
 
 async function chooseFile(event: Event) {
@@ -31,17 +43,21 @@ async function chooseFile(event: Event) {
   if (!file) return
   if (!/\.(pdf|doc|docx)$/i.test(file.name)) {
     ElMessage.error('仅支持 PDF、DOC 或 DOCX 文件')
+    input.value = ''
     return
   }
-  if (resource.demoMode.value) {
-    ElMessage.success('演示模式：简历已上传')
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.error('简历文件不能超过 10MB')
+    input.value = ''
     return
   }
   uploading.value = true
   try {
-    await uploadMyResume(file, file.name.replace(/\.[^.]+$/, ''))
+    if (!resource.demoMode.value) await uploadMyResume(file, file.name.replace(/\.[^.]+$/, ''))
     await resource.reload()
     ElMessage.success('简历上传成功')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '简历上传失败')
   } finally {
     uploading.value = false
     input.value = ''
@@ -49,12 +65,18 @@ async function chooseFile(event: Event) {
 }
 
 async function setDefault(id: number) {
-  if (!resource.demoMode.value) await setMyDefaultResume(id)
-  resource.data.value = resource.data.value.map((item) => ({
-    ...item,
-    isDefault: item.id === id ? 1 : 0,
-  }))
-  ElMessage.success('默认简历已更新')
+  if (defaultingId.value !== null) return
+  defaultingId.value = id
+  try {
+    if (!resource.demoMode.value) await setMyDefaultResume(id)
+    resource.data.value = resource.data.value.map((item) => ({
+      ...item,
+      isDefault: item.id === id ? 1 : 0,
+    }))
+    ElMessage.success('默认简历已更新')
+  } finally {
+    defaultingId.value = null
+  }
 }
 
 async function previewResume(resume: ResumeSummary) {
@@ -113,68 +135,79 @@ async function renameCurrentResume(resume: ResumeSummary) {
 
 async function deleteCurrentResume(resume: ResumeSummary) {
   try {
-    await ElMessageBox.confirm(`确认删除“${resume.resumeName}”？删除后无法用于新的职位投递。`, '删除简历', {
-      confirmButtonText: '确认删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+    await ElMessageBox.confirm(
+      `确认删除“${resume.resumeName}”？删除后无法用于新的职位投递。`,
+      '删除简历',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
     if (!resource.demoMode.value) await deleteResume(resume.id)
-    resource.data.value = resource.data.value.filter((item) => item.id !== resume.id)
+    await resource.reload()
     ElMessage.success('简历已删除')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     ElMessage.error(error instanceof Error ? error.message : '简历删除失败')
   }
 }
+
+function handleMoreAction(command: string, resume: ResumeSummary) {
+  if (command === 'rename') void renameCurrentResume(resume)
+  if (command === 'delete') void deleteCurrentResume(resume)
+}
 </script>
 
 <template>
-  <div class="role-portal">
-    <div class="portal-toolbar">
-      <div>
-        <h2>我的简历</h2>
-        <p>简历仅用于你本人的职位投递，并由后端校验文件归属。</p>
-      </div>
-      <div>
-        <input
-          ref="fileInput"
-          hidden
-          type="file"
-          accept=".pdf,.doc,.docx"
-          @change="chooseFile"
-        /><el-button type="primary" :loading="uploading" @click="fileInput?.click()"
-          ><Upload :size="15" /> 上传简历</el-button
-        >
+  <div class="candidate-page candidate-resumes">
+    <CandidatePageHeader title="我的简历" description="管理用于职位投递的简历文件。">
+      <template #actions>
+        <input ref="fileInput" hidden type="file" accept=".pdf,.doc,.docx" @change="chooseFile" />
+        <el-button type="primary" :loading="uploading" @click="fileInput?.click()">
+          <Upload :size="16" />上传简历
+        </el-button>
+      </template>
+    </CandidatePageHeader>
+
+    <div class="candidate-resume-upload-note">
+      <FileText :size="18" :stroke-width="1.7" />
+      <span>支持 PDF、DOC、DOCX，单个文件不超过 10MB。PDF 支持在线预览。</span>
+    </div>
+
+    <div v-if="resource.loading.value" class="candidate-skeleton-list">
+      <div v-for="index in 2" :key="index" class="candidate-skeleton-card">
+        <el-skeleton :rows="2" animated />
       </div>
     </div>
-    <section class="portal-panel">
-      <div v-if="resource.loading.value" class="portal-loading">正在加载简历...</div>
-      <div v-else-if="resource.error.value" class="portal-error">{{ resource.error.value }}</div>
-      <div v-else-if="resource.data.value.length" class="portal-list">
-        <article v-for="item in resource.data.value" :key="item.id" class="portal-row">
-          <div class="portal-row__primary">
-            <h3><FileText :size="16" /> {{ item.resumeName }}</h3>
-            <p>
-              {{ item.fileType || '文件' }} ·
-              {{
-                item.createdAt ? new Date(item.createdAt).toLocaleDateString('zh-CN') : '时间未知'
-              }}
-            </p>
+    <CandidateErrorState
+      v-else-if="resource.error.value"
+      description="简历列表暂时无法加载，请稍后重试。"
+      retryable
+      @retry="resource.reload"
+    />
+    <div v-else-if="resource.data.value.length" class="candidate-list">
+      <CandidateListItem v-for="item in resource.data.value" :key="item.id" interactive>
+        <div class="candidate-resume-row">
+          <span class="candidate-resume-row__file">{{ item.fileType?.toUpperCase() || 'CV' }}</span>
+          <div class="candidate-resume-row__copy">
+            <div class="candidate-resume-row__title">
+              <h2>{{ item.resumeName }}</h2>
+              <CandidateStatusBadge v-if="item.isDefault === 1" status="SUCCESS" label="默认简历" />
+            </div>
+            <p>{{ item.fileType || '文件' }}，上传于 {{ formatDate(item.createdAt) }}</p>
           </div>
-          <div class="portal-row__cell">
-            <strong>{{ item.parseStatusText || '等待解析' }}</strong
-            ><span>解析状态</span>
-          </div>
-          <span v-if="item.isDefault === 1" class="rs-status-pill rs-status-pill--success"
-            >默认简历</span
-          ><span v-else />
-          <div class="portal-row__actions">
-            <el-tooltip content="预览 PDF">
+          <CandidateStatusBadge
+            :status="item.parseStatus || 'PENDING'"
+            :label="item.parseStatusText || '等待解析'"
+          />
+          <div class="candidate-actions">
+            <el-tooltip content="预览简历">
               <el-button
                 circle
                 :icon="Eye"
                 :loading="fileActionId === item.id"
-                aria-label="预览 PDF 简历"
+                aria-label="预览简历"
                 @click="previewResume(item)"
               />
             </el-tooltip>
@@ -187,31 +220,88 @@ async function deleteCurrentResume(resume: ResumeSummary) {
                 @click="downloadResume(item)"
               />
             </el-tooltip>
-            <el-tooltip content="修改名称">
-              <el-button
-                circle
-                :icon="Pencil"
-                aria-label="修改简历名称"
-                @click="renameCurrentResume(item)"
-              />
-            </el-tooltip>
-            <el-tooltip content="删除简历">
-              <el-button
-                circle
-                type="danger"
-                plain
-                :icon="Trash2"
-                aria-label="删除简历"
-                @click="deleteCurrentResume(item)"
-              />
-            </el-tooltip>
-            <el-button v-if="item.isDefault !== 1" text type="primary" @click="setDefault(item.id)"
+            <el-button
+              v-if="item.isDefault !== 1"
+              text
+              type="primary"
+              :loading="defaultingId === item.id"
+              @click="setDefault(item.id)"
               >设为默认</el-button
             >
+            <el-dropdown
+              trigger="click"
+              @command="(command: string) => handleMoreAction(command, item)"
+            >
+              <el-button circle :icon="MoreHorizontal" aria-label="更多简历操作" />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="rename">修改名称</el-dropdown-item>
+                  <el-dropdown-item divided command="delete">删除简历</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
-        </article>
-      </div>
-      <div v-else class="portal-empty">尚未上传简历，上传后即可投递职位。</div>
-    </section>
+        </div>
+      </CandidateListItem>
+    </div>
+    <CandidateEmptyState
+      v-else
+      :icon="FileText"
+      title="还没有简历"
+      description="上传第一份简历后，就可以开始投递职位。"
+    >
+      <template #actions>
+        <el-button type="primary" :loading="uploading" @click="fileInput?.click()"
+          >上传第一份简历</el-button
+        >
+      </template>
+    </CandidateEmptyState>
   </div>
 </template>
+
+<style scoped lang="scss">
+.candidate-resume-upload-note {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-2);
+  padding: var(--rs-space-3) var(--rs-space-4);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
+}
+.candidate-resume-row {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 1fr) auto auto;
+  align-items: center;
+  gap: var(--rs-space-6);
+}
+.candidate-resume-row__file {
+  display: grid;
+  width: 48px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-subtle);
+  color: var(--rs-blue-700);
+  font-size: 12px;
+  font-weight: 700;
+}
+.candidate-resume-row__title {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-2);
+}
+.candidate-resume-row h2,
+.candidate-resume-row p {
+  margin: 0;
+}
+.candidate-resume-row h2 {
+  font-size: 16px;
+}
+.candidate-resume-row p {
+  margin-top: var(--rs-space-1);
+  color: var(--rs-text-secondary);
+  font-size: 13px;
+}
+</style>

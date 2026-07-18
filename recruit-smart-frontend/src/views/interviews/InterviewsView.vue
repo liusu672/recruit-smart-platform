@@ -13,9 +13,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import CandidateInterviewBrief from '@/components/interviews/CandidateInterviewBrief.vue'
+import HrErrorState from '@/components/hr/HrErrorState.vue'
+import HrPageHeader from '@/components/hr/HrPageHeader.vue'
 import InterviewCopilotPanel from '@/components/interviews/InterviewCopilotPanel.vue'
 import InterviewScorecard from '@/components/interviews/InterviewScorecard.vue'
 import InterviewTaskQueue from '@/components/interviews/InterviewTaskQueue.vue'
+import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { useInterviewWorkspace } from '@/composables/useInterviewWorkspace'
 import { getInterviewApplicationContext } from '@/api/interviews'
 import {
@@ -37,6 +40,8 @@ import type { FeedbackSummaryResponse } from '@/types/ai'
 
 const session = useSessionStore()
 const route = useRoute()
+const isHr = computed(() => session.currentRole === 'HR')
+const urlFilters = useHrUrlFilters(['keyword', 'status', 'feedbackState'])
 const {
   demoMode,
   selectedInterviewId,
@@ -50,7 +55,6 @@ const {
   summaryMutation,
   applyFilters,
   resetFilters,
-  useDemoData,
   useApiData,
   selectInterview,
 } = useInterviewWorkspace()
@@ -60,10 +64,18 @@ const filterForm = reactive<{
   status: InterviewStatus | ''
   feedbackState: InterviewFeedbackState | ''
 }>({
-  keyword: '',
-  status: '',
-  feedbackState: '',
+  keyword: isHr.value ? urlFilters.readString('keyword') : '',
+  status: (isHr.value ? urlFilters.readString('status') : '') as InterviewStatus | '',
+  feedbackState: (isHr.value ? urlFilters.readString('feedbackState') : '') as
+    InterviewFeedbackState | '',
 })
+if (isHr.value) {
+  applyFilters({
+    keyword: filterForm.keyword,
+    status: filterForm.status,
+    feedbackState: filterForm.feedbackState,
+  })
+}
 const scorecard = ref<InterviewScoreItem[]>([])
 const comment = ref('')
 const suggestion = ref<InterviewSuggestion | null>(null)
@@ -159,11 +171,21 @@ function submitFilters() {
     status: filterForm.status,
     feedbackState: filterForm.feedbackState,
   })
+  if (isHr.value) syncFilterUrl()
 }
 
 function clearFilters() {
   Object.assign(filterForm, { keyword: '', status: '', feedbackState: '' })
   resetFilters()
+  if (isHr.value) syncFilterUrl()
+}
+
+function syncFilterUrl() {
+  urlFilters.sync({
+    keyword: filterForm.keyword.trim(),
+    status: filterForm.status,
+    feedbackState: filterForm.feedbackState,
+  })
 }
 
 function buildFeedbackRequest() {
@@ -321,7 +343,19 @@ async function summarizeFeedback() {
 
 <template>
   <div class="interviews-view">
-    <section class="interviews-view__intro">
+    <HrPageHeader
+      v-if="session.currentRole === 'HR'"
+      title="面试安排"
+      description="查看面试任务、候选人上下文和面试官反馈，原始评价由面试官维护。"
+    >
+      <template #actions>
+        <div class="interviews-view__authority">
+          <ShieldCheck :size="16" :stroke-width="1.75" aria-hidden="true" />
+          <span>HR 只读监控</span>
+        </div>
+      </template>
+    </HrPageHeader>
+    <section v-else class="interviews-view__intro">
       <div>
         <h2 class="rs-section-title">面试工作区</h2>
         <p>在同一上下文中查看任务、候选人材料、结构化评分与 AI 问题建议。</p>
@@ -334,7 +368,7 @@ async function summarizeFeedback() {
 
     <section v-if="demoMode" class="interview-source" aria-live="polite">
       <span><strong>演示数据模式</strong>：草稿、评分和提交结果只保存在当前浏览器内存中。</span>
-      <el-button link @click="useApiData">返回面试接口</el-button>
+      <el-button link @click="useApiData">切换到真实数据</el-button>
     </section>
 
     <section class="interview-toolbar" aria-label="面试任务筛选">
@@ -375,21 +409,13 @@ async function summarizeFeedback() {
       </div>
     </section>
 
-    <section v-if="listError && !demoMode" class="interview-error" role="alert">
-      <div>
-        <h3>面试工作区接口暂不可用</h3>
-        <p>
-          {{ listError.message }}。请确认
-          Gateway、业务服务和当前账号权限正常，也可以使用演示数据继续评审。
-        </p>
-      </div>
-      <div>
-        <el-button :loading="taskQuery.isFetching.value" @click="taskQuery.refetch()">
-          重试接口
-        </el-button>
-        <el-button type="primary" @click="useDemoData">使用演示数据</el-button>
-      </div>
-    </section>
+    <HrErrorState
+      v-if="listError && !demoMode"
+      title="面试任务暂时无法加载"
+      description="请稍后重试。如果问题持续存在，请联系系统管理员。"
+      :loading="taskQuery.isFetching.value"
+      @retry="taskQuery.refetch()"
+    />
 
     <template v-else>
       <InterviewTaskQueue
@@ -399,13 +425,13 @@ async function summarizeFeedback() {
         @select="selectInterview"
       />
 
-      <section v-if="workspaceError && !demoMode" class="interview-error" role="alert">
-        <div>
-          <h3>面试详情加载失败</h3>
-          <p>{{ workspaceError.message }}</p>
-        </div>
-        <el-button @click="workspaceQuery.refetch()">重新加载</el-button>
-      </section>
+      <HrErrorState
+        v-if="workspaceError && !demoMode"
+        title="面试详情暂时无法加载"
+        description="请稍后重试，当前列表和其他面试任务仍可继续查看。"
+        :loading="workspaceQuery.isFetching.value"
+        @retry="workspaceQuery.refetch()"
+      />
 
       <div v-else-if="workspaceQuery.isLoading.value" class="interview-loading">
         <el-skeleton :rows="12" animated />

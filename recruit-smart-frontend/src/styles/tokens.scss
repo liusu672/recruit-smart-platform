@@ -65,4 +65,63 @@
   --rs-sidebar-width: 232px;
   --rs-detail-panel-width: 440px;
   --rs-ai-panel-width: 400px;
+
+  /* Candidate workspace component tokens. */
+  --rs-candidate-sidebar-width: 200px;
+  --rs-candidate-sidebar-collapsed-width: 64px;
+  --rs-candidate-topbar-height: 64px;
+  --rs-candidate-content-width: 1280px;
+  --rs-candidate-form-width: 960px;
+  --rs-candidate-conversation-width: 320px;
+  --rs-candidate-title-size: 26px;
+  --rs-candidate-nav-group-surface: color-mix(
+    in srgb,
+    var(--rs-blue-050) 52%,
+    var(--rs-white)
+  );
+  --rs-candidate-nav-group-border: color-mix(
+    in srgb,
+    var(--rs-blue-500) 16%,
+    var(--rs-white)
+  );
+
+  /* HR workspace tokens. */
+  --rs-hr-sidebar-width: 200px;
+  --rs-hr-sidebar-collapsed-width: 64px;
+  --rs-hr-topbar-height: 64px;
+  --rs-hr-content-max-width: 1600px;
+  --rs-hr-form-width: 960px;
+  --rs-hr-control-height: 36px;
+  --rs-hr-nav-group-surface: color-mix(in srgb, var(--rs-blue-050) 58%, var(--rs-white));
+  --rs-hr-nav-group-border: color-mix(in srgb, var(--rs-blue-500) 14%, var(--rs-white));
+
+  /* Interviewer workspace tokens. */
+  --rs-interviewer-sidebar-width: 200px;
+  --rs-interviewer-sidebar-collapsed-width: 64px;
+  --rs-interviewer-topbar-height: 64px;
+  --rs-interviewer-content-max-width: 1600px;
+  --rs-interviewer-task-list-width: 272px;
+  --rs-interviewer-copilot-width: 320px;
+  --rs-interviewer-settings-width: 880px;
+  --rs-interviewer-conversation-width: 320px;
+  --rs-interviewer-nav-group-surface: color-mix(
+    in srgb,
+    var(--rs-blue-050) 56%,
+    var(--rs-white)
+  );
+  --rs-interviewer-nav-group-border: color-mix(
+    in srgb,
+    var(--rs-blue-500) 14%,
+    var(--rs-white)
+  );
+
+  /* Shared support pages and administrator workspace. */
+  --rs-support-settings-width: 880px;
+  --rs-support-conversation-width: 320px;
+  --rs-admin-sidebar-width: 200px;
+  --rs-admin-sidebar-collapsed-width: 64px;
+  --rs-admin-topbar-height: 64px;
+  --rs-admin-content-max-width: 1600px;
+  --rs-admin-nav-group-surface: color-mix(in srgb, var(--rs-blue-050) 56%, var(--rs-white));
+  --rs-admin-nav-group-border: color-mix(in srgb, var(--rs-blue-500) 14%, var(--rs-white));
 }

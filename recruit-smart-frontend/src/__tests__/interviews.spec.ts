@@ -10,6 +10,12 @@ import {
   initialDemoInterviews,
 } from '@/config/demoInterviews'
 import { calculateInterviewScore, getInterviewStatusText } from '@/config/interviews'
+import {
+  getInterviewerPriorityTask,
+  getInterviewerTaskStage,
+  getMissingFeedbackCount,
+  isHttpMeetingLocation,
+} from '@/config/interviewer'
 
 describe('interview API adaptation', () => {
   it('maps task records to the shared pagination contract', () => {
@@ -159,5 +165,49 @@ describe('interview workspace demo operations', () => {
         interviewerId: 3,
       }),
     ).toThrow('已提交的反馈不能覆盖')
+  })
+})
+
+describe('interviewer task experience helpers', () => {
+  it('keeps interview and feedback states as separate task stages', () => {
+    expect(getInterviewerTaskStage({ status: 'ASSIGNED', feedbackState: 'EMPTY' })).toBe('SCHEDULE')
+    expect(getInterviewerTaskStage({ status: 'SCHEDULED', feedbackState: 'DRAFT' })).toBe('ATTEND')
+    expect(getInterviewerTaskStage({ status: 'COMPLETED', feedbackState: 'DRAFT' })).toBe(
+      'FEEDBACK',
+    )
+    expect(getInterviewerTaskStage({ status: 'COMPLETED', feedbackState: 'SUBMITTED' })).toBe(
+      'SUBMITTED',
+    )
+  })
+
+  it('prioritizes unfinished feedback before scheduled and assigned tasks', () => {
+    const draft = initialDemoInterviews[0]!
+    const submitted = initialDemoInterviews[2]!
+    const assigned = { ...draft, id: 999, status: 'ASSIGNED' as const }
+    const priority = getInterviewerPriorityTask({
+      feedbackDraft: [{ ...draft, status: 'COMPLETED' }],
+      feedbackEmpty: [],
+      scheduled: [submitted],
+      assigned: [assigned],
+      now: new Date('2026-07-18T12:00:00'),
+    })
+
+    expect(priority?.id).toBe(draft.id)
+  })
+
+  it('counts every missing scorecard and summary requirement', () => {
+    const scorecard = initialDemoInterviews[0]!.scorecard.map((item) => ({
+      ...item,
+      score: null,
+      evidence: '',
+    }))
+    expect(getMissingFeedbackCount(scorecard, '', null)).toBe(scorecard.length + 2)
+  })
+
+  it('only treats HTTP and HTTPS locations as meeting links', () => {
+    expect(isHttpMeetingLocation('https://meeting.example.com/room')).toBe(true)
+    expect(isHttpMeetingLocation('http://localhost/room')).toBe(true)
+    expect(isHttpMeetingLocation('武汉研发中心 3A')).toBe(false)
+    expect(isHttpMeetingLocation('javascript:alert(1)')).toBe(false)
   })
 })

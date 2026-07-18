@@ -132,12 +132,17 @@ describe('DashboardView', () => {
         stubs: {
           'el-button': { template: '<button><slot /></button>' },
           'el-tooltip': { template: '<span><slot /></span>' },
+          RouterLink: { template: '<a><slot /></a>' },
+          HrEmptyState: {
+            props: ['title', 'description'],
+            template: '<section>{{ title }} {{ description }}</section>',
+          },
         },
       },
     })
 
-    expect(wrapper.text()).toContain('暂无待处理任务')
-    expect(wrapper.text()).toContain('当前数据库统计为 0 时这是正常状态')
+    expect(wrapper.text()).toContain('当前没有待处理任务')
+    expect(wrapper.text()).toContain('新的筛选、面试反馈、Offer 或入职审核任务会显示在这里')
     expect(wrapper.text()).not.toContain('高级 Java 工程师候选人需要初筛')
   })
 })
