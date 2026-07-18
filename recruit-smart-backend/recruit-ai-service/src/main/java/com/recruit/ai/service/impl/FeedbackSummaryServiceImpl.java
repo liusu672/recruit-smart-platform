@@ -6,6 +6,8 @@ import com.recruit.ai.dto.response.FeedbackSummaryResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResult;
 import com.recruit.ai.knowledge.service.KnowledgeBaseService;
+import com.recruit.ai.service.AiFeedbackSummaryResultService;
+import com.recruit.ai.service.AiTaskService;
 import com.recruit.ai.service.FeedbackSummaryService;
 import com.recruit.ai.service.llm.LlmFeedbackSummaryService;
 import lombok.RequiredArgsConstructor;
@@ -17,21 +19,51 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class FeedbackSummaryServiceImpl implements FeedbackSummaryService {
 
+    private static final String TASK_TYPE = "FEEDBACK_SUMMARY";
+    private static final String BIZ_TYPE = "INTERVIEW";
+    private static final String MODEL_NAME = "deepseek-chat";
+    private static final String PROMPT_VERSION = "feedback-summary-v1";
+
     private final FeedbackSummaryAlgorithm feedbackSummaryAlgorithm;
     private final KnowledgeBaseService knowledgeBaseService;
     private final LlmFeedbackSummaryService llmFeedbackSummaryService;
+    private final AiTaskService aiTaskService;
+    private final AiFeedbackSummaryResultService aiFeedbackSummaryResultService;
 
     @Override
     public FeedbackSummaryResponse generateSummary(FeedbackSummaryRequest request) {
-        try {
-            String query = buildKnowledgeQuery(request);
-            KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 3);
-            String knowledgeContext = buildKnowledgeContext(searchResponse);
+        Long taskId = aiTaskService.createRunningTask(
+                TASK_TYPE,
+                request.getInterviewId(),
+                BIZ_TYPE,
+                MODEL_NAME,
+                PROMPT_VERSION
+        );
 
-            return llmFeedbackSummaryService.generate(request, knowledgeContext);
+        try {
+            FeedbackSummaryResponse response;
+            String source;
+
+            try {
+                String query = buildKnowledgeQuery(request);
+                KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 3);
+                String knowledgeContext = buildKnowledgeContext(searchResponse);
+
+                response = llmFeedbackSummaryService.generate(request, knowledgeContext);
+                source = "LLM";
+            } catch (Exception e) {
+                log.warn("知识库检索或大模型面试反馈摘要失败，降级使用规则算法", e);
+                response = feedbackSummaryAlgorithm.generate(request);
+                source = "RULE";
+            }
+
+            aiFeedbackSummaryResultService.saveResult(taskId, request, response, source);
+            aiTaskService.markSuccess(taskId, source);
+
+            return response;
         } catch (Exception e) {
-            log.warn("知识库检索或大模型面试反馈摘要失败，降级使用规则算法", e);
-            return feedbackSummaryAlgorithm.generate(request);
+            aiTaskService.markFailed(taskId, e.getMessage());
+            throw e;
         }
     }
 
