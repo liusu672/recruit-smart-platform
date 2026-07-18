@@ -1,13 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
-import { createCandidate, getCandidateById, getCandidates } from '@/api/candidates'
+import { createCandidate, getCandidateById, getCandidates, updateCandidate } from '@/api/candidates'
 import {
   createDemoCandidate,
   getDemoCandidatePage,
   initialDemoCandidates,
 } from '@/config/demoCandidates'
-import type { CandidateCreateRequest, CandidateDetail, CandidateQuery } from '@/types/candidate'
+import type {
+  CandidateCreateRequest,
+  CandidateDetail,
+  CandidateQuery,
+  CandidateUpdateRequest,
+} from '@/types/candidate'
 
 function cloneDemoCandidates(): CandidateDetail[] {
   return structuredClone(initialDemoCandidates)
@@ -87,6 +92,34 @@ export function useCandidateManagement() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: CandidateUpdateRequest }) => {
+      if (!demoMode.value) return updateCandidate(id, data)
+
+      const candidate = demoRecords.value.find((item) => item.id === id)
+      if (!candidate) throw new Error('演示候选人不存在')
+      Object.assign(candidate, {
+        name: data.name,
+        gender: data.gender,
+        age: data.age ?? null,
+        phone: data.phone,
+        email: data.email,
+        education: data.education,
+        school: data.school,
+        major: data.major,
+        yearsOfExperience: data.yearsOfExperience,
+        source: data.source,
+        lastActivityAt: new Date().toISOString(),
+      })
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['candidates'] }),
+        queryClient.invalidateQueries({ queryKey: ['candidate-detail'] }),
+      ])
+    },
+  })
+
   function applyFilters(
     filters: Pick<
       CandidateQuery,
@@ -134,6 +167,7 @@ export function useCandidateManagement() {
     candidatesQuery,
     detailQuery,
     createMutation,
+    updateMutation,
     applyFilters,
     resetFilters,
     useDemoData,

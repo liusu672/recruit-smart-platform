@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import EmployeeDetailDrawer from '@/components/employees/EmployeeDetailDrawer.vue'
 import EmployeeTable from '@/components/employees/EmployeeTable.vue'
 import { useEmployeeDirectory } from '@/composables/useEmployeeDirectory'
 import { employeeStatusOptions, getEmployeeStatusText } from '@/config/employees'
 import type { EmployeeStatus } from '@/types/employee'
+import type { TurnoverRiskResponse } from '@/types/ai'
 
 const state = useEmployeeDirectory()
 const filterForm = reactive<{ keyword: string; department: string; status: EmployeeStatus | '' }>({
@@ -24,6 +25,13 @@ const detailVisible = computed({
     if (!value) state.closeDetail()
   },
 })
+const riskAnalysis = ref<TurnoverRiskResponse | null>(null)
+watch(
+  () => state.selectedId.value,
+  () => {
+    riskAnalysis.value = null
+  },
+)
 const departments = ['研发部', '技术部', '产品部', '产品设计部']
 function submitFilters() {
   state.applyFilters({
@@ -55,6 +63,29 @@ async function updateStatus(status: EmployeeStatus) {
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
     ElMessage.error(error instanceof Error ? error.message : '员工状态更新失败')
+  }
+}
+
+async function assessRisk() {
+  const record = state.detailQuery.data.value
+  if (!record) return
+  if (state.demoMode.value) {
+    ElMessage.warning('演示数据不调用真实 AI 风险接口')
+    return
+  }
+  try {
+    riskAnalysis.value = await state.riskMutation.mutateAsync({
+      employeeId: record.id,
+      employeeName: record.name,
+      department: record.department,
+      position: record.position,
+      performanceSummary: record.performanceSummary ?? '',
+      attendanceSummary: record.attendanceSummary ?? '',
+      satisfactionFeedback: record.satisfactionFeedback ?? '',
+    })
+    ElMessage.success('AI 风险分析已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'AI 风险分析失败')
   }
 }
 </script>
@@ -138,7 +169,10 @@ async function updateStatus(status: EmployeeStatus) {
       :loading="state.detailQuery.isLoading.value"
       :error="detailError"
       :updating="state.statusMutation.isPending.value"
+      :risk-analysis="riskAnalysis"
+      :analyzing-risk="state.riskMutation.isPending.value"
       @update-status="updateStatus"
+      @assess-risk="assessRisk"
     />
   </div>
 </template>

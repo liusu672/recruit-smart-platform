@@ -3,6 +3,7 @@
 .portal-page__intro h2 { margin: 0; color: var(--rs-text-primary); font-size: 18px; }
 .portal-page__intro p { max-width: 720px; margin: var(--rs-space-1) 0 0; color: var(--rs-text-secondary); }
 .portal-panel { border: 1px solid var(--rs-border-default); border-radius: var(--rs-radius-sm); background: var(--rs-surface-primary); }
+.portal-pagination { display: flex; justify-content: flex-end; padding: var(--rs-space-4); border-top: 1px solid var(--rs-border-default); }
 .portal-panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 var(--rs-space-4); border-bottom: 1px solid var(--rs-border-default); }
 .portal-panel__header h3 { margin: 0; color: var(--rs-text-primary); font-size: 15px; }
 .portal-list { display: grid; }

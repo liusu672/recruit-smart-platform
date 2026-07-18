@@ -13,3 +13,38 @@ export interface AiApprovalRequest {
   editableContent: string
   auditNote: string
 }
+
+export interface FeedbackSummaryRequest {
+  interviewId: number
+  candidateId: number
+  jobId: number
+  jobTitle: string
+  candidateName: string
+  feedbackText: string
+  score: number | null
+}
+
+export interface FeedbackSummaryResponse {
+  summary: string
+  advantages: string[]
+  risks: string[]
+  suggestion: string
+}
+
+export interface TurnoverRiskRequest {
+  employeeId: number
+  employeeName: string
+  department: string
+  position: string
+  performanceSummary: string
+  attendanceSummary: string
+  satisfactionFeedback: string
+}
+
+export interface TurnoverRiskResponse {
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
+  riskScore: number
+  summary: string
+  riskReasons: string[]
+  suggestions: string[]
+}

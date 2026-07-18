@@ -62,7 +62,7 @@ describe('role-specific API boundaries', () => {
     await getMyInterviewerTasks()
 
     expect(get).toHaveBeenCalledWith('/interviews/interviewer/me', {
-      params: { pageNum: 1, pageSize: 100 },
+      params: { pageNum: 1, pageSize: 10 },
     })
   })
 })

@@ -59,14 +59,14 @@ const eligibleApplicationsQuery = useQuery({
           jobId: null,
           status: 'INTERVIEWING',
           page: 1,
-          pageSize: 100,
+          pageSize: 20,
         })
       : await getPipelineApplications({
           keyword: '',
           jobId: null,
           status: 'INTERVIEWING',
           page: 1,
-          pageSize: 100,
+          pageSize: 20,
         })
 
     return page.items.map((application) => ({
@@ -165,12 +165,7 @@ async function confirmSend(offer: OfferRecord) {
         type: 'warning',
       },
     )
-    await sendMutation.mutateAsync({
-      id: offer.id,
-      data: {
-        note: 'HR 已复核薪资、入职日期与工作地点。',
-      },
-    })
+    await sendMutation.mutateAsync(offer.id)
     ElMessage.success('Offer 已发送，等待候选人决定')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
@@ -189,12 +184,7 @@ async function confirmRevoke(offer: OfferRecord) {
         type: 'warning',
       },
     )
-    await revokeMutation.mutateAsync({
-      id: offer.id,
-      data: {
-        reason: 'HR 已确认撤回该 Offer。',
-      },
-    })
+    await revokeMutation.mutateAsync(offer.id)
     ElMessage.success('Offer 已撤回')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return

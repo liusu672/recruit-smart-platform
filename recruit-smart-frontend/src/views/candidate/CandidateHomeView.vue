@@ -34,15 +34,31 @@ const resource = usePortalResource(
         getMyOffers(),
         getMyOnboardings(),
       ])
-    return { profile, resumes, jobs, applications, interviews, offers, onboardings }
+    return {
+      profile,
+      resumes,
+      jobs: jobs.items,
+      jobTotal: jobs.total,
+      applications: applications.items,
+      applicationTotal: applications.total,
+      interviews: interviews.items,
+      interviewTotal: interviews.total,
+      offers: offers.items,
+      offerTotal: offers.total,
+      onboardings,
+    }
   },
   {
     profile: demoMyProfile,
     resumes: demoMyResumes,
     jobs: demoOpenJobs,
+    jobTotal: demoOpenJobs.length,
     applications: demoMyApplications,
+    applicationTotal: demoMyApplications.length,
     interviews: demoMyInterviews,
+    interviewTotal: demoMyInterviews.length,
     offers: demoMyOffers,
+    offerTotal: demoMyOffers.length,
     onboardings: demoMyOnboardings,
   },
 )
@@ -74,10 +90,10 @@ function formatInterviewTime(value: string | null) {
     <template v-else>
       <section class="portal-metrics" aria-label="我的求职概览">
         <article class="portal-metric">
-          <span>可投职位</span><strong>{{ resource.data.value.jobs.length }}</strong>
+          <span>可投职位</span><strong>{{ resource.data.value.jobTotal }}</strong>
         </article>
         <article class="portal-metric">
-          <span>我的投递</span><strong>{{ resource.data.value.applications.length }}</strong>
+          <span>我的投递</span><strong>{{ resource.data.value.applicationTotal }}</strong>
         </article>
         <article class="portal-metric">
           <span>待参加面试</span

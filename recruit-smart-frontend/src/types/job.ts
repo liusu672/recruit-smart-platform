@@ -10,6 +10,7 @@ export interface JobPosition {
   jobType: string | null
   salaryRange: string | null
   headcount: number
+  requiredInterviewRounds?: number | null
   experienceRequirement: string | null
   educationRequirement: string | null
   description: string | null
@@ -40,6 +41,7 @@ export interface JobCreateRequest {
   salaryMin: number
   salaryMax: number
   headcount: number
+  requiredInterviewRounds?: number
   responsibilities: string
   requirements: string
 }
@@ -55,4 +57,5 @@ export type JobPagedData = PagedData<JobPosition>
 
 export interface JobFormValue extends JobUpdateRequest {
   id: number | null
+  requiredInterviewRounds: number
 }

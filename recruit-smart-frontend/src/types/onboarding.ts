@@ -53,10 +53,6 @@ export interface MaterialReviewRequest extends OnboardingActionRequest {
   decision: 'APPROVE' | 'REJECT'
 }
 
-export interface CompleteOnboardingRequest {
-  note?: string
-}
-
 export interface CancelOnboardingRequest {
   reason: string
 }

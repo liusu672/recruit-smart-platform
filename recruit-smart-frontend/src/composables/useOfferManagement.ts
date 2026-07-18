@@ -17,14 +17,7 @@ import {
   sendDemoOffer,
   updateDemoOffer,
 } from '@/config/demoOffers'
-import type {
-  OfferCreateRequest,
-  OfferQuery,
-  OfferRecord,
-  OfferRevokeRequest,
-  OfferSendRequest,
-  OfferUpdateRequest,
-} from '@/types/offer'
+import type { OfferCreateRequest, OfferQuery, OfferRecord, OfferUpdateRequest } from '@/types/offer'
 
 function cloneDemoOffers() {
   return initialDemoOffers.map(cloneOffer)
@@ -114,17 +107,17 @@ export function useOfferManagement() {
   })
 
   const sendMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: OfferSendRequest }) => {
-      if (!demoMode.value) return sendOffer(id, data)
-      updateDemoRecord(id, (offer) => sendDemoOffer(offer, data))
+    mutationFn: async (id: number) => {
+      if (!demoMode.value) return sendOffer(id)
+      updateDemoRecord(id, (offer) => sendDemoOffer(offer))
     },
     onSuccess: refreshOffers,
   })
 
   const revokeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: OfferRevokeRequest }) => {
-      if (!demoMode.value) return revokeOffer(id, data)
-      updateDemoRecord(id, (offer) => revokeDemoOffer(offer, data))
+    mutationFn: async (id: number) => {
+      if (!demoMode.value) return revokeOffer(id)
+      updateDemoRecord(id, (offer) => revokeDemoOffer(offer))
     },
     onSuccess: refreshOffers,
   })

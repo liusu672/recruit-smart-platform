@@ -10,8 +10,12 @@ export interface PortalResource<T> {
   reload: () => Promise<void>
 }
 
-export function usePortalResource<T>(loader: () => Promise<T>, demoData: T): PortalResource<T> {
-  const data = ref(demoData) as Ref<T>
+export function usePortalResource<T>(
+  loader: () => Promise<T>,
+  demoData: T | (() => T),
+): PortalResource<T> {
+  const getDemoData = () => (typeof demoData === 'function' ? (demoData as () => T)() : demoData)
+  const data = ref(getDemoData()) as Ref<T>
   const error = ref('')
   const loading = ref(true)
   const demoMode = ref(false)
@@ -29,7 +33,7 @@ export function usePortalResource<T>(loader: () => Promise<T>, demoData: T): Por
       const demoFallbackEnabled = import.meta.env.VITE_PORTAL_DEMO_FALLBACK === 'true'
       if (demoFallbackEnabled && !protectedFailure) {
         // 演示回退也必须保持角色数据隔离，不能借用 HR 候选人库作为候选人数据。
-        data.value = demoData
+        data.value = getDemoData()
         demoMode.value = true
       } else {
         error.value = message

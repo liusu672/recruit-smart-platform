@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
 import { getEmployeeById, getEmployees, updateEmployeeStatus } from '@/api/employees'
+import { assessTurnoverRisk } from '@/api/ai'
 import { getEmployeeStatusText } from '@/config/employees'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
 import type { EmployeeQuery, EmployeeRecord, EmployeeStatusUpdateRequest } from '@/types/employee'
@@ -72,6 +73,8 @@ export function useEmployeeDirectory() {
     onSuccess: refresh,
   })
 
+  const riskMutation = useMutation({ mutationFn: assessTurnoverRisk })
+
   return {
     query,
     demoMode,
@@ -79,6 +82,7 @@ export function useEmployeeDirectory() {
     listQuery,
     detailQuery,
     statusMutation,
+    riskMutation,
     applyFilters: (filters: Pick<EmployeeQuery, 'keyword' | 'department' | 'status'>) =>
       Object.assign(query, filters, { page: 1 }),
     resetFilters: () => Object.assign(query, { keyword: '', department: '', status: '', page: 1 }),

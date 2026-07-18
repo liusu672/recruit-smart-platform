@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Eye, Pencil, Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import JobDetailDrawer from '@/components/jobs/JobDetailDrawer.vue'
 import JobFormDrawer from '@/components/jobs/JobFormDrawer.vue'
@@ -15,6 +16,7 @@ const {
   selectedJobId,
   jobsQuery,
   detailQuery,
+  applicationsQuery,
   createMutation,
   updateMutation,
   publishMutation,
@@ -29,6 +31,7 @@ const {
   openDetail,
   closeDetail,
 } = useJobManagement()
+const router = useRouter()
 
 const filterForm = reactive<Pick<JobQuery, 'keyword' | 'department' | 'status'>>({
   keyword: '',
@@ -47,6 +50,7 @@ const jobs = computed(() => jobsQuery.data.value?.items ?? [])
 const total = computed(() => jobsQuery.data.value?.total ?? 0)
 const listError = computed(() => jobsQuery.error.value as Error | null)
 const detailError = computed(() => detailQuery.error.value as Error | null)
+const applicationsError = computed(() => applicationsQuery.error.value as Error | null)
 
 function formatDate(value: string | null) {
   if (!value) return '暂无记录'
@@ -75,6 +79,10 @@ function openEdit(job: JobPosition) {
   closeDetail()
   editingJob.value = job
   formVisible.value = true
+}
+
+function viewPipeline(jobId: number) {
+  void router.push({ path: '/hr/pipeline', query: { jobId: String(jobId) } })
 }
 
 function showError(error: unknown) {
@@ -340,11 +348,15 @@ async function confirmClose(job: JobPosition) {
       :error="detailError"
       :demo-mode="demoMode"
       :action-loading="isMutating"
+      :applications="applicationsQuery.data.value?.records ?? []"
+      :applications-loading="applicationsQuery.isLoading.value"
+      :applications-error="applicationsError"
       @edit="openEdit"
       @publish="confirmPublish"
       @pause="confirmPause"
       @resume="confirmResume"
       @close-job="confirmClose"
+      @view-pipeline="viewPipeline"
     />
 
     <JobFormDrawer

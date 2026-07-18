@@ -37,6 +37,7 @@ const emit = defineEmits<{
   assignInterview: [application: PipelineApplicationDetail]
   reassignInterview: [application: PipelineApplicationDetail]
   cancelInterview: [application: PipelineApplicationDetail]
+  contact: [applicationId: number]
 }>()
 
 const activeTab = ref('summary')
@@ -258,6 +259,7 @@ async function downloadResume(application: PipelineApplicationDetail) {
       </el-tabs>
 
       <footer class="application-detail__actions">
+        <el-button v-if="canManage" @click="emit('contact', application.id)">联系候选人</el-button>
         <template v-if="canManage && application.status === 'SUBMITTED'">
           <el-button type="primary" @click="emit('startScreening', application)">
             开始筛选

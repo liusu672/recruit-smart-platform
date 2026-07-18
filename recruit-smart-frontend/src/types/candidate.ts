@@ -18,6 +18,7 @@ export interface CandidateSummary {
   userId: number | null
   name: string
   gender: string | null
+  age?: number | null
   phone: string | null
   email: string | null
   education: string | null
@@ -98,6 +99,7 @@ export interface CandidateQuery {
 export interface CandidateCreateRequest {
   name: string
   gender: string
+  age?: number | null
   phone: string
   email: string
   education: string
@@ -107,5 +109,7 @@ export interface CandidateCreateRequest {
   currentStatus: CandidateStatus
   source: CandidateSource
 }
+
+export type CandidateUpdateRequest = Omit<CandidateCreateRequest, 'currentStatus'>
 
 export type CandidatePagedData = PagedData<CandidateSummary>

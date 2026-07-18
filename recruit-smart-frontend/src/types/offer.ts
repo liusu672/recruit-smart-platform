@@ -87,12 +87,4 @@ export interface OfferCreateRequest {
 
 export type OfferUpdateRequest = Omit<OfferCreateRequest, 'applicationId'>
 
-export interface OfferSendRequest {
-  note?: string
-}
-
-export interface OfferRevokeRequest {
-  reason?: string
-}
-
 export type OfferPagedData = PagedData<OfferRecord>

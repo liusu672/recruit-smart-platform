@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { LogOut, Search } from 'lucide-vue-next'
+import { LogOut, MessageCircle, Search } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import { ROLE_WORKSPACES } from '@/config/roleAccess'
 import { useSessionStore } from '@/stores/session'
+import { useMessageNotifications } from '@/composables/useMessages'
 
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+const { unreadQuery } = useMessageNotifications()
 
 const workspace = computed(() => {
   const role = session.currentRole
@@ -55,6 +57,16 @@ function logout() {
             <Search :size="16" :stroke-width="1.75" aria-hidden="true" />
             <input :placeholder="workspace.searchPlaceholder" />
           </label>
+          <RouterLink
+            class="workspace-icon-button workspace-message-link"
+            :to="`${workspace.homePath.replace(/\/[^/]+$/, '')}/messages`"
+            aria-label="打开消息中心"
+          >
+            <MessageCircle :size="18" :stroke-width="1.75" aria-hidden="true" />
+            <span v-if="unreadQuery.data.value" class="workspace-message-badge">
+              {{ unreadQuery.data.value > 99 ? '99+' : unreadQuery.data.value }}
+            </span>
+          </RouterLink>
           <div class="workspace-user">
             <strong>{{ session.user?.name ?? workspace.label }}</strong
             ><span>{{ workspace.label }}</span>

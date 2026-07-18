@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { adaptJobPage, parseSalaryRange, pauseJob, resumeJob } from '@/api/jobs'
+import {
+  adaptJobPage,
+  createJob,
+  getJobApplications,
+  getOpenJobById,
+  parseSalaryRange,
+  pauseJob,
+  resumeJob,
+} from '@/api/jobs'
 import { http, unwrapVoidResult } from '@/api/http'
 import { getDemoJobPage, initialDemoJobs } from '@/config/demoJobs'
 
@@ -72,5 +80,44 @@ describe('job state API', () => {
 
     expect(put).toHaveBeenNthCalledWith(1, '/jobs/101/pause')
     expect(put).toHaveBeenNthCalledWith(2, '/jobs/101/resume')
+  })
+
+  it('loads public details and job-scoped applications with real pagination', async () => {
+    const get = vi.spyOn(http, 'get').mockResolvedValue({
+      data: { code: 200, message: 'success', data: { total: 0, records: [] } },
+    } as never)
+    await getOpenJobById(18)
+    await getJobApplications(18, { page: 2, pageSize: 10, status: 'SCREENING' })
+    expect(get).toHaveBeenNthCalledWith(1, '/jobs/open/18')
+    expect(get).toHaveBeenNthCalledWith(2, '/jobs/18/applications', {
+      params: { pageNum: 2, pageSize: 10, status: 'SCREENING' },
+    })
+  })
+
+  it('keeps required interview rounds in create payloads', async () => {
+    const post = vi.spyOn(http, 'post').mockResolvedValue({
+      data: { code: 200, message: 'success', data: 19 },
+    } as never)
+    const request = {
+      title: 'Java 工程师',
+      department: '技术部',
+      location: '武汉',
+      jobType: '全职',
+      headcount: 2,
+      salaryRange: '12000-18000',
+      salaryMin: 12000,
+      salaryMax: 18000,
+      experienceRequirement: '2 年以上',
+      educationRequirement: '本科',
+      description: '岗位描述',
+      responsibilities: '岗位职责',
+      requirements: '任职要求',
+      requiredInterviewRounds: 2,
+    }
+    await createJob(request)
+    expect(post).toHaveBeenCalledWith(
+      '/jobs',
+      expect.objectContaining({ requiredInterviewRounds: 2 }),
+    )
   })
 })

@@ -10,7 +10,7 @@ import {
 } from '@/config/onboardings'
 import type { OnboardingRecord } from '@/types/onboarding'
 
-defineProps<{ records: OnboardingRecord[]; loading: boolean }>()
+defineProps<{ records: OnboardingRecord[]; loading: boolean; allowStartReview: boolean }>()
 const emit = defineEmits<{
   select: [record: OnboardingRecord]
   start: [record: OnboardingRecord]
@@ -81,7 +81,9 @@ function formatDate(value: string) {
           <el-tooltip content="查看入职详情"
             ><el-button circle :icon="Eye" aria-label="查看入职详情" @click="emit('select', row)"
           /></el-tooltip>
-          <el-tooltip v-if="canStartOnboardingReview(row.status)" content="开始材料审核"
+          <el-tooltip
+            v-if="allowStartReview && canStartOnboardingReview(row.status)"
+            content="开始材料审核"
             ><el-button
               circle
               type="primary"

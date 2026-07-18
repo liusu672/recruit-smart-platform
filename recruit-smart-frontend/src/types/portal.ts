@@ -1,10 +1,19 @@
 import type { JobPosition } from '@/types/job'
 import type { InterviewMethod, InterviewStatus } from '@/types/interview'
+import type { PagedData } from '@/types/api'
 
 export interface PageResponse<T> {
   total: number
   records: T[]
 }
+
+export interface PortalPageQuery {
+  page: number
+  pageSize: number
+  keyword?: string
+}
+
+export type PortalPagedData<T> = PagedData<T>
 
 export interface CandidateProfile {
   id: number
@@ -57,6 +66,20 @@ export interface CandidateApplication {
   allowAdjustment: number
   adjustedJobId: number | null
   appliedAt: string
+}
+
+export interface CandidateApplicationDetail extends Omit<CandidateApplication, 'department'> {
+  candidateId: number
+  candidateName: string
+  department: string | null
+  resumeFileType: string | null
+  source: string | null
+  rejectReasonCode: string | null
+  rejectReason: string | null
+  hrNote: string | null
+  reviewedAt: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface PortalInterview {

@@ -28,6 +28,7 @@ const form = reactive<JobFormValue>({
   salaryMin: 0,
   salaryMax: 0,
   headcount: 1,
+  requiredInterviewRounds: 2,
   responsibilities: '',
   requirements: '',
 })
@@ -77,6 +78,7 @@ function fillForm(job: JobPosition | null) {
     salaryMin,
     salaryMax,
     headcount: job?.headcount ?? 1,
+    requiredInterviewRounds: job?.requiredInterviewRounds ?? 2,
     responsibilities: job?.description ?? '',
     requirements: job?.requirement ?? '',
   })
@@ -119,6 +121,7 @@ async function submit() {
     salaryMin: form.salaryMin,
     salaryMax: form.salaryMax,
     headcount: form.headcount,
+    requiredInterviewRounds: form.requiredInterviewRounds,
     responsibilities: form.responsibilities.trim(),
     requirements: form.requirements.trim(),
   })
@@ -193,6 +196,14 @@ async function submit() {
 
         <el-form-item label="招聘人数" prop="headcount">
           <el-input-number v-model="form.headcount" :min="1" :max="999" controls-position="right" />
+        </el-form-item>
+
+        <el-form-item label="面试轮数" prop="requiredInterviewRounds">
+          <el-select v-model="form.requiredInterviewRounds">
+            <el-option label="1 轮（一面）" :value="1" />
+            <el-option label="2 轮（一面 + 二面）" :value="2" />
+            <el-option label="3 轮（一面 + 二面 + HR 面）" :value="3" />
+          </el-select>
         </el-form-item>
 
         <el-form-item label="岗位职责" prop="responsibilities" class="job-form__wide">

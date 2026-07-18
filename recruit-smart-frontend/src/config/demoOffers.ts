@@ -1,13 +1,6 @@
 import { getOfferStatusText, validateOfferForSend } from '@/config/offers'
 import { initialDemoPipeline } from '@/config/demoPipeline'
-import type {
-  OfferCreateRequest,
-  OfferQuery,
-  OfferRecord,
-  OfferRevokeRequest,
-  OfferSendRequest,
-  OfferUpdateRequest,
-} from '@/types/offer'
+import type { OfferCreateRequest, OfferQuery, OfferRecord, OfferUpdateRequest } from '@/types/offer'
 
 export const initialDemoOffers: OfferRecord[] = [
   {
@@ -239,11 +232,7 @@ export function updateDemoOffer(
   }
 }
 
-export function sendDemoOffer(
-  offer: OfferRecord,
-  request: OfferSendRequest,
-  sentAt = new Date().toISOString(),
-) {
+export function sendDemoOffer(offer: OfferRecord, sentAt = new Date().toISOString()) {
   if (offer.status !== 'DRAFT') throw new Error('只有草稿 Offer 可以发送')
   const validationError = validateOfferForSend(offer)
   if (validationError) throw new Error(validationError)
@@ -258,7 +247,7 @@ export function sendDemoOffer(
       {
         id: `${offer.id}-sent-${sentAt}`,
         title: '发送 Offer',
-        description: request.note?.trim() || 'Offer 已发送给候选人。',
+        description: 'Offer 已发送给候选人。',
         actorName: '当前 HR',
         occurredAt: sentAt,
       },
@@ -266,13 +255,9 @@ export function sendDemoOffer(
   }
 }
 
-export function revokeDemoOffer(
-  offer: OfferRecord,
-  request: OfferRevokeRequest,
-  revokedAt = new Date().toISOString(),
-) {
+export function revokeDemoOffer(offer: OfferRecord, revokedAt = new Date().toISOString()) {
   if (offer.status !== 'SENT') throw new Error('只有已发送 Offer 可以撤回')
-  const reason = request.reason?.trim() || 'HR 已确认撤回该 Offer。'
+  const reason = 'HR 已确认撤回该 Offer。'
   return {
     ...offer,
     status: 'REVOKED' as const,

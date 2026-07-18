@@ -1,7 +1,6 @@
 import { getMaterialStatusText, getOnboardingStatusText } from '@/config/onboardings'
 import type {
   CancelOnboardingRequest,
-  CompleteOnboardingRequest,
   MaterialReviewRequest,
   OnboardingActionRequest,
   OnboardingQuery,
@@ -196,17 +195,13 @@ export function reviewDemoOnboardingMaterial(
   }
 }
 
-export function completeDemoOnboarding(
-  record: OnboardingRecord,
-  request: CompleteOnboardingRequest,
-  now = new Date().toISOString(),
-) {
+export function completeDemoOnboarding(record: OnboardingRecord, now = new Date().toISOString()) {
   if (record.status !== 'APPROVED' || record.materialStatus !== 'APPROVED')
     throw new Error('只有材料已通过的记录可以确认入职')
   const employeeNo = `EMP${now.slice(0, 10).replaceAll('-', '')}${String(
     record.candidateId,
   ).padStart(3, '0')}`
-  const note = request.note?.trim() || '已确认到岗。'
+  const note = '已确认到岗。'
   return {
     ...record,
     status: 'ONBOARDED' as const,
