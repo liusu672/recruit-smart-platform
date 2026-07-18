@@ -6,6 +6,8 @@ import com.recruit.ai.dto.response.InterviewQuestionResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResult;
 import com.recruit.ai.knowledge.service.KnowledgeBaseService;
+import com.recruit.ai.service.AiInterviewQuestionResultService;
+import com.recruit.ai.service.AiTaskService;
 import com.recruit.ai.service.InterviewQuestionService;
 import com.recruit.ai.service.llm.LlmInterviewQuestionService;
 import lombok.RequiredArgsConstructor;
@@ -17,21 +19,51 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
+    private static final String TASK_TYPE = "INTERVIEW_QUESTION";
+    private static final String BIZ_TYPE = "RESUME";
+    private static final String MODEL_NAME = "deepseek-chat";
+    private static final String PROMPT_VERSION = "interview-question-v1";
+
     private final InterviewQuestionAlgorithm interviewQuestionAlgorithm;
     private final KnowledgeBaseService knowledgeBaseService;
     private final LlmInterviewQuestionService llmInterviewQuestionService;
+    private final AiTaskService aiTaskService;
+    private final AiInterviewQuestionResultService aiInterviewQuestionResultService;
 
     @Override
     public InterviewQuestionResponse generateQuestions(InterviewQuestionRequest request) {
-        String query = buildKnowledgeQuery(request);
-        KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 3);
-        String knowledgeContext = buildKnowledgeContext(searchResponse);
+        Long taskId = aiTaskService.createRunningTask(
+                TASK_TYPE,
+                request.getResumeId(),
+                BIZ_TYPE,
+                MODEL_NAME,
+                PROMPT_VERSION
+        );
 
         try {
-            return llmInterviewQuestionService.generate(request, knowledgeContext);
+            InterviewQuestionResponse response;
+            String source;
+
+            try {
+                String query = buildKnowledgeQuery(request);
+                KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 3);
+                String knowledgeContext = buildKnowledgeContext(searchResponse);
+
+                response = llmInterviewQuestionService.generate(request, knowledgeContext);
+                source = "LLM";
+            } catch (Exception e) {
+                log.warn("知识库检索或大模型面试题生成失败，降级使用规则算法", e);
+                response = interviewQuestionAlgorithm.generate(request);
+                source = "RULE";
+            }
+
+            aiInterviewQuestionResultService.saveResult(taskId, request, response, source);
+            aiTaskService.markSuccess(taskId, source);
+
+            return response;
         } catch (Exception e) {
-            log.warn("大模型面试题生成失败，降级使用规则算法", e);
-            return interviewQuestionAlgorithm.generate(request);
+            aiTaskService.markFailed(taskId, e.getMessage());
+            throw e;
         }
     }
 
