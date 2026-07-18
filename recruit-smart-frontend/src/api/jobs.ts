@@ -38,6 +38,54 @@ export function getJobById(id: number): Promise<JobPosition> {
   return unwrapResult(http.get<Result<JobPosition>>(`/jobs/${id}`))
 }
 
+export function getOpenJobById(id: number): Promise<JobPosition> {
+  return unwrapResult(http.get<Result<JobPosition>>(`/jobs/open/${id}`))
+}
+
+export interface JobApplicationRecord {
+  id: number
+  jobId: number
+  jobTitle: string
+  candidateId: number
+  candidateName: string
+  gender: string | null
+  age: number | null
+  education: string | null
+  school: string | null
+  major: string | null
+  yearsOfExperience: number | null
+  resumeId: number
+  resumeName: string | null
+  resumeFileType: string | null
+  status: string
+  statusText: string
+  allowAdjustment: number
+  adjustedJobId: number | null
+  appliedAt: string
+  reviewedAt: string | null
+}
+
+export interface JobApplicationPageResponse {
+  total: number
+  records: JobApplicationRecord[]
+}
+
+export function getJobApplications(
+  jobId: number,
+  params: { page: number; pageSize: number; status?: string; candidateKeyword?: string },
+) {
+  return unwrapResult(
+    http.get<Result<JobApplicationPageResponse>>(`/jobs/${jobId}/applications`, {
+      params: {
+        pageNum: params.page,
+        pageSize: params.pageSize,
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.candidateKeyword ? { candidateKeyword: params.candidateKeyword } : {}),
+      },
+    }),
+  )
+}
+
 export function createJob(data: JobCreateRequest): Promise<number> {
   return unwrapResult(http.post<Result<number>>('/jobs', data))
 }

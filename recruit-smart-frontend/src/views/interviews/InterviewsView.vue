@@ -17,6 +17,7 @@ import InterviewCopilotPanel from '@/components/interviews/InterviewCopilotPanel
 import InterviewScorecard from '@/components/interviews/InterviewScorecard.vue'
 import InterviewTaskQueue from '@/components/interviews/InterviewTaskQueue.vue'
 import { useInterviewWorkspace } from '@/composables/useInterviewWorkspace'
+import { getInterviewApplicationContext } from '@/api/interviews'
 import {
   calculateInterviewScore,
   interviewFeedbackStateOptions,
@@ -32,6 +33,7 @@ import type {
   InterviewStatus,
   InterviewSuggestion,
 } from '@/types/interview'
+import type { FeedbackSummaryResponse } from '@/types/ai'
 
 const session = useSessionStore()
 const route = useRoute()
@@ -45,6 +47,7 @@ const {
   completeMutation,
   submitMutation,
   questionMutation,
+  summaryMutation,
   applyFilters,
   resetFilters,
   useDemoData,
@@ -65,6 +68,7 @@ const scorecard = ref<InterviewScoreItem[]>([])
 const comment = ref('')
 const suggestion = ref<InterviewSuggestion | null>(null)
 const extraQuestions = ref<InterviewQuestion[]>([])
+const feedbackSummary = ref<FeedbackSummaryResponse | null>(null)
 const scheduleDialogVisible = ref(false)
 const scheduleForm = reactive<InterviewScheduleRequest>({
   interviewTime: '',
@@ -144,6 +148,7 @@ watch(
     comment.value = interview.feedback.comment
     suggestion.value = interview.feedback.suggestion
     extraQuestions.value = []
+    feedbackSummary.value = null
   },
   { immediate: true },
 )
@@ -271,14 +276,45 @@ async function generateQuestion(focus: string) {
   const interview = workspace.value
   if (!interview) return
   try {
+    const application = await getInterviewApplicationContext(interview.applicationId)
     const questions = await questionMutation.mutateAsync({
       id: interview.id,
-      data: { focus },
+      data: {
+        focus,
+        jobId: application.jobId,
+        candidateId: interview.candidateId,
+        resumeId: application.resumeId,
+        jobTitle: interview.jobTitle,
+        resumeText: interview.candidateBrief.workExperience ?? '',
+        skills: interview.candidateBrief.skills.join(', '),
+        projectExperience: interview.candidateBrief.projectExperience ?? '',
+        workExperience: interview.candidateBrief.workExperience ?? '',
+      },
     })
     extraQuestions.value.push(...questions)
     ElMessage.success('已生成参考追问')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '参考问题生成失败')
+  }
+}
+
+async function summarizeFeedback() {
+  const interview = workspace.value
+  if (!interview || !comment.value.trim()) return
+  try {
+    const application = await getInterviewApplicationContext(interview.applicationId)
+    feedbackSummary.value = await summaryMutation.mutateAsync({
+      interviewId: interview.id,
+      candidateId: interview.candidateId,
+      jobId: application.jobId,
+      jobTitle: interview.jobTitle,
+      candidateName: interview.candidateName,
+      feedbackText: comment.value,
+      score: overallScore.value,
+    })
+    ElMessage.success('AI 反馈摘要已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '反馈摘要生成失败')
   }
 }
 </script>
@@ -448,7 +484,11 @@ async function generateQuestion(focus: string) {
             :questions="visibleQuestions"
             :ai-summary="workspace.feedback.aiSummary"
             :generating="questionMutation.isPending.value"
+            :feedback-summary="feedbackSummary"
+            :summarizing="summaryMutation.isPending.value"
+            :can-summarize="Boolean(comment.trim())"
             @generate="generateQuestion"
+            @summarize="summarizeFeedback"
           />
         </section>
       </template>

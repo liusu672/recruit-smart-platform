@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { adaptOnboardingPage } from '@/api/onboardings'
+import { describe, expect, it, vi } from 'vitest'
+import { adaptOnboardingPage, completeOnboarding } from '@/api/onboardings'
+import { http } from '@/api/http'
 import {
   completeDemoOnboarding,
   getDemoOnboardingPage,
@@ -17,6 +18,17 @@ describe('onboarding API adaptation', () => {
       pageSize: 10,
       total: 1,
     })
+  })
+})
+
+describe('onboarding action API contracts', () => {
+  it('completes onboarding without a request body', async () => {
+    const put = vi.spyOn(http, 'put').mockResolvedValue({
+      data: { code: 200, message: 'success', data: null },
+    } as never)
+    await completeOnboarding(12)
+    expect(put).toHaveBeenCalledWith('/onboarding/12/complete')
+    vi.restoreAllMocks()
   })
 })
 
@@ -70,13 +82,10 @@ describe('onboarding demo state machine', () => {
     const reviewing = structuredClone(
       initialDemoOnboardings.find((item) => item.status === 'REVIEWING')!,
     )
-    const request = { note: '已确认到岗。' }
-    expect(completeDemoOnboarding(approved, request, '2026-07-28T09:00:00')).toMatchObject({
+    expect(completeDemoOnboarding(approved, '2026-07-28T09:00:00')).toMatchObject({
       status: 'ONBOARDED',
       completedAt: '2026-07-28T09:00:00',
     })
-    expect(() => completeDemoOnboarding(reviewing, request)).toThrow(
-      '只有材料已通过的记录可以确认入职',
-    )
+    expect(() => completeDemoOnboarding(reviewing)).toThrow('只有材料已通过的记录可以确认入职')
   })
 })

@@ -1,6 +1,5 @@
 import {
   Activity,
-  Bot,
   BriefcaseBusiness,
   CalendarCheck,
   ClipboardList,
@@ -10,8 +9,9 @@ import {
   Files,
   LayoutDashboard,
   ListChecks,
+  MessageCircle,
   ScrollText,
-  Settings2,
+  Settings,
   ShieldCheck,
   UserRound,
   UserRoundCheck,
@@ -51,7 +51,8 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
       { label: 'Offer 管理', to: '/hr/offers', icon: FileSignature },
       { label: '入职办理', to: '/hr/onboardings', icon: UserRoundCheck },
       { label: '员工档案', to: '/hr/employees', icon: ContactRound },
-      { label: 'AI 辅助审批', to: '/hr/ai-approvals', icon: Bot },
+      { label: '消息中心', to: '/hr/messages', icon: MessageCircle },
+      { label: '账户与安全', to: '/hr/settings', icon: Settings },
     ],
   },
   INTERVIEWER: {
@@ -62,6 +63,8 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
     navItems: [
       { label: '工作台', to: '/interviewer/dashboard', icon: LayoutDashboard },
       { label: '我的面试', to: '/interviewer/interviews', icon: CalendarCheck },
+      { label: '消息中心', to: '/interviewer/messages', icon: MessageCircle },
+      { label: '账户与安全', to: '/interviewer/settings', icon: Settings },
     ],
   },
   ADMIN: {
@@ -73,9 +76,11 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
       { label: '治理概览', to: '/admin/dashboard', icon: ShieldCheck },
       { label: '用户管理', to: '/admin/users', icon: UsersRound },
       { label: '角色权限', to: '/admin/roles', icon: UserRoundCheck },
-      { label: '基础字典', to: '/admin/dictionaries', icon: Settings2 },
+      { label: '基础字典', to: '/admin/dictionaries', icon: Settings },
       { label: '审计日志', to: '/admin/audit', icon: ScrollText },
       { label: '系统状态', to: '/admin/system', icon: Activity },
+      { label: '消息中心', to: '/admin/messages', icon: MessageCircle },
+      { label: '账户与安全', to: '/admin/settings', icon: Settings },
     ],
   },
   CANDIDATE: {
@@ -92,6 +97,8 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
       { label: '我的 Offer', to: '/candidate/offers', icon: FileSignature },
       { label: '入职资料', to: '/candidate/onboarding', icon: FileClock },
       { label: '个人中心', to: '/candidate/profile', icon: UserRound },
+      { label: '消息中心', to: '/candidate/messages', icon: MessageCircle },
+      { label: '账户与安全', to: '/candidate/settings', icon: Settings },
     ],
   },
 }

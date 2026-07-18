@@ -39,6 +39,11 @@ export const useSessionStore = defineStore('session', () => {
     sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(payload.user))
   }
 
+  function updateUser(nextUser: AuthUser) {
+    user.value = nextUser
+    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(nextUser))
+  }
+
   function clearSession() {
     token.value = null
     tokenType.value = 'Bearer'
@@ -55,6 +60,7 @@ export const useSessionStore = defineStore('session', () => {
     isAuthenticated,
     currentRole,
     setSession,
+    updateUser,
     clearSession,
   }
 })

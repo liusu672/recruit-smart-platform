@@ -10,6 +10,7 @@ import {
   saveInterviewFeedbackDraft,
   submitInterviewFeedback,
 } from '@/api/interviews'
+import { generateFeedbackSummary } from '@/api/ai'
 import {
   applyDemoInterviewCompletion,
   applyDemoInterviewDraft,
@@ -142,6 +143,8 @@ export function useInterviewWorkspace() {
     },
   })
 
+  const summaryMutation = useMutation({ mutationFn: generateFeedbackSummary })
+
   function applyFilters(filters: Pick<InterviewTaskQuery, 'keyword' | 'status' | 'feedbackState'>) {
     Object.assign(query, filters, { page: 1 })
   }
@@ -173,6 +176,7 @@ export function useInterviewWorkspace() {
     completeMutation,
     submitMutation,
     questionMutation,
+    summaryMutation,
     applyFilters,
     resetFilters,
     useDemoData,

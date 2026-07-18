@@ -6,8 +6,6 @@ import type {
   OfferPagedData,
   OfferQuery,
   OfferRecord,
-  OfferRevokeRequest,
-  OfferSendRequest,
   OfferUpdateRequest,
 } from '@/types/offer'
 
@@ -148,12 +146,10 @@ export function updateOffer(id: number, data: OfferUpdateRequest) {
   return unwrapVoidResult(http.put<Result<null>>(`/offers/${id}`, data))
 }
 
-export function sendOffer(id: number, data: OfferSendRequest) {
-  void data
+export function sendOffer(id: number) {
   return unwrapVoidResult(http.put<Result<null>>(`/offers/${id}/send`))
 }
 
-export function revokeOffer(id: number, data: OfferRevokeRequest) {
-  void data
+export function revokeOffer(id: number) {
   return unwrapVoidResult(http.put<Result<null>>(`/offers/${id}/revoke`))
 }

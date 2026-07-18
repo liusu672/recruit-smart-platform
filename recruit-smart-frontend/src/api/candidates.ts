@@ -1,8 +1,9 @@
-import { http, unwrapResult } from '@/api/http'
+import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
   ApplicationStatus,
   CandidateCreateRequest,
+  CandidateUpdateRequest,
   CandidateAiMatch,
   CandidateApplication,
   CandidateDetail,
@@ -140,6 +141,7 @@ function adaptCandidateSummary(source: BackendCandidateSummary): CandidateSummar
     userId: null,
     name: source.name,
     gender: source.gender,
+    age: source.age,
     phone: source.phone,
     email: source.email,
     education: source.education,
@@ -224,6 +226,7 @@ export function createCandidate(data: CandidateCreateRequest): Promise<number> {
   const payload = {
     name: data.name,
     gender: data.gender,
+    age: data.age,
     phone: data.phone,
     email: data.email,
     education: data.education,
@@ -233,4 +236,21 @@ export function createCandidate(data: CandidateCreateRequest): Promise<number> {
     source: data.source,
   }
   return unwrapResult(http.post<Result<number>>('/candidate', payload))
+}
+
+export function updateCandidate(id: number, data: CandidateUpdateRequest): Promise<void> {
+  return unwrapVoidResult(
+    http.put<Result<null>>(`/candidate/${id}`, {
+      name: data.name,
+      gender: data.gender,
+      age: data.age,
+      phone: data.phone,
+      email: data.email,
+      education: data.education,
+      school: data.school,
+      major: data.major,
+      yearsOfExperience: data.yearsOfExperience,
+      source: data.source,
+    }),
+  )
 }

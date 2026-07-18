@@ -8,13 +8,14 @@ import {
   candidateSourceOptions,
   candidateStatusOptions,
 } from '@/config/candidates'
-import type { CandidateCreateRequest } from '@/types/candidate'
+import type { CandidateCreateRequest, CandidateDetail } from '@/types/candidate'
 
 type CandidateFormValue = CandidateCreateRequest
 
 const props = defineProps<{
   visible: boolean
   submitting: boolean
+  candidate?: CandidateDetail | null
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +28,7 @@ const initialSnapshot = ref('')
 const form = reactive<CandidateFormValue>({
   name: '',
   gender: '',
+  age: null,
   phone: '',
   email: '',
   education: '',
@@ -64,18 +66,37 @@ const rules: FormRules<CandidateFormValue> = {
 }
 
 function resetForm() {
-  Object.assign(form, {
-    name: '',
-    gender: '',
-    phone: '',
-    email: '',
-    education: '',
-    school: '',
-    major: '',
-    yearsOfExperience: 0,
-    currentStatus: 'AVAILABLE',
-    source: 'HR_IMPORT',
-  })
+  const candidate = props.candidate
+  Object.assign(
+    form,
+    candidate
+      ? {
+          name: candidate.name,
+          gender: candidate.gender ?? '',
+          age: candidate.age ?? null,
+          phone: candidate.phone ?? '',
+          email: candidate.email ?? '',
+          education: candidate.education ?? '',
+          school: candidate.school ?? '',
+          major: candidate.major ?? '',
+          yearsOfExperience: candidate.yearsOfExperience,
+          currentStatus: candidate.currentStatus,
+          source: candidate.source,
+        }
+      : {
+          name: '',
+          gender: '',
+          age: null,
+          phone: '',
+          email: '',
+          education: '',
+          school: '',
+          major: '',
+          yearsOfExperience: 0,
+          currentStatus: 'AVAILABLE',
+          source: 'HR_IMPORT',
+        },
+  )
   initialSnapshot.value = JSON.stringify(form)
   formRef.value?.clearValidate()
 }
@@ -111,6 +132,7 @@ async function submit() {
   emit('submit', {
     name: form.name.trim(),
     gender: form.gender,
+    age: form.age ?? null,
     phone: form.phone.trim(),
     email: form.email.trim(),
     education: form.education,
@@ -126,7 +148,7 @@ async function submit() {
 <template>
   <el-drawer
     :model-value="visible"
-    title="录入候选人"
+    :title="candidate ? '编辑候选人' : '录入候选人'"
     size="560px"
     :close-on-click-modal="false"
     :before-close="requestClose"
@@ -158,6 +180,10 @@ async function submit() {
             <el-option label="女" value="女" />
             <el-option label="其他" value="其他" />
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="年龄" prop="age">
+          <el-input-number v-model="form.age" :min="16" :max="80" controls-position="right" />
         </el-form-item>
 
         <el-form-item label="手机号" prop="phone">
@@ -197,7 +223,7 @@ async function submit() {
         </el-form-item>
 
         <el-form-item label="当前状态" prop="currentStatus">
-          <el-select v-model="form.currentStatus">
+          <el-select v-model="form.currentStatus" :disabled="Boolean(candidate)">
             <el-option
               v-for="status in candidateStatusOptions"
               :key="status.value"
@@ -223,7 +249,9 @@ async function submit() {
     <template #footer>
       <div class="candidate-form__footer">
         <el-button :disabled="submitting" @click="requestClose()">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submit">保存候选人</el-button>
+        <el-button type="primary" :loading="submitting" @click="submit">
+          {{ candidate ? '保存修改' : '保存候选人' }}
+        </el-button>
       </div>
     </template>
   </el-drawer>

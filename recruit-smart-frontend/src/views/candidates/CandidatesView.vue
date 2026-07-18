@@ -12,7 +12,12 @@ import {
   getCandidateStatusTone,
 } from '@/config/candidates'
 import { useCandidateManagement } from '@/composables/useCandidateManagement'
-import type { CandidateCreateRequest, CandidateQuery, CandidateSummary } from '@/types/candidate'
+import type {
+  CandidateCreateRequest,
+  CandidateDetail,
+  CandidateQuery,
+  CandidateSummary,
+} from '@/types/candidate'
 
 type CandidateFormValue = CandidateCreateRequest
 
@@ -27,6 +32,7 @@ const {
   candidatesQuery,
   detailQuery,
   createMutation,
+  updateMutation,
   applyFilters,
   resetFilters,
   useDemoData,
@@ -48,6 +54,7 @@ const filterForm = reactive<
   currentStatus: '',
 })
 const formVisible = ref(false)
+const editingCandidate = ref<CandidateDetail | null>(null)
 const tableRef = ref<CandidateTableRef>()
 const selectedRows = ref<CandidateSummary[]>([])
 const candidates = computed(() => candidatesQuery.data.value?.items ?? [])
@@ -94,13 +101,33 @@ function showError(error: unknown) {
 
 async function submitCandidate(data: CandidateFormValue) {
   try {
-    const id = await createMutation.mutateAsync(data)
+    const id = editingCandidate.value?.id
+    if (id) {
+      await updateMutation.mutateAsync({ id, data })
+    } else {
+      await createMutation.mutateAsync(data)
+    }
     formVisible.value = false
-    selectCandidate(id)
-    ElMessage.success(demoMode.value ? '演示候选人已保存' : '候选人已保存')
+    editingCandidate.value = null
+    if (id) selectCandidate(id)
+    ElMessage.success(
+      id ? '候选人信息已更新' : demoMode.value ? '演示候选人已保存' : '候选人已保存',
+    )
   } catch (error) {
     showError(error)
   }
+}
+
+function openCreateCandidate() {
+  editingCandidate.value = null
+  formVisible.value = true
+}
+
+function openEditCandidate() {
+  const candidate = detailQuery.data.value
+  if (!candidate) return
+  editingCandidate.value = structuredClone(candidate)
+  formVisible.value = true
 }
 </script>
 
@@ -111,7 +138,7 @@ async function submitCandidate(data: CandidateFormValue) {
         <h2 class="rs-section-title">候选人搜索与管理</h2>
         <p>按业务资料检索候选人，并在不离开列表的情况下查看简历、投递和 AI 参考。</p>
       </div>
-      <el-button type="primary" :icon="Plus" @click="formVisible = true">录入候选人</el-button>
+      <el-button type="primary" :icon="Plus" @click="openCreateCandidate">录入候选人</el-button>
     </header>
 
     <el-alert
@@ -306,7 +333,7 @@ async function submitCandidate(data: CandidateFormValue) {
             <div class="candidates-empty">
               <h3>没有符合条件的候选人</h3>
               <p>调整筛选条件，或由 HR 录入新的候选人资料。</p>
-              <el-button type="primary" :icon="Plus" @click="formVisible = true">
+              <el-button type="primary" :icon="Plus" @click="openCreateCandidate">
                 录入候选人
               </el-button>
             </div>
@@ -334,12 +361,14 @@ async function submitCandidate(data: CandidateFormValue) {
         :error="detailError"
         :demo-mode="demoMode"
         @close="closePreview"
+        @edit="openEditCandidate"
       />
     </section>
 
     <CandidateFormDrawer
       v-model:visible="formVisible"
-      :submitting="createMutation.isPending.value"
+      :submitting="createMutation.isPending.value || updateMutation.isPending.value"
+      :candidate="editingCandidate"
       @submit="submitCandidate"
     />
   </div>

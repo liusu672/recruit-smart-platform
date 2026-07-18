@@ -13,11 +13,35 @@ import type {
   InterviewerOption,
   InterviewWorkspace,
 } from '@/types/interview'
+import type { CandidateApplicationDetail } from '@/types/portal'
 
 interface BackendQuestionResponse {
-  category: string
-  summary: string
-  questions: string[]
+  category?: unknown
+  summary?: unknown
+  questions?: unknown
+}
+
+export function getInterviewApplicationContext(applicationId: number) {
+  return unwrapResult(
+    http.get<Result<CandidateApplicationDetail>>(`/applications/${applicationId}`),
+  )
+}
+
+export function adaptInterviewQuestions(
+  id: number,
+  source: BackendQuestionResponse,
+): InterviewQuestion[] {
+  const category =
+    typeof source.category === 'string' && source.category.trim() ? source.category : 'AI 追问'
+  const questions = Array.isArray(source.questions)
+    ? source.questions.filter((question): question is string => typeof question === 'string')
+    : []
+  return questions.map((question, index) => ({
+    id: `${id}-ai-${index}`,
+    category,
+    question,
+    source: 'MANUAL',
+  }))
 }
 
 export function adaptInterviewTaskPage(
@@ -97,13 +121,16 @@ export function submitInterviewFeedback(id: number, data: InterviewFeedbackReque
 
 export async function generateInterviewQuestions(id: number, data: InterviewQuestionRequest) {
   const response = await http.post<BackendQuestionResponse>('/ai/interview-questions', {
-    jobTitle: data.focus,
-    requirements: data.focus,
+    jobId: data.jobId,
+    candidateId: data.candidateId,
+    resumeId: data.resumeId,
+    jobTitle: data.jobTitle,
+    responsibilities: data.responsibilities,
+    requirements: [data.requirements, data.focus].filter(Boolean).join('\n'),
+    resumeText: data.resumeText,
+    skills: data.skills,
+    projectExperience: data.projectExperience,
+    workExperience: data.workExperience,
   })
-  return response.data.questions.map<InterviewQuestion>((question, index) => ({
-    id: `${id}-ai-${Date.now()}-${index}`,
-    category: response.data.category || 'AI 追问',
-    question,
-    source: 'MANUAL',
-  }))
+  return adaptInterviewQuestions(id, response.data)
 }

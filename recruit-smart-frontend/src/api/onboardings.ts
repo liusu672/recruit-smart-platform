@@ -1,7 +1,6 @@
 import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
-  CompleteOnboardingRequest,
   CancelOnboardingRequest,
   MaterialReviewRequest,
   OnboardingActionRequest,
@@ -143,8 +142,7 @@ export function reviewOnboardingMaterial(id: number, data: MaterialReviewRequest
   )
 }
 
-export function completeOnboarding(id: number, data: CompleteOnboardingRequest) {
-  void data
+export function completeOnboarding(id: number) {
   return unwrapVoidResult(http.put<Result<null>>(`/onboarding/${id}/complete`))
 }
 

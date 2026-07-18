@@ -23,6 +23,7 @@ const props = defineProps<{
 
 defineEmits<{
   close: []
+  edit: []
 }>()
 
 const activeTab = ref('profile')
@@ -54,16 +55,19 @@ function formatDate(value: string | null) {
   <aside class="candidate-preview" aria-label="候选人预览">
     <header class="candidate-preview__topbar">
       <strong>候选人预览</strong>
-      <el-tooltip content="关闭预览" placement="top">
-        <button
-          class="candidate-preview__close"
-          type="button"
-          aria-label="关闭候选人预览"
-          @click="$emit('close')"
-        >
-          <X :size="18" :stroke-width="1.75" aria-hidden="true" />
-        </button>
-      </el-tooltip>
+      <div class="candidate-preview__topbar-actions">
+        <el-button v-if="candidate" size="small" @click="$emit('edit')">编辑</el-button>
+        <el-tooltip content="关闭预览" placement="top">
+          <button
+            class="candidate-preview__close"
+            type="button"
+            aria-label="关闭候选人预览"
+            @click="$emit('close')"
+          >
+            <X :size="18" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </el-tooltip>
+      </div>
     </header>
 
     <div v-if="loading" class="candidate-preview__loading">
@@ -258,6 +262,12 @@ function formatDate(value: string | null) {
   background: transparent;
   color: var(--rs-text-secondary);
   cursor: pointer;
+}
+
+.candidate-preview__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-2);
 }
 
 .candidate-preview__close:hover {

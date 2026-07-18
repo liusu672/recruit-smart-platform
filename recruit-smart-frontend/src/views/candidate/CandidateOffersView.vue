@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { acceptMyOffer, getMyOffers, rejectMyOffer } from '@/api/candidatePortal'
-import { usePortalResource } from '@/composables/usePortalResource'
+import { usePortalPagedResource } from '@/composables/usePortalPagedResource'
 import { demoMyOffers } from '@/config/demoCandidatePortal'
-const resource = usePortalResource(getMyOffers, demoMyOffers)
+const resource = usePortalPagedResource(getMyOffers, demoMyOffers)
 async function decide(id: number, decision: 'ACCEPTED' | 'REJECTED') {
   const accepted = decision === 'ACCEPTED'
   await ElMessageBox.confirm(
@@ -12,7 +12,7 @@ async function decide(id: number, decision: 'ACCEPTED' | 'REJECTED') {
     { type: accepted ? 'success' : 'warning' },
   )
   if (!resource.demoMode.value) await (accepted ? acceptMyOffer(id) : rejectMyOffer(id))
-  resource.data.value = resource.data.value.map((item) =>
+  resource.data.value.items = resource.data.value.items.map((item) =>
     item.id === id
       ? { ...item, status: decision, statusText: accepted ? '已接受' : '已拒绝' }
       : item,
@@ -31,8 +31,8 @@ async function decide(id: number, decision: 'ACCEPTED' | 'REJECTED') {
     <section class="portal-panel">
       <div v-if="resource.loading.value" class="portal-loading">正在加载 Offer...</div>
       <div v-else-if="resource.error.value" class="portal-error">{{ resource.error.value }}</div>
-      <div v-else-if="resource.data.value.length" class="portal-list">
-        <article v-for="item in resource.data.value" :key="item.id" class="portal-row">
+      <div v-else-if="resource.data.value.items.length" class="portal-list">
+        <article v-for="item in resource.data.value.items" :key="item.id" class="portal-row">
           <div class="portal-row__primary">
             <h3>{{ item.jobTitle }}</h3>
             <p>{{ item.department }} · {{ item.workLocation }}</p>
@@ -50,6 +50,15 @@ async function decide(id: number, decision: 'ACCEPTED' | 'REJECTED') {
         </article>
       </div>
       <div v-else class="portal-empty">暂无待处理 Offer。</div>
+      <el-pagination
+        v-if="resource.data.value.total > resource.query.pageSize"
+        v-model:current-page="resource.query.page"
+        class="portal-pagination"
+        background
+        layout="prev, pager, next"
+        :page-size="resource.query.pageSize"
+        :total="resource.data.value.total"
+      />
     </section>
   </div>
 </template>

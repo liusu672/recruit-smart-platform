@@ -3,6 +3,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Columns3, List, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 import ApplicationDetailDrawer from '@/components/pipeline/ApplicationDetailDrawer.vue'
 import PipelineBoard from '@/components/pipeline/PipelineBoard.vue'
@@ -11,6 +12,7 @@ import ScreeningDecisionDialog from '@/components/pipeline/ScreeningDecisionDial
 import { applicationStatusOptions, getPipelineStageKey, pipelineStages } from '@/config/pipeline'
 import { interviewRoundOptions } from '@/config/interviews'
 import { useRecruitmentPipeline } from '@/composables/useRecruitmentPipeline'
+import { getOrCreateConversation } from '@/api/messages'
 import { useSessionStore } from '@/stores/session'
 import type { ApplicationStatus } from '@/types/candidate'
 import type { InterviewAssignmentRequest, InterviewRound } from '@/types/interview'
@@ -23,6 +25,7 @@ import type {
 
 const session = useSessionStore()
 const route = useRoute()
+const router = useRouter()
 const {
   query,
   demoMode,
@@ -104,6 +107,20 @@ watch(
   (value) => {
     const applicationId = parseRouteId(value)
     if (applicationId !== null) selectApplication(applicationId)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.jobId,
+  (value) => {
+    const jobId = parseRouteId(value)
+    filterForm.jobId = jobId
+    applyFilters({
+      keyword: filterForm.keyword.trim(),
+      jobId,
+      status: filterForm.status as typeof query.status,
+    })
   },
   { immediate: true },
 )
@@ -235,6 +252,19 @@ async function submitReview(payload: {
     ElMessage.success('筛选结论已保存')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '筛选结论保存失败')
+  }
+}
+
+async function contactCandidate(applicationId: number) {
+  try {
+    if (demoMode.value) {
+      await router.push('/hr/messages')
+      return
+    }
+    const conversationId = await getOrCreateConversation(applicationId)
+    await router.push({ path: '/hr/messages', query: { conversationId: String(conversationId) } })
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '消息会话创建失败')
   }
 }
 </script>
@@ -369,6 +399,7 @@ async function submitReview(payload: {
       @assign-interview="openInterviewAssignment($event, 'CREATE')"
       @reassign-interview="openInterviewAssignment($event, 'REASSIGN')"
       @cancel-interview="cancelInterview"
+      @contact="contactCandidate"
     />
 
     <ScreeningDecisionDialog

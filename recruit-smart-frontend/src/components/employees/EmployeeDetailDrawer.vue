@@ -9,6 +9,7 @@ import {
   getTurnoverRiskTone,
 } from '@/config/employees'
 import type { EmployeeRecord, EmployeeStatus } from '@/types/employee'
+import type { TurnoverRiskResponse } from '@/types/ai'
 
 const props = defineProps<{
   visible: boolean
@@ -16,11 +17,14 @@ const props = defineProps<{
   loading: boolean
   error: Error | null
   updating: boolean
+  riskAnalysis: TurnoverRiskResponse | null
+  analyzingRisk: boolean
 }>()
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   updateStatus: [status: EmployeeStatus]
+  assessRisk: []
 }>()
 
 const selectedStatus = ref<EmployeeStatus>('PROBATION')
@@ -69,22 +73,25 @@ function formatDate(value: string | null, withTime = false) {
       </header>
       <section class="facts">
         <div>
-          <CalendarDays :size="18" /><span>入职日期</span
+          <CalendarDays :size="18" :stroke-width="1.75" /><span>入职日期</span
           ><strong>{{ formatDate(record.entryDate) }}</strong>
         </div>
         <div>
-          <ShieldCheck :size="18" /><span>所属部门</span><strong>{{ record.department }}</strong>
+          <ShieldCheck :size="18" :stroke-width="1.75" /><span>所属部门</span
+          ><strong>{{ record.department }}</strong>
         </div>
         <div>
-          <Phone :size="18" /><span>联系电话</span><strong>{{ record.phone || '未提供' }}</strong>
+          <Phone :size="18" :stroke-width="1.75" /><span>联系电话</span
+          ><strong>{{ record.phone || '未提供' }}</strong>
         </div>
         <div>
-          <Mail :size="18" /><span>联系邮箱</span><strong>{{ record.email || '未提供' }}</strong>
+          <Mail :size="18" :stroke-width="1.75" /><span>联系邮箱</span
+          ><strong>{{ record.email || '未提供' }}</strong>
         </div>
       </section>
       <section class="risk">
         <div>
-          <BrainCircuit :size="18" /><strong>AI 离职风险参考</strong
+          <BrainCircuit :size="18" :stroke-width="1.75" /><strong>AI 离职风险参考</strong
           ><span
             :class="`rs-status-pill rs-status-pill--${getTurnoverRiskTone(record.turnoverRiskLevel)}`"
             >{{ getTurnoverRiskText(record.turnoverRiskLevel) }}</span
@@ -92,6 +99,23 @@ function formatDate(value: string | null, withTime = false) {
         </div>
         <p>风险结果只用于提醒 HR 线下关注，不会自动改变员工状态或触发人事动作。</p>
         <small>最近评估：{{ formatDate(record.riskAssessedAt, true) }}</small>
+        <el-button
+          size="small"
+          :loading="analyzingRisk"
+          :disabled="analyzingRisk"
+          @click="emit('assessRisk')"
+        >
+          重新评估风险
+        </el-button>
+        <div v-if="riskAnalysis" class="risk-analysis">
+          <strong>本次分析：{{ riskAnalysis.riskScore }} 分</strong>
+          <p>{{ riskAnalysis.summary }}</p>
+          <ul>
+            <li v-for="reason in riskAnalysis.riskReasons" :key="reason">{{ reason }}</li>
+          </ul>
+          <p>{{ riskAnalysis.suggestions.join('；') }}</p>
+          <small>本次结果仅展示在当前页面，未自动修改员工状态。</small>
+        </div>
       </section>
       <section>
         <h4>员工状态</h4>
@@ -223,6 +247,21 @@ dt {
 }
 .risk p {
   margin-top: var(--rs-space-2);
+}
+.risk .el-button {
+  margin-top: var(--rs-space-3);
+}
+.risk-analysis {
+  display: grid;
+  gap: var(--rs-space-2);
+  margin-top: var(--rs-space-3);
+  padding-top: var(--rs-space-3);
+  border-top: 1px solid var(--rs-border-default);
+}
+.risk-analysis ul {
+  padding-left: var(--rs-space-4);
+  margin: 0;
+  color: var(--rs-text-secondary);
 }
 .status-form {
   display: grid;

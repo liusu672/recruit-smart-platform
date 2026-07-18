@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { adaptCandidatePage } from '@/api/candidates'
+import { adaptCandidatePage, updateCandidate } from '@/api/candidates'
+import { http } from '@/api/http'
 import {
   createDemoCandidate,
   getDemoCandidatePage,
@@ -97,5 +98,27 @@ describe('candidate status tones', () => {
     expect(getApplicationStatusTone('SCREEN_REJECT')).toBe('danger')
     expect(getApplicationStatusTone('SCREEN_PASSED')).toBe('info')
     expect(getApplicationStatusTone('SCREENING')).toBe('warning')
+  })
+})
+
+describe('candidate update API', () => {
+  it('keeps age and profile fields in the PUT payload', async () => {
+    const put = vi.spyOn(http, 'put').mockResolvedValue({
+      data: { code: 200, message: 'success', data: null },
+    } as never)
+    await updateCandidate(5, {
+      name: '周明远',
+      gender: '男',
+      age: 26,
+      phone: '13900000105',
+      email: 'zhou@example.com',
+      education: '本科',
+      school: '武汉大学',
+      major: '计算机科学与技术',
+      yearsOfExperience: 2,
+      source: 'HR_IMPORT',
+    })
+    expect(put).toHaveBeenCalledWith('/candidate/5', expect.objectContaining({ age: 26 }))
+    vi.restoreAllMocks()
   })
 })

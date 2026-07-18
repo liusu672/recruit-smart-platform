@@ -1,5 +1,5 @@
 import { http, unwrapResult } from '@/api/http'
-import { ApiError } from '@/types/api'
+import { ApiError, type Result } from '@/types/api'
 import type {
   CandidateRegisterRequest,
   LoginPayload,
@@ -8,6 +8,7 @@ import type {
   UserRole,
 } from '@/types/auth'
 import type { AuthUser } from '@/types/auth'
+import type { CurrentUser } from '@/types/user'
 
 export function normalizeRole(roleCode: string | null | undefined): UserRole {
   if (
@@ -23,6 +24,10 @@ export function normalizeRole(roleCode: string | null | undefined): UserRole {
   throw new ApiError(403, '账号角色未配置，请联系管理员。')
 }
 
+export function getCurrentUser(): Promise<CurrentUser> {
+  return unwrapResult(http.get<Result<CurrentUser>>('/auth/me'))
+}
+
 export async function login(request: LoginRequest): Promise<LoginPayload> {
   const response = await unwrapResult<LoginResponse>(http.post('/auth/login', request))
   return toLoginPayload(response)
@@ -33,8 +38,7 @@ export async function register(request: CandidateRegisterRequest): Promise<Login
   return toLoginPayload(response)
 }
 
-export function toLoginPayload(response: LoginResponse): LoginPayload {
-  const userInfo = response.userInfo
+export function toAuthUser(userInfo: LoginResponse['userInfo'] | CurrentUser): AuthUser {
   const user: AuthUser = {
     id: String(userInfo.userId),
     username: userInfo.username,
@@ -47,18 +51,15 @@ export function toLoginPayload(response: LoginResponse): LoginPayload {
     user.roleName = userInfo.roleName
     user.department = userInfo.roleName
   }
+  if (userInfo.email) user.email = userInfo.email
+  if (userInfo.phone) user.phone = userInfo.phone
+  return user
+}
 
-  if (userInfo.email) {
-    user.email = userInfo.email
-  }
-
-  if (userInfo.phone) {
-    user.phone = userInfo.phone
-  }
-
+export function toLoginPayload(response: LoginResponse): LoginPayload {
   return {
     token: response.token,
     tokenType: response.tokenType,
-    user,
+    user: toAuthUser(response.userInfo),
   }
 }

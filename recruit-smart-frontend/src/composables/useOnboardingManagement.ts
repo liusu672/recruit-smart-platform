@@ -19,7 +19,6 @@ import {
 } from '@/config/demoOnboardings'
 import type {
   CancelOnboardingRequest,
-  CompleteOnboardingRequest,
   MaterialReviewRequest,
   OnboardingActionRequest,
   OnboardingQuery,
@@ -93,10 +92,10 @@ export function useOnboardingManagement() {
     onSuccess: refresh,
   })
   const completeMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: CompleteOnboardingRequest }) =>
+    mutationFn: async (id: number) =>
       demoMode.value
-        ? updateDemoRecord(id, (record) => completeDemoOnboarding(record, data))
-        : completeOnboarding(id, data),
+        ? updateDemoRecord(id, (record) => completeDemoOnboarding(record))
+        : completeOnboarding(id),
     onSuccess: refresh,
   })
 

@@ -2,16 +2,21 @@
 import { Bot, Send, ShieldCheck } from 'lucide-vue-next'
 import { ref } from 'vue'
 
+import type { FeedbackSummaryResponse } from '@/types/ai'
 import type { InterviewQuestion } from '@/types/interview'
 
 defineProps<{
   questions: InterviewQuestion[]
   aiSummary: string | null
   generating: boolean
+  feedbackSummary: FeedbackSummaryResponse | null
+  summarizing: boolean
+  canSummarize: boolean
 }>()
 
 const emit = defineEmits<{
   generate: [focus: string]
+  summarize: []
 }>()
 
 const focus = ref('')
@@ -61,6 +66,32 @@ function submitFocus() {
       <p>{{ aiSummary }}</p>
       <small>摘要与上方已提交的面试官原始评价分开保存。</small>
     </section>
+
+    <section v-if="feedbackSummary" class="copilot__summary">
+      <h4>本次生成的反馈摘要</h4>
+      <p>{{ feedbackSummary.summary }}</p>
+      <div class="copilot__summary-grid">
+        <div>
+          <strong>优势</strong>
+          <ul>
+            <li v-for="item in feedbackSummary.advantages" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <div>
+          <strong>待核实</strong>
+          <ul>
+            <li v-for="item in feedbackSummary.risks" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+      </div>
+      <small>{{ feedbackSummary.suggestion }}。该结果未覆盖面试官原始评价。</small>
+    </section>
+
+    <div class="copilot__summary-action">
+      <el-button :loading="summarizing" :disabled="!canSummarize" @click="emit('summarize')">
+        生成反馈摘要
+      </el-button>
+    </div>
 
     <form class="copilot__composer" @submit.prevent="submitFocus">
       <label for="interview-focus">补充追问主题</label>
@@ -192,6 +223,23 @@ function submitFocus() {
   gap: var(--rs-space-2);
   padding: var(--rs-space-4);
   border-top: 1px solid var(--rs-border-default);
+}
+
+.copilot__summary-action {
+  padding: 0 var(--rs-space-4) var(--rs-space-4);
+}
+
+.copilot__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rs-space-3);
+  margin: var(--rs-space-3) 0;
+}
+
+.copilot__summary-grid ul {
+  padding-left: var(--rs-space-4);
+  margin: var(--rs-space-1) 0 0;
+  color: var(--rs-text-secondary);
 }
 
 .copilot__composer :deep(.el-input) {

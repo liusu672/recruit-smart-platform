@@ -25,4 +25,13 @@ describe('role workspace isolation', () => {
     expect(canRoleAccess(['INTERVIEWER'], null)).toBe(false)
     expect(canRoleAccess(['CANDIDATE'], 'CANDIDATE')).toBe(true)
   })
+
+  it('exposes messages and settings to every role without restoring the fake AI approval nav', () => {
+    for (const workspace of Object.values(ROLE_WORKSPACES)) {
+      const paths = workspace.navItems.map((item) => item.to)
+      expect(paths.some((path) => path.endsWith('/messages'))).toBe(true)
+      expect(paths.some((path) => path.endsWith('/settings'))).toBe(true)
+    }
+    expect(ROLE_WORKSPACES.HR.navItems.map((item) => item.to)).not.toContain('/hr/ai-approvals')
+  })
 })

@@ -3,6 +3,7 @@ import { Building2, CalendarDays, MapPin, UsersRound, WalletCards } from 'lucide
 
 import { getJobStatusTone } from '@/config/jobs'
 import type { JobPosition } from '@/types/job'
+import type { JobApplicationRecord } from '@/api/jobs'
 
 defineProps<{
   visible: boolean
@@ -11,6 +12,9 @@ defineProps<{
   error: Error | null
   demoMode: boolean
   actionLoading: boolean
+  applications: JobApplicationRecord[]
+  applicationsLoading: boolean
+  applicationsError: Error | null
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +24,7 @@ const emit = defineEmits<{
   pause: [job: JobPosition]
   resume: [job: JobPosition]
   closeJob: [job: JobPosition]
+  viewPipeline: [jobId: number]
 }>()
 
 function formatDate(value: string | null) {
@@ -95,6 +100,35 @@ function formatDate(value: string | null) {
       <section class="job-detail__section">
         <h3>岗位职责</h3>
         <p>{{ job.description || '暂未填写岗位职责。' }}</p>
+      </section>
+
+      <section class="job-detail__section">
+        <div class="job-detail__section-heading">
+          <h3>最近投递</h3>
+          <el-button link type="primary" @click="emit('viewPipeline', job.id)"
+            >查看招聘流程</el-button
+          >
+        </div>
+        <div v-if="applicationsLoading" class="job-detail__empty">正在加载投递记录...</div>
+        <el-alert
+          v-else-if="applicationsError"
+          type="error"
+          :closable="false"
+          :title="applicationsError.message"
+        />
+        <div v-else-if="applications.length" class="job-application-list">
+          <article v-for="application in applications" :key="application.id">
+            <div>
+              <strong>{{ application.candidateName }}</strong>
+              <span
+                >{{ application.education || '学历待补充' }} ·
+                {{ application.yearsOfExperience ?? 0 }} 年经验</span
+              >
+            </div>
+            <span class="rs-status-pill rs-status-pill--info">{{ application.statusText }}</span>
+          </article>
+        </div>
+        <div v-else class="job-detail__empty">该职位暂无投递记录。</div>
       </section>
 
       <section class="job-detail__section">
@@ -220,6 +254,40 @@ function formatDate(value: string | null) {
 .job-detail__section h3 {
   font-size: 14px;
   font-weight: 600;
+}
+
+.job-detail__section-heading,
+.job-application-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-3);
+}
+
+.job-application-list {
+  display: grid;
+  gap: var(--rs-space-2);
+  margin-top: var(--rs-space-2);
+}
+
+.job-application-list article {
+  padding: var(--rs-space-3);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+}
+
+.job-application-list article > div {
+  display: grid;
+}
+
+.job-application-list article span,
+.job-detail__empty {
+  color: var(--rs-text-tertiary);
+  font-size: 12px;
+}
+
+.job-detail__empty {
+  padding: var(--rs-space-4) 0;
 }
 
 .job-detail__section p {

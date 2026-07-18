@@ -5,6 +5,7 @@ import {
   closeJob,
   createJob,
   getJobById,
+  getJobApplications,
   getJobs,
   pauseJob,
   publishJob,
@@ -70,6 +71,17 @@ export function useJobManagement() {
     },
   })
 
+  const applicationsQuery = useQuery({
+    queryKey: computed(() => ['job-applications', selectedJobId.value]),
+    enabled: computed(() => selectedJobId.value !== null),
+    queryFn: () => {
+      const id = selectedJobId.value
+      if (id === null) throw new Error('尚未选择职位')
+      if (demoMode.value) return Promise.resolve({ total: 0, records: [] })
+      return getJobApplications(id, { page: 1, pageSize: 10 })
+    },
+  })
+
   async function refreshQueries() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['jobs'] }),
@@ -91,6 +103,7 @@ export function useJobManagement() {
         jobType: 'FULL_TIME',
         salaryRange: `${data.salaryMin}-${data.salaryMax}`,
         headcount: data.headcount,
+        requiredInterviewRounds: data.requiredInterviewRounds ?? 2,
         experienceRequirement: null,
         educationRequirement: null,
         description: data.responsibilities,
@@ -117,6 +130,7 @@ export function useJobManagement() {
         location: data.location,
         salaryRange: `${data.salaryMin}-${data.salaryMax}`,
         headcount: data.headcount,
+        requiredInterviewRounds: data.requiredInterviewRounds ?? 2,
         description: data.responsibilities,
         requirement: data.requirements,
         updatedAt: new Date().toISOString(),
@@ -220,6 +234,7 @@ export function useJobManagement() {
     selectedJobId,
     jobsQuery,
     detailQuery,
+    applicationsQuery,
     createMutation,
     updateMutation,
     publishMutation,
@@ -244,6 +259,7 @@ export function toJobUpdateRequest(job: JobPosition, salary: [number, number]): 
     salaryMin: salary[0],
     salaryMax: salary[1],
     headcount: job.headcount,
+    requiredInterviewRounds: job.requiredInterviewRounds ?? 2,
     responsibilities: job.description ?? '',
     requirements: job.requirement ?? '',
   }

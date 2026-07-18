@@ -94,12 +94,7 @@ async function complete(record: OnboardingRecord) {
       '生成员工档案',
       { confirmButtonText: '确认生成', cancelButtonText: '返回检查', type: 'warning' },
     )
-    await state.completeMutation.mutateAsync({
-      id: record.id,
-      data: {
-        note: 'HR 已核对到岗信息并确认入职。',
-      },
-    })
+    await state.completeMutation.mutateAsync(record.id)
     ElMessage.success('入职已完成，员工档案已生成')
   } catch (error) {
     if (error === 'cancel' || error === 'close') return
@@ -193,6 +188,7 @@ async function cancel(record: OnboardingRecord) {
       <OnboardingTable
         :records="records"
         :loading="state.listQuery.isLoading.value"
+        :allow-start-review="state.demoMode.value"
         @select="state.openDetail($event.id)"
         @start="startReview"
         @approve="reviewMaterial($event, 'APPROVE')"

@@ -3,21 +3,50 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { applyToJob, getMyResumes, getOpenJobs } from '@/api/candidatePortal'
+import { applyToJob, getMyResumes, getOpenJobById, getOpenJobs } from '@/api/candidatePortal'
+import CandidateJobDetailDrawer from '@/components/candidate/CandidateJobDetailDrawer.vue'
+import { usePortalPagedResource } from '@/composables/usePortalPagedResource'
 import { usePortalResource } from '@/composables/usePortalResource'
 import { demoMyResumes, demoOpenJobs } from '@/config/demoCandidatePortal'
 
 const router = useRouter()
 const keyword = ref('')
-const jobs = usePortalResource(getOpenJobs, demoOpenJobs)
+const jobs = usePortalPagedResource(
+  (query) => getOpenJobs({ ...query, keyword: keyword.value.trim() }),
+  demoOpenJobs,
+)
 const resumes = usePortalResource(getMyResumes, demoMyResumes)
 const filteredJobs = computed(() =>
-  jobs.data.value.filter((item) =>
+  jobs.data.value.items.filter((item) =>
     `${item.title}${item.department}${item.location ?? ''}`
       .toLowerCase()
       .includes(keyword.value.trim().toLowerCase()),
   ),
 )
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailError = ref('')
+const selectedJob = ref<(typeof jobs.data.value.items)[number] | null>(null)
+
+function searchJobs() {
+  if (jobs.query.page === 1) void jobs.reload()
+  else jobs.query.page = 1
+}
+
+async function openDetail(id: number) {
+  detailVisible.value = true
+  detailLoading.value = true
+  detailError.value = ''
+  try {
+    selectedJob.value = jobs.demoMode.value
+      ? (jobs.data.value.items.find((item) => item.id === id) ?? null)
+      : await getOpenJobById(id)
+  } catch (error) {
+    detailError.value = error instanceof Error ? error.message : '职位详情加载失败'
+  } finally {
+    detailLoading.value = false
+  }
+}
 
 async function apply(jobId: number, title: string) {
   const resume = resumes.data.value.find((item) => item.isDefault === 1) ?? resumes.data.value[0]
@@ -52,6 +81,8 @@ async function apply(jobId: number, title: string) {
         clearable
         placeholder="搜索职位、部门或地点"
         style="width: 320px"
+        @keyup.enter="searchJobs"
+        @clear="searchJobs"
       />
     </div>
     <section class="portal-panel">
@@ -71,10 +102,29 @@ async function apply(jobId: number, title: string) {
             <strong>{{ job.experienceRequirement || '经验不限' }}</strong
             ><span>{{ job.educationRequirement || '学历不限' }}</span>
           </div>
-          <el-button type="primary" @click="apply(job.id, job.title)">投递职位</el-button>
+          <div class="portal-row__actions">
+            <el-button @click="openDetail(job.id)">查看详情</el-button>
+            <el-button type="primary" @click="apply(job.id, job.title)">投递职位</el-button>
+          </div>
         </article>
       </div>
       <div v-else class="portal-empty">没有符合条件的招聘职位。</div>
+      <el-pagination
+        v-if="jobs.data.value.total > jobs.query.pageSize"
+        v-model:current-page="jobs.query.page"
+        class="portal-pagination"
+        background
+        layout="prev, pager, next"
+        :page-size="jobs.query.pageSize"
+        :total="jobs.data.value.total"
+      />
     </section>
+    <CandidateJobDetailDrawer
+      v-model:visible="detailVisible"
+      :job="selectedJob"
+      :loading="detailLoading"
+      :error="detailError"
+      @apply="(job) => apply(job.id, job.title)"
+    />
   </div>
 </template>

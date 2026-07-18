@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { Bot, ShieldAlert } from 'lucide-vue-next'
 
-// 该页面固定 AI 在高风险动作前必须生成的审批对象结构。
-const approval = {
-  proposedAction: '建议将候选人推进到终面',
-  affectedRecord: '候选人：王同学 · 职位：高级 Java 工程师',
-  editableContent: 'AI 基于简历技能、项目经历和一面反馈生成推进建议。',
-  auditNote: 'HR 需要确认来源和岗位要求是否一致，确认后才可推进状态。',
-}
+// 后端暂无审批队列和确认接口，因此这里只说明已接入的页面内 AI 辅助能力。
+const capabilities = [
+  '投递详情：展示已持久化的简历匹配分、亮点和待核实事项。',
+  '面试工作区：生成面试题，并在提交反馈后生成摘要、优势、风险与建议。',
+  '员工详情：按需分析离职风险，仅作为参考，不会自动修改员工状态。',
+]
 </script>
 
 <template>
@@ -15,34 +14,19 @@ const approval = {
     <div class="ai-approval__header">
       <Bot :size="20" :stroke-width="1.75" aria-hidden="true" />
       <div>
-        <h2 class="rs-section-title">AI 审批工作区</h2>
-        <p>AI 只能生成建议和审批对象，最终业务状态由用户确认。</p>
+        <h2 class="rs-section-title">AI 能力说明</h2>
+        <p>当前 AI 仅嵌入招聘业务页面提供参考，最终业务状态仍由人工和业务接口确认。</p>
       </div>
     </div>
 
-    <dl class="ai-approval__details">
-      <div>
-        <dt>Proposed Action</dt>
-        <dd>{{ approval.proposedAction }}</dd>
-      </div>
-      <div>
-        <dt>Affected Record</dt>
-        <dd>{{ approval.affectedRecord }}</dd>
-      </div>
-      <div>
-        <dt>Editable Content</dt>
-        <dd>{{ approval.editableContent }}</dd>
-      </div>
-      <div>
-        <dt>Audit Note</dt>
-        <dd>{{ approval.auditNote }}</dd>
-      </div>
-    </dl>
+    <ul class="ai-approval__capabilities">
+      <li v-for="capability in capabilities" :key="capability">{{ capability }}</li>
+    </ul>
 
     <div class="ai-approval__footer">
       <span class="rs-status-pill rs-status-pill--danger">
         <ShieldAlert :size="14" :stroke-width="1.75" aria-hidden="true" />
-        未确认前不改变候选人阶段
+        无审批队列，不宣称为生产审批功能
       </span>
     </div>
   </section>
@@ -74,40 +58,14 @@ const approval = {
   color: var(--rs-text-secondary);
 }
 
-.ai-approval__details {
+.ai-approval__capabilities {
   display: grid;
+  gap: var(--rs-space-3);
   margin: 0;
+  padding: var(--rs-space-4) var(--rs-space-4) var(--rs-space-4) var(--rs-space-6);
   border: 1px solid var(--rs-border-default);
   border-radius: var(--rs-radius-sm);
-}
-
-.ai-approval__details div {
-  display: grid;
-  grid-template-columns: 180px 1fr;
-  min-height: 48px;
-  border-bottom: 1px solid var(--rs-border-default);
-}
-
-.ai-approval__details div:last-child {
-  border-bottom: 0;
-}
-
-.ai-approval__details dt,
-.ai-approval__details dd {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: var(--rs-space-3);
-}
-
-.ai-approval__details dt {
   background: var(--rs-surface-subtle);
   color: var(--rs-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.ai-approval__details dd {
-  color: var(--rs-text-primary);
 }
 </style>
