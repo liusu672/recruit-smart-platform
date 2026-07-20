@@ -1,5 +1,6 @@
 package com.recruit.ai.config;
 
+import com.recruit.ai.tools.AiInterviewQuestionQueryTools;
 import com.recruit.ai.tools.AiMatchResultQueryTools;
 import com.recruit.ai.tools.AiTaskQueryTools;
 import com.recruit.ai.tools.DateTimeTools;
@@ -15,12 +16,14 @@ public class AiToolConfig {
     public ChatClient chatClient(OpenAiChatModel chatModel,
                                  DateTimeTools dateTimeTools,
                                  AiTaskQueryTools aiTaskQueryTools,
-                                 AiMatchResultQueryTools aiMatchResultQueryTools) {
+                                 AiMatchResultQueryTools aiMatchResultQueryTools,
+                                 AiInterviewQuestionQueryTools aiInterviewQuestionQueryTools) {
         return ChatClient.builder(chatModel)
                 .defaultTools(
                         dateTimeTools,
                         aiTaskQueryTools,
-                        aiMatchResultQueryTools
+                        aiMatchResultQueryTools,
+                        aiInterviewQuestionQueryTools
                 )
                 .build();
     }
