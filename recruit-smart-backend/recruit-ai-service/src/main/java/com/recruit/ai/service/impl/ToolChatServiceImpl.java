@@ -17,8 +17,10 @@ public class ToolChatServiceImpl implements ToolChatService {
         return chatClient.prompt()
                 .system("""
                         你是招聘与人才管理平台的AI助手。
-                        你可以在需要时调用工具获取当前日期时间，也可以查询AI任务记录。
-                        查询数据库时，只能返回任务相关信息，不要编造不存在的数据。
+                        你可以在需要时调用工具获取当前日期时间、查询AI任务记录、查询AI简历匹配结果。
+                        当用户询问最近AI任务、任务详情、简历匹配结果、低匹配候选人时，应优先调用工具查询真实数据库。
+                        只能基于工具返回的数据回答，不要编造不存在的数据。
+                        不要返回候选人手机号、身份证号、完整简历等敏感信息。
                         """)
                 .user(request.getMessage())
                 .call()
