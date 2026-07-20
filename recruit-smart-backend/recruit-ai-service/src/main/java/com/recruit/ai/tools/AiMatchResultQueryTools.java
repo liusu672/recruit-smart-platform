@@ -80,7 +80,7 @@ public class AiMatchResultQueryTools {
             size = Math.max(1, Math.min(size, 10));
 
             LambdaQueryWrapper<AiMatchResult> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(AiMatchResult::getLevel, "LOW")
+            wrapper.eq(AiMatchResult::getRecommendLevel, "LOW")
                     .orderByDesc(AiMatchResult::getCreatedAt)
                     .last("limit " + size);
 
@@ -111,10 +111,10 @@ public class AiMatchResultQueryTools {
                 + "，岗位ID：" + result.getJobId()
                 + "，候选人ID：" + result.getCandidateId()
                 + "，简历ID：" + result.getResumeId()
-                + "，匹配分数：" + result.getScore()
-                + "，推荐等级：" + safe(result.getLevel())
+                + "，匹配分数：" + result.getMatchScore()
+                + "，推荐等级：" + safe(result.getRecommendLevel())
                 + "，结果来源：" + safe(result.getSource())
-                + "，摘要：" + safe(result.getSummary())
+                + "，摘要：" + safe(result.getRecommendReason())
                 + "，建议：" + safe(result.getSuggestion())
                 + "，生成时间：" + generatedAt;
     }

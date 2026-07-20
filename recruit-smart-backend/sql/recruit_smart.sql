@@ -51,6 +51,7 @@ DROP TABLE IF EXISTS `ai_interview_question`;
 CREATE TABLE `ai_interview_question`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT 'AI面试题ID',
   `task_id` bigint NULL DEFAULT NULL COMMENT 'AI任务ID',
+  `interview_id` bigint NULL DEFAULT NULL COMMENT '面试ID',
   `job_id` bigint NULL DEFAULT NULL COMMENT '岗位ID',
   `candidate_id` bigint NULL DEFAULT NULL COMMENT '候选人ID',
   `resume_id` bigint NULL DEFAULT NULL COMMENT '简历ID',
@@ -65,6 +66,7 @@ CREATE TABLE `ai_interview_question`  (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_ai_question_task_id`(`task_id` ASC) USING BTREE,
+  INDEX `idx_ai_question_interview_id`(`interview_id` ASC) USING BTREE,
   INDEX `idx_ai_question_job_id`(`job_id` ASC) USING BTREE,
   INDEX `idx_ai_question_candidate_id`(`candidate_id` ASC) USING BTREE,
   INDEX `idx_ai_question_resume_id`(`resume_id` ASC) USING BTREE

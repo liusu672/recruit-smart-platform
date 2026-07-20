@@ -16,6 +16,7 @@ public class AiInterviewQuestion {
 
     private Long taskId;
 
+    private Long interviewId;
     private Long jobId;
     private Long candidateId;
     private Long resumeId;

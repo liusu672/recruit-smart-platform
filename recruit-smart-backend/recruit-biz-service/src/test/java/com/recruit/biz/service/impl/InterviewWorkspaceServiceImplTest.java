@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.recruit.biz.dto.InterviewTaskQueryDTO;
 import com.recruit.biz.entity.AiMatchResult;
+import com.recruit.biz.entity.AiInterviewQuestion;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.Interview;
 import com.recruit.biz.entity.InterviewFeedback;
@@ -16,6 +17,7 @@ import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.AiMatchResultMapper;
+import com.recruit.biz.mapper.AiInterviewQuestionMapper;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.InterviewMapper;
@@ -57,13 +59,18 @@ class InterviewWorkspaceServiceImplTest {
 
     @BeforeAll
     static void initializeTableInfo() {
-        TableInfoHelper.initTableInfo(
-                new MapperBuilderAssistant(
-                        new MybatisConfiguration(),
-                        ""
-                ),
-                InterviewFeedback.class
-        );
+        for (Class<?> entity : List.of(
+                InterviewFeedback.class,
+                AiInterviewQuestion.class
+        )) {
+            TableInfoHelper.initTableInfo(
+                    new MapperBuilderAssistant(
+                            new MybatisConfiguration(),
+                            ""
+                    ),
+                    entity
+            );
+        }
     }
 
     @Mock
@@ -82,6 +89,8 @@ class InterviewWorkspaceServiceImplTest {
     private SysUserMapper sysUserMapper;
     @Mock
     private AiMatchResultMapper aiMatchResultMapper;
+    @Mock
+    private AiInterviewQuestionMapper aiInterviewQuestionMapper;
     @Mock
     private InterviewFeedbackMapper interviewFeedbackMapper;
     @Spy
@@ -211,6 +220,14 @@ class InterviewWorkspaceServiceImplTest {
         feedback.setCreatedAt(LocalDateTime.of(2026, 7, 16, 15, 0));
         feedback.setSubmittedAt(LocalDateTime.of(2026, 7, 16, 15, 0));
         when(interviewFeedbackMapper.selectOne(any())).thenReturn(feedback);
+        AiInterviewQuestion questions = new AiInterviewQuestion();
+        questions.setId(7L);
+        questions.setInterviewId(1L);
+        questions.setCategory("Java后端");
+        questions.setQuestions("[\"请说明Spring事务传播机制\"]");
+        questions.setSource("LLM");
+        when(aiInterviewQuestionMapper.selectOne(any()))
+                .thenReturn(questions);
 
         InterviewWorkspaceVO result =
                 interviewWorkspaceService.getWorkspace(1L);
@@ -224,6 +241,8 @@ class InterviewWorkspaceServiceImplTest {
         assertEquals(1, result.getScorecard().size());
         assertEquals(4, result.getScorecard().get(0).getScore());
         assertEquals(86, result.getFeedback().getScore());
+        assertEquals(1, result.getQuestions().size());
+        assertEquals("Java后端", result.getQuestions().get(0).getCategory());
         assertNotNull(result.getFeedback().getSubmittedAt());
     }
 

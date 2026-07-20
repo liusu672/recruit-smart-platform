@@ -2,7 +2,10 @@ package com.recruit.biz.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruit.biz.assembler.InterviewWorkspaceAssembler;
+import com.recruit.biz.entity.AiInterviewQuestion;
 import com.recruit.biz.dto.InterviewTaskQueryDTO;
 import com.recruit.biz.entity.AiMatchResult;
 import com.recruit.biz.entity.Candidate;
@@ -13,6 +16,7 @@ import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.entity.SysUser;
 import com.recruit.biz.mapper.AiMatchResultMapper;
+import com.recruit.biz.mapper.AiInterviewQuestionMapper;
 import com.recruit.biz.mapper.CandidateMapper;
 import com.recruit.biz.mapper.InterviewFeedbackMapper;
 import com.recruit.biz.mapper.InterviewMapper;
@@ -25,6 +29,7 @@ import com.recruit.biz.service.InterviewService;
 import com.recruit.biz.service.InterviewWorkspaceService;
 import com.recruit.biz.vo.InterviewDetailVO;
 import com.recruit.biz.vo.InterviewTaskSummaryVO;
+import com.recruit.biz.vo.InterviewQuestionVO;
 import com.recruit.biz.vo.InterviewWorkspaceVO;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
@@ -36,11 +41,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Collectors;
 
 @Service
 public class InterviewWorkspaceServiceImpl
         implements InterviewWorkspaceService {
+
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     @Resource
     private InterviewService interviewService;
@@ -58,6 +66,8 @@ public class InterviewWorkspaceServiceImpl
     private SysUserMapper sysUserMapper;
     @Resource
     private AiMatchResultMapper aiMatchResultMapper;
+    @Resource
+    private AiInterviewQuestionMapper aiInterviewQuestionMapper;
     @Resource
     private InterviewFeedbackMapper interviewFeedbackMapper;
     @Resource
@@ -128,13 +138,63 @@ public class InterviewWorkspaceServiceImpl
         );
         feedback = hideDraftContentFromStaff(feedback);
 
-        return interviewWorkspaceAssembler.toWorkspace(
+        InterviewWorkspaceVO workspace = interviewWorkspaceAssembler.toWorkspace(
                 detail,
                 candidate,
                 resume,
                 aiMatch,
                 feedback
         );
+        workspace.setQuestions(loadAiQuestions(interviewId));
+        return workspace;
+    }
+
+    private List<InterviewQuestionVO> loadAiQuestions(Long interviewId) {
+        AiInterviewQuestion result = aiInterviewQuestionMapper.selectOne(
+                new LambdaQueryWrapper<AiInterviewQuestion>()
+                        .eq(
+                                AiInterviewQuestion::getInterviewId,
+                                interviewId
+                        )
+                        .orderByDesc(AiInterviewQuestion::getGeneratedAt)
+                        .orderByDesc(AiInterviewQuestion::getId)
+                        .last("LIMIT 1")
+        );
+        if (result == null
+                || result.getQuestions() == null
+                || result.getQuestions().isBlank()) {
+            return List.of();
+        }
+
+        try {
+            List<String> questions = JSON_MAPPER.readValue(
+                    result.getQuestions(),
+                    new TypeReference<List<String>>() {
+                    }
+            );
+            return IntStream.range(0, questions.size())
+                    .mapToObj(index -> toQuestionVO(
+                            result,
+                            questions.get(index),
+                            index
+                    ))
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private InterviewQuestionVO toQuestionVO(
+            AiInterviewQuestion result,
+            String question,
+            int index
+    ) {
+        InterviewQuestionVO vo = new InterviewQuestionVO();
+        vo.setId(result.getId() + "-" + index);
+        vo.setCategory(result.getCategory());
+        vo.setQuestion(question);
+        vo.setSource(result.getSource());
+        return vo;
     }
 
     private InterviewFeedback hideDraftContentFromStaff(

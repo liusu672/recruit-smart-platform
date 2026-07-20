@@ -31,6 +31,7 @@ public class AiInterviewQuestionResultServiceImpl implements AiInterviewQuestion
 
             result.setTaskId(taskId);
 
+            result.setInterviewId(request.getInterviewId());
             result.setJobId(request.getJobId());
             result.setCandidateId(request.getCandidateId());
             result.setResumeId(request.getResumeId());

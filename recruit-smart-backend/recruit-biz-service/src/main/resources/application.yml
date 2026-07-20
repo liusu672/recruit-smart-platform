@@ -12,6 +12,13 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
+    openfeign:
+      client:
+        config:
+          recruit-ai-service:
+            connect-timeout: 3000
+            read-timeout: 60000
+            logger-level: basic
   servlet:
     multipart:
       max-file-size: 10MB
