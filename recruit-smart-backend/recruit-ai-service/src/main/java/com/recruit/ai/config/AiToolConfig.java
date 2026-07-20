@@ -1,9 +1,6 @@
 package com.recruit.ai.config;
 
-import com.recruit.ai.tools.AiInterviewQuestionQueryTools;
-import com.recruit.ai.tools.AiMatchResultQueryTools;
-import com.recruit.ai.tools.AiTaskQueryTools;
-import com.recruit.ai.tools.DateTimeTools;
+import com.recruit.ai.tools.*;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.context.annotation.Bean;
@@ -17,13 +14,15 @@ public class AiToolConfig {
                                  DateTimeTools dateTimeTools,
                                  AiTaskQueryTools aiTaskQueryTools,
                                  AiMatchResultQueryTools aiMatchResultQueryTools,
-                                 AiInterviewQuestionQueryTools aiInterviewQuestionQueryTools) {
+                                 AiInterviewQuestionQueryTools aiInterviewQuestionQueryTools,
+                                 AiFeedbackSummaryQueryTools aiFeedbackSummaryQueryTools) {
         return ChatClient.builder(chatModel)
                 .defaultTools(
                         dateTimeTools,
                         aiTaskQueryTools,
                         aiMatchResultQueryTools,
-                        aiInterviewQuestionQueryTools
+                        aiInterviewQuestionQueryTools,
+                        aiFeedbackSummaryQueryTools
                 )
                 .build();
     }
