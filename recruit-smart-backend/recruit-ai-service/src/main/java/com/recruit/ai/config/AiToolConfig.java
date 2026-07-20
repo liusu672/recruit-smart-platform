@@ -15,14 +15,16 @@ public class AiToolConfig {
                                  AiTaskQueryTools aiTaskQueryTools,
                                  AiMatchResultQueryTools aiMatchResultQueryTools,
                                  AiInterviewQuestionQueryTools aiInterviewQuestionQueryTools,
-                                 AiFeedbackSummaryQueryTools aiFeedbackSummaryQueryTools) {
+                                 AiFeedbackSummaryQueryTools aiFeedbackSummaryQueryTools,
+                                 AiTurnoverRiskQueryTools aiTurnoverRiskQueryTools) {
         return ChatClient.builder(chatModel)
                 .defaultTools(
                         dateTimeTools,
                         aiTaskQueryTools,
                         aiMatchResultQueryTools,
                         aiInterviewQuestionQueryTools,
-                        aiFeedbackSummaryQueryTools
+                        aiFeedbackSummaryQueryTools,
+                        aiTurnoverRiskQueryTools
                 )
                 .build();
     }
