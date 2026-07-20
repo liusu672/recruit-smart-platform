@@ -2,6 +2,7 @@ package com.recruit.biz.service.impl;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruit.biz.dto.MessageConversationCreateDTO;
 import com.recruit.biz.dto.MessageSendDTO;
 import com.recruit.biz.entity.Candidate;
@@ -169,6 +170,36 @@ class MessageServiceImplTest {
         assertEquals("SYSTEM", captor.getValue().getSenderRole());
         assertNull(captor.getValue().getSenderId());
         verify(messageRealtimeService).publishChanged();
+    }
+
+    @Test
+    void listsSystemMessageWithoutLookingUpNullSenderId() {
+        UserContext.set(new CurrentUser(2L, "hr", "HR"));
+        MessageConversation conversation = new MessageConversation();
+        conversation.setId(30L);
+        conversation.setApplicationId(10L);
+        when(conversationMapper.selectById(30L)).thenReturn(conversation);
+        when(jobApplicationMapper.selectById(10L))
+                .thenReturn(application(10L, 20L));
+
+        MessageRecord message = new MessageRecord();
+        message.setId(41L);
+        message.setConversationId(30L);
+        message.setSenderId(null);
+        message.setSenderRole("SYSTEM");
+        message.setMessageType("SYSTEM");
+        message.setContent("面试时间已经确认。");
+        Page<MessageRecord> page = new Page<>(1, 10);
+        page.setTotal(1L);
+        page.setRecords(List.of(message));
+        when(messageRecordMapper.selectPage(any(Page.class), any()))
+                .thenReturn(page);
+
+        var result = messageService.listMessages(30L, null);
+
+        assertEquals(1L, result.getTotal());
+        assertEquals("系统消息", result.getRecords().get(0).getSenderName());
+        assertNull(result.getRecords().get(0).getSenderId());
     }
 
     @Test

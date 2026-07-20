@@ -449,7 +449,9 @@ public class MessageServiceImpl implements MessageService {
             Map<Long, SysUser> userMap,
             Long currentUserId
     ) {
-        SysUser sender = userMap.get(message.getSenderId());
+        SysUser sender = message.getSenderId() == null
+                ? null
+                : userMap.get(message.getSenderId());
         MessageRecordVO vo = new MessageRecordVO();
         vo.setId(message.getId());
         vo.setConversationId(message.getConversationId());

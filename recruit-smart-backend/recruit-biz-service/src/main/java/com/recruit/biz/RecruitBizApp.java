@@ -11,3 +11,4 @@ public class RecruitBizApp {
         SpringApplication.run(RecruitBizApp.class,args);
     }
 }
+
