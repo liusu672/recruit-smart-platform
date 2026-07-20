@@ -5,6 +5,7 @@ import com.recruit.ai.dto.request.ResumeMatchRequest;
 import com.recruit.ai.dto.response.ResumeMatchResponse;
 import com.recruit.ai.entity.AiMatchResult;
 import com.recruit.ai.mapper.AiMatchResultMapper;
+import com.recruit.ai.prompt.ResumeMatchPrompts;
 import com.recruit.ai.service.AiMatchResultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,7 @@ public class AiMatchResultServiceImpl implements AiMatchResultService {
 
             result.setSource(source);
             result.setModelName("deepseek-chat");
-            result.setPromptVersion("resume-match-v1");
+            result.setPromptVersion(ResumeMatchPrompts.VERSION);
             result.setGeneratedAt(LocalDateTime.now());
 
             aiMatchResultMapper.insert(result);

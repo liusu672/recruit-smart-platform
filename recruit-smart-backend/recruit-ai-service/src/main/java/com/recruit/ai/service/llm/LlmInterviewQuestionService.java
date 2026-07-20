@@ -3,6 +3,7 @@ package com.recruit.ai.service.llm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruit.ai.dto.request.InterviewQuestionRequest;
 import com.recruit.ai.dto.response.InterviewQuestionResponse;
+import com.recruit.ai.prompt.InterviewQuestionPrompts;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -72,8 +73,8 @@ public class LlmInterviewQuestionService {
         try {
             String content = chatClientBuilder.build()
                     .prompt()
-                    .system(systemPrompt)
-                    .user(userPrompt)
+                    .system(InterviewQuestionPrompts.SYSTEM_PROMPT)
+                    .user(InterviewQuestionPrompts.buildUserPrompt(request, knowledgeContext))
                     .call()
                     .content();
 
