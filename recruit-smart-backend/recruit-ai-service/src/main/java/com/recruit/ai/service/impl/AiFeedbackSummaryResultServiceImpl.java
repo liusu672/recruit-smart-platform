@@ -5,6 +5,7 @@ import com.recruit.ai.dto.request.FeedbackSummaryRequest;
 import com.recruit.ai.dto.response.FeedbackSummaryResponse;
 import com.recruit.ai.entity.AiFeedbackSummary;
 import com.recruit.ai.mapper.AiFeedbackSummaryMapper;
+import com.recruit.ai.prompt.FeedbackSummaryPrompts;
 import com.recruit.ai.service.AiFeedbackSummaryResultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,7 @@ public class AiFeedbackSummaryResultServiceImpl implements AiFeedbackSummaryResu
 
             result.setSource(source);
             result.setModelName("deepseek-chat");
-            result.setPromptVersion("feedback-summary-v1");
+            result.setPromptVersion(FeedbackSummaryPrompts.VERSION);
             result.setGeneratedAt(LocalDateTime.now());
 
             aiFeedbackSummaryMapper.insert(result);

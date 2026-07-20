@@ -5,6 +5,7 @@ import com.recruit.ai.dto.request.InterviewQuestionRequest;
 import com.recruit.ai.dto.response.InterviewQuestionResponse;
 import com.recruit.ai.entity.AiInterviewQuestion;
 import com.recruit.ai.mapper.AiInterviewQuestionMapper;
+import com.recruit.ai.prompt.InterviewQuestionPrompts;
 import com.recruit.ai.service.AiInterviewQuestionResultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,7 @@ public class AiInterviewQuestionResultServiceImpl implements AiInterviewQuestion
 
             result.setSource(source);
             result.setModelName("deepseek-chat");
-            result.setPromptVersion("interview-question-v1");
+            result.setPromptVersion(InterviewQuestionPrompts.VERSION);
             result.setGeneratedAt(LocalDateTime.now());
 
             aiInterviewQuestionMapper.insert(result);

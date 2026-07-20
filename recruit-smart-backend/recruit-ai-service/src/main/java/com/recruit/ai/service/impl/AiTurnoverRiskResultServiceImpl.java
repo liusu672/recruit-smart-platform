@@ -5,6 +5,7 @@ import com.recruit.ai.dto.request.TurnoverRiskRequest;
 import com.recruit.ai.dto.response.TurnoverRiskResponse;
 import com.recruit.ai.entity.AiTurnoverRiskResult;
 import com.recruit.ai.mapper.AiTurnoverRiskResultMapper;
+import com.recruit.ai.prompt.TurnoverRiskPrompts;
 import com.recruit.ai.service.AiTurnoverRiskResultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class AiTurnoverRiskResultServiceImpl implements AiTurnoverRiskResultServ
 
             result.setSource(source);
             result.setModelName("deepseek-chat");
-            result.setPromptVersion("turnover-risk-v1");
+            result.setPromptVersion(TurnoverRiskPrompts.VERSION);
             result.setGeneratedAt(LocalDateTime.now());
 
             aiTurnoverRiskResultMapper.insert(result);
