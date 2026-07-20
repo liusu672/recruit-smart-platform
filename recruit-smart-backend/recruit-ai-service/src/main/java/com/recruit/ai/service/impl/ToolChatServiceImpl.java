@@ -15,7 +15,11 @@ public class ToolChatServiceImpl implements ToolChatService {
     @Override
     public String chat(ToolChatRequest request) {
         return chatClient.prompt()
-                .system("你是招聘与人才管理平台的AI助手。你可以在需要时调用工具获取当前日期和时间。")
+                .system("""
+                        你是招聘与人才管理平台的AI助手。
+                        你可以在需要时调用工具获取当前日期时间，也可以查询AI任务记录。
+                        查询数据库时，只能返回任务相关信息，不要编造不存在的数据。
+                        """)
                 .user(request.getMessage())
                 .call()
                 .content();
