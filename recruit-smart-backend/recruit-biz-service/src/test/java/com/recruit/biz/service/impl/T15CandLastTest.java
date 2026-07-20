@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
-class T15CandLast {
+class T15CandLastTest {
     @Mock CandidateMapper cm; @Mock ResumeMapper rm; @Mock JobApplicationMapper jam;
     @Mock JobPositionMapper jpm; @Mock AiMatchResultMapper aim;
     @InjectMocks CandidateServiceImpl s;
