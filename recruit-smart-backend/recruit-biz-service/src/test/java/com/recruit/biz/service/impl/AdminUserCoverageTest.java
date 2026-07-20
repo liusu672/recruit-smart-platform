@@ -1,6 +1,7 @@
 package com.recruit.biz.service.impl;
 
 import com.recruit.biz.dto.AdminPasswordResetDTO;
+import com.recruit.biz.dto.AdminUserRoleUpdateDTO;
 import com.recruit.biz.dto.AdminUserStatusUpdateDTO;
 import com.recruit.biz.entity.SysRole;
 import com.recruit.biz.entity.SysUser;
@@ -20,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -84,5 +86,15 @@ class AdminUserCoverageTest {
         AdminPasswordResetDTO dto = new AdminPasswordResetDTO();
         dto.setNewPassword("new1"); dto.setConfirmPassword("new2");
         assertThrows(BusinessException.class, () -> adminUserService.resetPassword(1L, dto));
+    }
+
+    @Test
+    void listRolesReturnsRoles() {
+        SysRole role = new SysRole(); role.setId(1L); role.setRoleCode("HR");
+        role.setRoleName("招聘专员");
+        when(sysRoleMapper.selectList(any())).thenReturn(List.of(role));
+        var roles = adminUserService.listRoles();
+        assertEquals(1, roles.size());
+        assertEquals("HR", roles.get(0).getRoleCode());
     }
 }
