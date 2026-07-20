@@ -1,4 +1,11 @@
-import { ClipboardCheck, Shield, UsersRound } from 'lucide-vue-next'
+import {
+  BriefcaseBusiness,
+  ClipboardCheck,
+  CodeXml,
+  Layers3,
+  Shield,
+  UsersRound,
+} from 'lucide-vue-next'
 
 import type { LoginRoleCopy, ManagementRole } from '@/types/login'
 
@@ -34,13 +41,49 @@ export const loginRoleCopy: Record<ManagementRole, LoginRoleCopy> = {
 }
 
 export const roleCards = [
-  { role: 'HR' as const, title: 'HR', desc: '筛选、排期、Offer', icon: UsersRound },
-  { role: 'INTERVIEWER' as const, title: '面试官', desc: '面试任务与反馈', icon: ClipboardCheck },
-  { role: 'ADMIN' as const, title: '管理员', desc: '权限、配置、审计', icon: Shield },
+  {
+    role: 'HR' as const,
+    title: 'HR',
+    desc: '筛选候选人，协调面试与录用流程',
+    feature: '招聘全流程管理',
+    icon: UsersRound,
+  },
+  {
+    role: 'INTERVIEWER' as const,
+    title: '面试官',
+    desc: '查看面试任务，提交结构化评价',
+    feature: '专注面试与反馈',
+    icon: ClipboardCheck,
+  },
+  {
+    role: 'ADMIN' as const,
+    title: '管理员',
+    desc: '维护账号权限与系统安全',
+    feature: '组织权限与治理',
+    icon: Shield,
+  },
 ]
 
 export const candidateJobs = [
-  { title: '高级产品设计师', meta: '上海 / 混合办公', status: '匹配度高', tone: 'info' },
-  { title: 'Java 后端工程师', meta: '杭州 / 企业服务', status: '新推荐', tone: 'info' },
-  { title: '招聘运营负责人', meta: '北京 / 现场办公', status: '可投递', tone: 'success' },
+  {
+    title: '高级产品设计师',
+    meta: '上海 · 混合办公',
+    status: '匹配度高',
+    tone: 'info',
+    icon: Layers3,
+  },
+  {
+    title: 'Java 后端工程师',
+    meta: '杭州 · 全职',
+    status: '新推荐',
+    tone: 'info',
+    icon: CodeXml,
+  },
+  {
+    title: '招聘运营负责人',
+    meta: '北京 · 远程办公',
+    status: '可投递',
+    tone: 'success',
+    icon: BriefcaseBusiness,
+  },
 ]

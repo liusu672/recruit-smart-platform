@@ -266,9 +266,10 @@ function formatSyncTime(value: string | null) {
 .support-messages-view {
   display: grid;
   height: 100%;
-  min-height: 560px;
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
   gap: var(--rs-space-4);
+  overflow: hidden;
 }
 .support-message-connection {
   display: flex;
@@ -388,9 +389,11 @@ function formatSyncTime(value: string | null) {
   min-width: 0;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
 }
 .support-message-warning {
   display: grid;
+  grid-row: 1;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--rs-space-3);
@@ -406,6 +409,7 @@ function formatSyncTime(value: string | null) {
 }
 .support-message-thread__list {
   display: grid;
+  grid-row: 2;
   min-height: 0;
   align-content: start;
   gap: var(--rs-space-3);
@@ -432,6 +436,7 @@ function formatSyncTime(value: string | null) {
 }
 .support-message-composer {
   display: grid;
+  grid-row: 4;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: var(--rs-space-3);
@@ -455,6 +460,7 @@ function formatSyncTime(value: string | null) {
   margin: 0;
 }
 .support-message-thread__empty {
+  grid-row: 2;
   min-height: 100%;
 }
 .support-message-thread__empty h2 {
@@ -471,6 +477,7 @@ function formatSyncTime(value: string | null) {
   border-top: 1px solid var(--rs-border-default);
 }
 .support-messages-pagination--thread {
+  grid-row: 3;
   justify-content: flex-end;
   border-top: 0;
 }
