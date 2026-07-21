@@ -10,6 +10,7 @@ import {
 import {
   getPipelineApplication,
   getPipelineApplications,
+  generateApplicationAiMatch,
   reviewApplication,
   updateApplicationStatus,
 } from '@/api/pipeline'
@@ -159,6 +160,14 @@ export function useRecruitmentPipeline() {
     onSuccess: invalidatePipeline,
   })
 
+  const aiMatchMutation = useMutation({
+    mutationFn: async (applicationId: number) => {
+      if (demoMode.value) throw new Error('演示模式不调用AI服务')
+      return generateApplicationAiMatch(applicationId)
+    },
+    onSuccess: invalidatePipeline,
+  })
+
   function applyFilters(filters: Pick<PipelineQuery, 'keyword' | 'jobId' | 'status'>) {
     Object.assign(query, filters, { page: 1 })
   }
@@ -199,6 +208,7 @@ export function useRecruitmentPipeline() {
     interviewAssignmentMutation,
     interviewReassignmentMutation,
     interviewCancellationMutation,
+    aiMatchMutation,
     applyFilters,
     resetFilters,
     useDemoData,

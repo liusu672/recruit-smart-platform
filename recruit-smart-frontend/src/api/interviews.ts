@@ -13,18 +13,11 @@ import type {
   InterviewerOption,
   InterviewWorkspace,
 } from '@/types/interview'
-import type { CandidateApplicationDetail } from '@/types/portal'
 
 interface BackendQuestionResponse {
   category?: unknown
   summary?: unknown
   questions?: unknown
-}
-
-export function getInterviewApplicationContext(applicationId: number) {
-  return unwrapResult(
-    http.get<Result<CandidateApplicationDetail>>(`/applications/${applicationId}`),
-  )
 }
 
 export function adaptInterviewQuestions(
@@ -120,17 +113,10 @@ export function submitInterviewFeedback(id: number, data: InterviewFeedbackReque
 }
 
 export async function generateInterviewQuestions(id: number, data: InterviewQuestionRequest) {
-  const response = await http.post<BackendQuestionResponse>('/ai/interview-questions', {
-    jobId: data.jobId,
-    candidateId: data.candidateId,
-    resumeId: data.resumeId,
-    jobTitle: data.jobTitle,
-    responsibilities: data.responsibilities,
-    requirements: [data.requirements, data.focus].filter(Boolean).join('\n'),
-    resumeText: data.resumeText,
-    skills: data.skills,
-    projectExperience: data.projectExperience,
-    workExperience: data.workExperience,
-  })
-  return adaptInterviewQuestions(id, response.data)
+  const result = await unwrapResult(
+    http.post<Result<BackendQuestionResponse>>(`/interviews/${id}/ai-questions`, {
+      focus: data.focus,
+    }),
+  )
+  return adaptInterviewQuestions(id, result)
 }

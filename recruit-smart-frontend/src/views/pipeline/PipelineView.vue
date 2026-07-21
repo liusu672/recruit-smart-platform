@@ -42,6 +42,7 @@ const {
   interviewAssignmentMutation,
   interviewReassignmentMutation,
   interviewCancellationMutation,
+  aiMatchMutation,
   applyFilters,
   resetFilters,
   useApiData,
@@ -294,6 +295,15 @@ async function contactCandidate(applicationId: number) {
     ElMessage.error(error instanceof Error ? error.message : '消息会话创建失败')
   }
 }
+
+async function generateAiMatch(application: PipelineApplicationDetail) {
+  try {
+    await aiMatchMutation.mutateAsync(application.id)
+    ElMessage.success('AI 匹配分析已生成')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'AI 匹配分析生成失败')
+  }
+}
 </script>
 
 <template>
@@ -402,12 +412,14 @@ async function contactCandidate(applicationId: number) {
       :error="detailError"
       :can-manage="canManage"
       :demo-mode="demoMode"
+      :matching-ai="aiMatchMutation.isPending.value"
       @start-screening="startScreening"
       @review="openReview"
       @assign-interview="openInterviewAssignment($event, 'CREATE')"
       @reassign-interview="openInterviewAssignment($event, 'REASSIGN')"
       @cancel-interview="cancelInterview"
       @contact="contactCandidate"
+      @generate-ai-match="generateAiMatch"
     />
 
     <ScreeningDecisionDialog

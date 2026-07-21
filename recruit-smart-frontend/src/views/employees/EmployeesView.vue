@@ -98,15 +98,7 @@ async function assessRisk() {
     return
   }
   try {
-    riskAnalysis.value = await state.riskMutation.mutateAsync({
-      employeeId: record.id,
-      employeeName: record.name,
-      department: record.department,
-      position: record.position,
-      performanceSummary: record.performanceSummary ?? '',
-      attendanceSummary: record.attendanceSummary ?? '',
-      satisfactionFeedback: record.satisfactionFeedback ?? '',
-    })
+    riskAnalysis.value = await state.riskMutation.mutateAsync(record.id)
     ElMessage.success('AI 风险分析已生成')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'AI 风险分析失败')

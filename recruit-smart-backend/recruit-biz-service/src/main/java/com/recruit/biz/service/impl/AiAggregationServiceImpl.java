@@ -178,10 +178,23 @@ public class AiAggregationServiceImpl implements AiAggregationService {
                                 interviewId
                         )
         );
-        if (feedback == null || !isSubmitted(feedback)) {
+        if (feedback == null) {
             throw new BusinessException(
                     ErrorCode.PARAM_ERROR,
-                    "请先提交正式面试反馈"
+                    "请先填写面试反馈"
+            );
+        }
+        if (!isSubmitted(feedback)
+                && !"INTERVIEWER".equals(UserContext.getRoleCode())) {
+            throw new BusinessException(
+                    ErrorCode.FORBIDDEN,
+                    "反馈草稿仅本场面试官可以生成摘要"
+            );
+        }
+        if (!hasText(feedback.getComment())) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "请先填写面试评价"
             );
         }
 

@@ -29,6 +29,7 @@ defineProps<{
   error: Error | null
   canManage: boolean
   demoMode: boolean
+  matchingAi: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +39,7 @@ const emit = defineEmits<{
   reassignInterview: [application: PipelineApplicationDetail]
   cancelInterview: [application: PipelineApplicationDetail]
   contact: [applicationId: number]
+  generateAiMatch: [application: PipelineApplicationDetail]
 }>()
 
 const activeTab = ref('summary')
@@ -237,8 +239,29 @@ async function downloadResume(application: PipelineApplicationDetail) {
             <p class="application-ai__authority">
               AI 只提供分析参考，不会自动通过、拒绝或改变候选人阶段。
             </p>
+            <el-button
+              v-if="canManage"
+              :icon="Sparkles"
+              :loading="matchingAi"
+              :disabled="demoMode"
+              @click="emit('generateAiMatch', application)"
+            >
+              重新生成匹配分析
+            </el-button>
           </div>
-          <div v-else class="application-detail__empty">当前投递暂无 AI 匹配结果。</div>
+          <div v-else class="application-detail__empty">
+            <span>当前投递暂无 AI 匹配结果。</span>
+            <el-button
+              v-if="canManage"
+              type="primary"
+              :icon="Sparkles"
+              :loading="matchingAi"
+              :disabled="demoMode"
+              @click="emit('generateAiMatch', application)"
+            >
+              生成匹配分析
+            </el-button>
+          </div>
         </el-tab-pane>
 
         <el-tab-pane label="活动" name="timeline">

@@ -132,16 +132,6 @@ export interface InterviewScheduleRequest {
 
 export interface InterviewQuestionRequest {
   focus: string
-  jobId?: number
-  candidateId?: number
-  resumeId?: number
-  jobTitle?: string
-  responsibilities?: string
-  requirements?: string
-  resumeText?: string
-  skills?: string
-  projectExperience?: string
-  workExperience?: string
 }
 
 export type InterviewTaskPagedData = PagedData<InterviewTaskSummary>

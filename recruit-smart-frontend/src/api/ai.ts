@@ -1,8 +1,7 @@
-import { http } from '@/api/http'
+import { http, unwrapResult } from '@/api/http'
+import type { Result } from '@/types/api'
 import type {
-  FeedbackSummaryRequest,
   FeedbackSummaryResponse,
-  TurnoverRiskRequest,
   TurnoverRiskResponse,
 } from '@/types/ai'
 
@@ -39,13 +38,16 @@ export function adaptTurnoverRisk(source: unknown): TurnoverRiskResponse {
   }
 }
 
-// AI 服务返回原始 DTO，不使用业务服务的 Result<T> 包装。
-export async function generateFeedbackSummary(data: FeedbackSummaryRequest) {
-  const response = await http.post<unknown>('/ai/feedback-summary', data)
-  return adaptFeedbackSummary(response.data)
+export async function generateFeedbackSummary(interviewId: number) {
+  const result = await unwrapResult(
+    http.post<Result<unknown>>(`/interviews/${interviewId}/ai-summary`),
+  )
+  return adaptFeedbackSummary(result)
 }
 
-export async function assessTurnoverRisk(data: TurnoverRiskRequest) {
-  const response = await http.post<unknown>('/ai/turnover-risk', data)
-  return adaptTurnoverRisk(response.data)
+export async function assessTurnoverRisk(employeeId: number) {
+  const result = await unwrapResult(
+    http.post<Result<unknown>>(`/employees/${employeeId}/turnover-risk`),
+  )
+  return adaptTurnoverRisk(result)
 }

@@ -2,6 +2,7 @@ import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
   PipelineApplicationDetail,
+  AiMatchSummary,
   PipelinePagedData,
   PipelinePageResponse,
   PipelineQuery,
@@ -46,4 +47,10 @@ export function updateApplicationStatus(id: number, data: PipelineStatusUpdateRe
 
 export function reviewApplication(id: number, data: PipelineReviewRequest) {
   return unwrapVoidResult(http.put<Result<null>>(`/applications/${id}/screening`, data))
+}
+
+export function generateApplicationAiMatch(id: number): Promise<AiMatchSummary> {
+  return unwrapResult(
+    http.post<Result<AiMatchSummary>>(`/applications/${id}/ai-match`),
+  )
 }

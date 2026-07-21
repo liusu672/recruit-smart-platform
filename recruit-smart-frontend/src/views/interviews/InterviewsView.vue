@@ -20,7 +20,6 @@ import InterviewScorecard from '@/components/interviews/InterviewScorecard.vue'
 import InterviewTaskQueue from '@/components/interviews/InterviewTaskQueue.vue'
 import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { useInterviewWorkspace } from '@/composables/useInterviewWorkspace'
-import { getInterviewApplicationContext } from '@/api/interviews'
 import {
   calculateInterviewScore,
   interviewFeedbackStateOptions,
@@ -298,20 +297,9 @@ async function generateQuestion(focus: string) {
   const interview = workspace.value
   if (!interview) return
   try {
-    const application = await getInterviewApplicationContext(interview.applicationId)
     const questions = await questionMutation.mutateAsync({
       id: interview.id,
-      data: {
-        focus,
-        jobId: application.jobId,
-        candidateId: interview.candidateId,
-        resumeId: application.resumeId,
-        jobTitle: interview.jobTitle,
-        resumeText: interview.candidateBrief.workExperience ?? '',
-        skills: interview.candidateBrief.skills.join(', '),
-        projectExperience: interview.candidateBrief.projectExperience ?? '',
-        workExperience: interview.candidateBrief.workExperience ?? '',
-      },
+      data: { focus },
     })
     extraQuestions.value.push(...questions)
     ElMessage.success('已生成参考追问')
@@ -324,16 +312,7 @@ async function summarizeFeedback() {
   const interview = workspace.value
   if (!interview || !comment.value.trim()) return
   try {
-    const application = await getInterviewApplicationContext(interview.applicationId)
-    feedbackSummary.value = await summaryMutation.mutateAsync({
-      interviewId: interview.id,
-      candidateId: interview.candidateId,
-      jobId: application.jobId,
-      jobTitle: interview.jobTitle,
-      candidateName: interview.candidateName,
-      feedbackText: comment.value,
-      score: overallScore.value,
-    })
+    feedbackSummary.value = await summaryMutation.mutateAsync(interview.id)
     ElMessage.success('AI 反馈摘要已生成')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '反馈摘要生成失败')
