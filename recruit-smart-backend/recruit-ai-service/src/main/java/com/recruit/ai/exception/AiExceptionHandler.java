@@ -40,6 +40,7 @@ public class AiExceptionHandler {
     public ResponseEntity<Result<Void>> handleMultipartException(
             Exception exception
     ) {
+        log.warn("简历文件上传请求异常: {}", exception.getMessage());
         return ResponseEntity.badRequest().body(
                 Result.fail(
                         ErrorCode.PARAM_ERROR.getCode(),

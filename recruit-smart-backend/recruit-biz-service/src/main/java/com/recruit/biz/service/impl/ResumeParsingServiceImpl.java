@@ -12,6 +12,7 @@ import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.ResumeParsingService;
 import com.recruit.biz.storage.ResumeFileResource;
 import com.recruit.biz.storage.ResumeFileStorage;
+import com.recruit.biz.storage.StoredResumeMultipartFile;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
 import com.recruit.feign.client.AiServiceClient;
@@ -91,9 +92,13 @@ public class ResumeParsingServiceImpl implements ResumeParsingService {
         try {
             ResumeFileResource file = loadResumeFile(resume);
             ResumeParseResponse response = aiServiceClient.parseResume(
-                    file.getResource()
+                    new StoredResumeMultipartFile(file)
             );
             saveParseResult(resumeId, response);
+            backfillCandidateProfileSafely(
+                    resume.getCandidateId(),
+                    response
+            );
         } catch (Exception exception) {
             markFailed(resumeId);
             if (exception instanceof BusinessException businessException) {
@@ -234,6 +239,62 @@ public class ResumeParsingServiceImpl implements ResumeParsingService {
                     "更新简历解析失败状态异常，resumeId={}",
                     resumeId,
                     updateException
+            );
+        }
+    }
+
+    private void backfillCandidateProfileSafely(
+            Long candidateId,
+            ResumeParseResponse response
+    ) {
+        if (candidateId == null || response == null
+                || (!StringUtils.hasText(response.getEducation())
+                && !StringUtils.hasText(response.getSchool())
+                && !StringUtils.hasText(response.getMajor()))) {
+            return;
+        }
+
+        try {
+            Candidate candidate = candidateMapper.selectById(candidateId);
+            if (candidate == null) {
+                log.warn(
+                        "简历解析成功，但候选人不存在，candidateId={}",
+                        candidateId
+                );
+                return;
+            }
+
+            Candidate update = new Candidate();
+            update.setId(candidateId);
+            boolean changed = false;
+
+            if (!StringUtils.hasText(candidate.getEducation())
+                    && StringUtils.hasText(response.getEducation())) {
+                update.setEducation(response.getEducation().trim());
+                changed = true;
+            }
+            if (!StringUtils.hasText(candidate.getSchool())
+                    && StringUtils.hasText(response.getSchool())) {
+                update.setSchool(response.getSchool().trim());
+                changed = true;
+            }
+            if (!StringUtils.hasText(candidate.getMajor())
+                    && StringUtils.hasText(response.getMajor())) {
+                update.setMajor(response.getMajor().trim());
+                changed = true;
+            }
+
+            if (changed && candidateMapper.updateById(update) != 1) {
+                log.warn(
+                        "AI教育信息未能补充到候选人资料，candidateId={}",
+                        candidateId
+                );
+            }
+        } catch (Exception exception) {
+            log.warn(
+                    "AI解析成功，但候选人教育信息补充失败，candidateId={}",
+                    candidateId,
+                    exception
             );
         }
     }

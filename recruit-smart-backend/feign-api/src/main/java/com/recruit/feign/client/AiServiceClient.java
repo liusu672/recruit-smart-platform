@@ -9,12 +9,12 @@ import com.recruit.feign.dto.response.InterviewQuestionResponse;
 import com.recruit.feign.dto.response.ResumeMatchResponse;
 import com.recruit.feign.dto.response.ResumeParseResponse;
 import com.recruit.feign.dto.response.TurnoverRiskResponse;
-import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @FeignClient(name = "recruit-ai-service", path = "/api/ai")
 public interface AiServiceClient {
@@ -27,7 +27,7 @@ public interface AiServiceClient {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     ResumeParseResponse parseResume(
-            @RequestPart("file") Resource file
+            @RequestPart("file") MultipartFile file
     );
 
     @PostMapping("/interview-questions")
