@@ -2,7 +2,9 @@ package com.recruit.biz.controller;
 
 import com.recruit.biz.dto.ResumeRenameDTO;
 import com.recruit.biz.dto.ResumeUploadDTO;
+import com.recruit.biz.messaging.resume.ResumeParseProducer;
 import com.recruit.biz.security.RequireRoles;
+import com.recruit.biz.service.ResumeParsingService;
 import com.recruit.biz.service.ResumeService;
 import com.recruit.biz.storage.ResumeFileResource;
 import com.recruit.biz.vo.ResumeDetailVO;
@@ -27,11 +29,17 @@ import java.util.List;
 public class ResumeController {
     @Resource
     private ResumeService resumeService;
+    @Resource
+    private ResumeParsingService resumeParsingService;
+    @Resource
+    private ResumeParseProducer resumeParseProducer;
     @RequireRoles({"CANDIDATE"})
     @Operation(summary = "简历上传接口")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Result<Long> upload(@Valid @ModelAttribute ResumeUploadDTO dto){
-        return Result.success(resumeService.upload(dto));
+        Long resumeId = resumeService.upload(dto);
+        resumeParseProducer.send(resumeId);
+        return Result.success(resumeId);
     }
     @GetMapping("/me")
     @RequireRoles({"CANDIDATE"})
@@ -51,6 +59,13 @@ public class ResumeController {
             @PathVariable("id") Long id
     ) {
         return Result.success(resumeService.getDetail(id));
+    }
+    @PostMapping("/{id}/parse")
+    @RequireRoles({"CANDIDATE", "HR", "ADMIN"})
+    @Operation(summary = "解析或重新解析简历")
+    public Result<Void> parse(@PathVariable("id") Long id) {
+        resumeParsingService.parse(id);
+        return Result.success();
     }
     @GetMapping("/{id}/download")
     @RequireRoles({
