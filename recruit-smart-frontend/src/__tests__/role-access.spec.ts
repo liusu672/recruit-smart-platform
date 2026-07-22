@@ -35,6 +35,16 @@ describe('role workspace isolation', () => {
     expect(ROLE_WORKSPACES.HR.navItems.map((item) => item.to)).not.toContain('/hr/ai-approvals')
   })
 
+  it('exposes the Tool Chat assistant only to HR navigation', () => {
+    expect(ROLE_WORKSPACES.HR.navItems.map((item) => item.to)).toContain('/hr/ai-assistant')
+    expect(ROLE_WORKSPACES.CANDIDATE.navItems.map((item) => item.to)).not.toContain(
+      '/hr/ai-assistant',
+    )
+    expect(ROLE_WORKSPACES.INTERVIEWER.navItems.map((item) => item.to)).not.toContain(
+      '/hr/ai-assistant',
+    )
+  })
+
   it('groups the HR navigation by business responsibility', () => {
     expect(new Set(ROLE_WORKSPACES.HR.navItems.map((item) => item.group))).toEqual(
       new Set(['概览', '招聘管理', '员工管理', '系统管理']),

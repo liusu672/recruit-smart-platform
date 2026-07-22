@@ -1,5 +1,6 @@
 import {
   Activity,
+  Bot,
   BriefcaseBusiness,
   CalendarCheck,
   ClipboardList,
@@ -52,6 +53,7 @@ export const ROLE_WORKSPACES: Record<UserRole, RoleWorkspaceConfig> = {
       { label: 'Offer 管理', to: '/hr/offers', icon: FileSignature, group: '招聘管理' },
       { label: '入职办理', to: '/hr/onboardings', icon: UserRoundCheck, group: '员工管理' },
       { label: '员工档案', to: '/hr/employees', icon: ContactRound, group: '员工管理' },
+      { label: 'AI 助手', to: '/hr/ai-assistant', icon: Bot, group: '系统管理' },
       { label: '消息中心', to: '/hr/messages', icon: MessageCircle, group: '系统管理' },
       { label: '账户与安全', to: '/hr/settings', icon: Settings, group: '系统管理' },
     ],

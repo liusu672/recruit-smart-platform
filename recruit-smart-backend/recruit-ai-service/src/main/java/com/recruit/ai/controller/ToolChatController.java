@@ -4,6 +4,7 @@ import com.recruit.ai.dto.request.ToolChatRequest;
 import com.recruit.ai.service.ToolChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class ToolChatController {
 
     @Operation(summary = "工具调用对话", description = "让大模型在需要时调用Java工具方法")
     @PostMapping
-    public String chat(@RequestBody ToolChatRequest request) {
+    public String chat(@Valid @RequestBody ToolChatRequest request) {
         return toolChatService.chat(request);
     }
 }

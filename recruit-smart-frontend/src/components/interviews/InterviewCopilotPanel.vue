@@ -99,17 +99,17 @@ function submitFocus() {
         <el-input
           id="interview-focus"
           v-model="focus"
-          placeholder="例如：复杂状态流转"
+          placeholder="输入需要补充追问的主题，如 Java 并发、项目难点"
           :disabled="generating"
         />
-        <el-tooltip content="生成参考问题" placement="top">
+        <el-tooltip content="生成面试追问" placement="top">
           <el-button
             native-type="submit"
             circle
             :icon="Send"
             :loading="generating"
             :disabled="!focus.trim()"
-            aria-label="生成参考问题"
+            aria-label="生成面试追问"
           />
         </el-tooltip>
       </div>

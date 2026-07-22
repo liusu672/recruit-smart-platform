@@ -154,6 +154,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'AI 辅助审批', roles: ['HR'] },
       },
       {
+        path: 'ai-assistant',
+        name: 'hr-ai-assistant',
+        component: () => import('@/views/ai/HrAiAssistantView.vue'),
+        meta: { title: 'HR AI 助手', roles: ['HR'] },
+      },
+      {
         path: 'messages',
         name: 'hr-messages',
         component: () => import('@/views/messages/MessagesView.vue'),

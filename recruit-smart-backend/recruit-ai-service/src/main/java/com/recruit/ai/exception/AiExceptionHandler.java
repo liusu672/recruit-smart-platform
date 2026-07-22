@@ -6,8 +6,10 @@ import com.recruit.common.result.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
@@ -29,6 +31,22 @@ public class AiExceptionHandler {
         }
         return ResponseEntity.status(status).body(
                 Result.fail(exception.getCode(), exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Result<Void>> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException exception
+    ) {
+        String message = exception.getBindingResult()
+                .getAllErrors()
+                .stream()
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .filter(this::hasText)
+                .findFirst()
+                .orElse(ErrorCode.PARAM_ERROR.getMessage());
+        return ResponseEntity.badRequest().body(
+                Result.fail(ErrorCode.PARAM_ERROR.getCode(), message)
         );
     }
 
@@ -60,5 +78,9 @@ public class AiExceptionHandler {
                         "AI服务繁忙，请稍后重试"
                 )
         );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
