@@ -259,10 +259,13 @@ public class AiAggregationServiceImpl implements AiAggregationService {
         request.setDepartment(employee.getDepartment());
         request.setPosition(employee.getPosition());
         request.setPerformanceSummary(employee.getPerformanceSummary());
+        request.setPerformanceScore(employee.getPerformanceScore());
         request.setAttendanceSummary(employee.getAttendanceSummary());
+        request.setAttendanceScore(employee.getAttendanceScore());
         request.setSatisfactionFeedback(
                 employee.getSatisfactionFeedback()
         );
+        request.setSatisfactionScore(employee.getSatisfactionScore());
 
         TurnoverRiskResponse response = invokeAi(
                 "离职风险评估",

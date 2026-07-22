@@ -21,8 +21,11 @@ public class EmployeeSummaryVO {
     private String status;
     private String statusText;
     private String performanceSummary;
+    private Integer performanceScore;
     private String attendanceSummary;
+    private Integer attendanceScore;
     private String satisfactionFeedback;
+    private Integer satisfactionScore;
     private String turnoverRiskLevel;
     private LocalDateTime riskAssessedAt;
     private LocalDateTime createdAt;

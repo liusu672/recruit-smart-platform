@@ -1,19 +1,18 @@
-package com.recruit.biz.vo;
+package com.recruit.feign.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class InterviewQuestionVO {
-    private String id;
-    private String category;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class InterviewQuestionItemResponse {
+
     private String title;
-    private String question;
     private String content;
     private List<String> focus;
     private String difficulty;
     private String referenceAnswer;
     private List<String> answerPoints;
-    private String source;
 }

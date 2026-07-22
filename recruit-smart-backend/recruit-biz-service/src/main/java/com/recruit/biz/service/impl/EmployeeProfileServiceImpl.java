@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruit.biz.dto.EmployeeQueryDTO;
+import com.recruit.biz.dto.EmployeeRiskDataUpdateDTO;
 import com.recruit.biz.dto.EmployeeStatusUpdateDTO;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.EmployeeProfile;
@@ -105,8 +106,11 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
         vo.setEntryDate(employee.getEntryDate());
         vo.setStatus(employee.getStatus());
         vo.setPerformanceSummary(employee.getPerformanceSummary());
+        vo.setPerformanceScore(employee.getPerformanceScore());
         vo.setAttendanceSummary(employee.getAttendanceSummary());
+        vo.setAttendanceScore(employee.getAttendanceScore());
         vo.setSatisfactionFeedback(employee.getSatisfactionFeedback());
+        vo.setSatisfactionScore(employee.getSatisfactionScore());
         vo.setTurnoverRiskLevel(employee.getTurnoverRiskLevel());
         vo.setRiskAssessedAt(employee.getRiskAssessedAt());
         vo.setCreatedAt(employee.getCreatedAt());
@@ -188,6 +192,51 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateRiskData(Long id, EmployeeRiskDataUpdateDTO dto) {
+        requireStaffRole();
+        requireEmployee(id);
+
+        int updated = employeeProfileMapper.update(
+                null,
+                new LambdaUpdateWrapper<EmployeeProfile>()
+                        .eq(EmployeeProfile::getId, id)
+                        .set(
+                                EmployeeProfile::getPerformanceSummary,
+                                dto.getPerformanceSummary().trim()
+                        )
+                        .set(
+                                EmployeeProfile::getPerformanceScore,
+                                dto.getPerformanceScore()
+                        )
+                        .set(
+                                EmployeeProfile::getAttendanceSummary,
+                                dto.getAttendanceSummary().trim()
+                        )
+                        .set(
+                                EmployeeProfile::getAttendanceScore,
+                                dto.getAttendanceScore()
+                        )
+                        .set(
+                                EmployeeProfile::getSatisfactionFeedback,
+                                dto.getSatisfactionFeedback().trim()
+                        )
+                        .set(
+                                EmployeeProfile::getSatisfactionScore,
+                                dto.getSatisfactionScore()
+                        )
+                        .set(EmployeeProfile::getTurnoverRiskLevel, null)
+                        .set(EmployeeProfile::getRiskAssessedAt, null)
+        );
+        if (updated != 1) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "保存员工离职风险分析数据失败"
+            );
+        }
+    }
+
     private EmployeeSummaryVO toSummaryVO(EmployeeProfile employee) {
         EmployeeSummaryVO vo = new EmployeeSummaryVO();
         vo.setId(employee.getId());
@@ -203,8 +252,11 @@ public class EmployeeProfileServiceImpl implements EmployeeProfileService {
         vo.setEntryDate(employee.getEntryDate());
         vo.setStatus(employee.getStatus());
         vo.setPerformanceSummary(employee.getPerformanceSummary());
+        vo.setPerformanceScore(employee.getPerformanceScore());
         vo.setAttendanceSummary(employee.getAttendanceSummary());
+        vo.setAttendanceScore(employee.getAttendanceScore());
         vo.setSatisfactionFeedback(employee.getSatisfactionFeedback());
+        vo.setSatisfactionScore(employee.getSatisfactionScore());
         vo.setTurnoverRiskLevel(employee.getTurnoverRiskLevel());
         vo.setRiskAssessedAt(employee.getRiskAssessedAt());
         vo.setCreatedAt(employee.getCreatedAt());

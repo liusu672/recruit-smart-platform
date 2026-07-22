@@ -1,6 +1,7 @@
 package com.recruit.biz.controller;
 
 import com.recruit.biz.dto.EmployeeQueryDTO;
+import com.recruit.biz.dto.EmployeeRiskDataUpdateDTO;
 import com.recruit.biz.dto.EmployeeStatusUpdateDTO;
 import com.recruit.biz.security.RequireRoles;
 import com.recruit.biz.service.EmployeeProfileService;
@@ -52,6 +53,17 @@ public class EmployeeProfileController {
             @Valid @RequestBody EmployeeStatusUpdateDTO dto
     ) {
         employeeProfileService.updateStatus(id, dto);
+        return Result.success();
+    }
+
+    @PutMapping("/{id}/risk-data")
+    @RequireRoles({"HR", "ADMIN"})
+    @Operation(summary = "维护员工离职风险分析数据")
+    public Result<Void> updateRiskData(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody EmployeeRiskDataUpdateDTO dto
+    ) {
+        employeeProfileService.updateRiskData(id, dto);
         return Result.success();
     }
 }

@@ -25,8 +25,11 @@ public class EmployeeProfile {
     private LocalDate entryDate;
     private String status;
     private String performanceSummary;
+    private Integer performanceScore;
     private String attendanceSummary;
+    private Integer attendanceScore;
     private String satisfactionFeedback;
+    private Integer satisfactionScore;
     private String turnoverRiskLevel;
     private LocalDateTime riskAssessedAt;
     private LocalDateTime createdAt;

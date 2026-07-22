@@ -6,6 +6,7 @@ import com.recruit.ai.dto.response.InterviewQuestionResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResult;
 import com.recruit.ai.knowledge.service.KnowledgeBaseService;
+import com.recruit.ai.prompt.InterviewQuestionPrompts;
 import com.recruit.ai.service.AiInterviewQuestionResultService;
 import com.recruit.ai.service.AiTaskService;
 import com.recruit.ai.service.InterviewQuestionService;
@@ -22,7 +23,8 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
     private static final String TASK_TYPE = "INTERVIEW_QUESTION";
     private static final String BIZ_TYPE = "RESUME";
     private static final String MODEL_NAME = "deepseek-chat";
-    private static final String PROMPT_VERSION = "interview-question-v1";
+    private static final String PROMPT_VERSION =
+            InterviewQuestionPrompts.VERSION;
 
     private final InterviewQuestionAlgorithm interviewQuestionAlgorithm;
     private final KnowledgeBaseService knowledgeBaseService;

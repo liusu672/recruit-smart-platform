@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.recruit.biz.dto.EmployeeStatusUpdateDTO;
 import com.recruit.biz.dto.EmployeeQueryDTO;
+import com.recruit.biz.dto.EmployeeRiskDataUpdateDTO;
 import com.recruit.biz.entity.EmployeeProfile;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.mapper.EmployeeProfileMapper;
@@ -135,5 +136,25 @@ class EmployeeProfileServiceImplTest {
         employeeProfileService.updateStatus(1L, dto);
 
         verify(candidateMapper).update(eq(null), any());
+    }
+
+    @Test
+    void updateRiskDataSuccess() {
+        EmployeeProfile employee = new EmployeeProfile();
+        employee.setId(1L);
+        when(employeeProfileMapper.selectById(1L)).thenReturn(employee);
+        when(employeeProfileMapper.update(eq(null), any())).thenReturn(1);
+
+        EmployeeRiskDataUpdateDTO dto = new EmployeeRiskDataUpdateDTO();
+        dto.setPerformanceSummary("本期任务按计划完成");
+        dto.setPerformanceScore(82);
+        dto.setAttendanceSummary("无迟到和缺勤记录");
+        dto.setAttendanceScore(100);
+        dto.setSatisfactionFeedback("对当前工作安排基本满意");
+        dto.setSatisfactionScore(85);
+
+        employeeProfileService.updateRiskData(1L, dto);
+
+        verify(employeeProfileMapper).update(eq(null), any());
     }
 }

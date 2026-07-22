@@ -2,7 +2,7 @@ package com.recruit.biz.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruit.biz.assembler.InterviewWorkspaceAssembler;
 import com.recruit.biz.entity.AiInterviewQuestion;
@@ -33,15 +33,16 @@ import com.recruit.biz.vo.InterviewQuestionVO;
 import com.recruit.biz.vo.InterviewWorkspaceVO;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
+import com.recruit.feign.dto.response.InterviewQuestionItemResponse;
 import com.recruit.common.result.PageResult;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 import java.util.stream.Collectors;
 
 @Service
@@ -167,18 +168,34 @@ public class InterviewWorkspaceServiceImpl
         }
 
         try {
-            List<String> questions = JSON_MAPPER.readValue(
-                    result.getQuestions(),
-                    new TypeReference<List<String>>() {
-                    }
+            JsonNode questions = JSON_MAPPER.readTree(
+                    result.getQuestions()
             );
-            return IntStream.range(0, questions.size())
-                    .mapToObj(index -> toQuestionVO(
+            if (!questions.isArray()) {
+                return List.of();
+            }
+
+            List<InterviewQuestionVO> questionVOs = new ArrayList<>();
+            for (int index = 0; index < questions.size(); index++) {
+                JsonNode question = questions.get(index);
+                if (question.isTextual()) {
+                    questionVOs.add(toQuestionVO(
                             result,
-                            questions.get(index),
+                            legacyQuestion(question.asText()),
                             index
-                    ))
-                    .toList();
+                    ));
+                } else if (question.isObject()) {
+                    questionVOs.add(toQuestionVO(
+                            result,
+                            JSON_MAPPER.treeToValue(
+                                    question,
+                                    InterviewQuestionItemResponse.class
+                            ),
+                            index
+                    ));
+                }
+            }
+            return questionVOs;
         } catch (Exception e) {
             return List.of();
         }
@@ -186,15 +203,28 @@ public class InterviewWorkspaceServiceImpl
 
     private InterviewQuestionVO toQuestionVO(
             AiInterviewQuestion result,
-            String question,
+            InterviewQuestionItemResponse question,
             int index
     ) {
         InterviewQuestionVO vo = new InterviewQuestionVO();
         vo.setId(result.getId() + "-" + index);
         vo.setCategory(result.getCategory());
-        vo.setQuestion(question);
+        vo.setTitle(question.getTitle());
+        vo.setQuestion(question.getContent());
+        vo.setContent(question.getContent());
+        vo.setFocus(question.getFocus());
+        vo.setDifficulty(question.getDifficulty());
+        vo.setReferenceAnswer(question.getReferenceAnswer());
+        vo.setAnswerPoints(question.getAnswerPoints());
         vo.setSource(result.getSource());
         return vo;
+    }
+
+    private InterviewQuestionItemResponse legacyQuestion(String content) {
+        InterviewQuestionItemResponse question =
+                new InterviewQuestionItemResponse();
+        question.setContent(content);
+        return question;
     }
 
     private InterviewFeedback hideDraftContentFromStaff(

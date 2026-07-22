@@ -28,8 +28,10 @@ import com.recruit.common.exception.BusinessException;
 import com.recruit.feign.client.AiServiceClient;
 import com.recruit.feign.dto.request.InterviewQuestionRequest;
 import com.recruit.feign.dto.request.ResumeMatchRequest;
+import com.recruit.feign.dto.request.TurnoverRiskRequest;
 import com.recruit.feign.dto.response.FeedbackSummaryResponse;
 import com.recruit.feign.dto.response.InterviewQuestionResponse;
+import com.recruit.feign.dto.response.InterviewQuestionItemResponse;
 import com.recruit.feign.dto.response.ResumeMatchResponse;
 import com.recruit.feign.dto.response.TurnoverRiskResponse;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -143,7 +145,13 @@ class AiAggregationServiceImplTest {
         UserContext.set(new CurrentUser(9L, "interviewer", "INTERVIEWER"));
         stubInterviewContext(9L);
         InterviewQuestionResponse response = new InterviewQuestionResponse();
-        response.setQuestions(List.of("请介绍项目中的并发控制方案"));
+        InterviewQuestionItemResponse question =
+                new InterviewQuestionItemResponse();
+        question.setTitle("并发控制");
+        question.setContent("请介绍项目中的并发控制方案");
+        question.setFocus(List.of("并发安全"));
+        question.setDifficulty("MEDIUM");
+        response.setQuestions(List.of(question));
         when(aiServiceClient.generateInterviewQuestions(any()))
                 .thenReturn(response);
 
@@ -199,6 +207,9 @@ class AiAggregationServiceImplTest {
         employee.setDepartment("技术部");
         employee.setPosition("Java工程师");
         employee.setPerformanceSummary("绩效稳定");
+        employee.setPerformanceScore(82);
+        employee.setAttendanceScore(96);
+        employee.setSatisfactionScore(78);
         when(employeeProfileMapper.selectById(40L)).thenReturn(employee);
 
         TurnoverRiskResponse response = new TurnoverRiskResponse();
@@ -214,6 +225,14 @@ class AiAggregationServiceImplTest {
                 aiAggregationService.assessTurnoverRisk(40L);
 
         assertEquals("LOW", result.getRiskLevel());
+        ArgumentCaptor<TurnoverRiskRequest> requestCaptor =
+                ArgumentCaptor.forClass(TurnoverRiskRequest.class);
+        verify(aiServiceClient).predictTurnoverRisk(
+                requestCaptor.capture()
+        );
+        assertEquals(82, requestCaptor.getValue().getPerformanceScore());
+        assertEquals(96, requestCaptor.getValue().getAttendanceScore());
+        assertEquals(78, requestCaptor.getValue().getSatisfactionScore());
         verify(employeeProfileMapper).update(
                 eq(null),
                 any(LambdaUpdateWrapper.class)

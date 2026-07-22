@@ -224,7 +224,16 @@ class InterviewWorkspaceServiceImplTest {
         questions.setId(7L);
         questions.setInterviewId(1L);
         questions.setCategory("Java后端");
-        questions.setQuestions("[\"请说明Spring事务传播机制\"]");
+        questions.setQuestions("""
+                [{
+                  "title":"Spring事务",
+                  "content":"请说明Spring事务传播机制",
+                  "focus":["事务传播"],
+                  "difficulty":"MEDIUM",
+                  "referenceAnswer":"应说明常用传播行为。",
+                  "answerPoints":["REQUIRED","REQUIRES_NEW"]
+                }]
+                """);
         questions.setSource("LLM");
         when(aiInterviewQuestionMapper.selectOne(any()))
                 .thenReturn(questions);
@@ -243,6 +252,15 @@ class InterviewWorkspaceServiceImplTest {
         assertEquals(86, result.getFeedback().getScore());
         assertEquals(1, result.getQuestions().size());
         assertEquals("Java后端", result.getQuestions().get(0).getCategory());
+        assertEquals("Spring事务", result.getQuestions().get(0).getTitle());
+        assertEquals(
+                "请说明Spring事务传播机制",
+                result.getQuestions().get(0).getQuestion()
+        );
+        assertEquals(
+                List.of("事务传播"),
+                result.getQuestions().get(0).getFocus()
+        );
         assertNotNull(result.getFeedback().getSubmittedAt());
     }
 
