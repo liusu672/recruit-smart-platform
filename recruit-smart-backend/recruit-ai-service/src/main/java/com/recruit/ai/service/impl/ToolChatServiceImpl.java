@@ -1,6 +1,7 @@
 package com.recruit.ai.service.impl;
 
 import com.recruit.ai.dto.request.ToolChatRequest;
+import com.recruit.ai.dto.response.AiStreamEventResponse;
 import com.recruit.ai.prompt.ToolChatPrompts;
 import com.recruit.ai.service.ToolChatService;
 import com.recruit.common.enums.ErrorCode;
@@ -8,9 +9,12 @@ import com.recruit.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -51,15 +55,24 @@ public class ToolChatServiceImpl
     }
 
     @Override
-    public Flux<String> streamChat(
+    public Flux<ServerSentEvent<AiStreamEventResponse>> streamChat(
             ToolChatRequest request
     ) {
         validateRequest(request);
 
+        String message = request.getMessage().trim();
+        String requestId = UUID.randomUUID().toString();
+        Flux<AiStreamEventResponse> events = Flux.just(AiStreamEventResponse.meta(requestId))
+                .concatWith(streamContentEvents(message));
+
+        return events.map(event -> ServerSentEvent.builder(event).build());
+    }
+
+    private Flux<AiStreamEventResponse> streamContentEvents(String message) {
         try {
             return chatClient.prompt()
                     .system(ToolChatPrompts.SYSTEM_PROMPT)
-                    .user(request.getMessage().trim())
+                    .user(message)
                     /*
                      * AiToolConfig中的defaultTools会自动生效，
                      * 这里不需要重复传入工具。
@@ -67,23 +80,23 @@ public class ToolChatServiceImpl
                     .stream()
                     .content()
                     .filter(StringUtils::hasText)
-                    .onErrorMap(exception -> {
+                    .map(AiStreamEventResponse::delta)
+                    .concatWithValues(AiStreamEventResponse.done())
+                    .onErrorResume(exception -> {
                         log.error("AI流式对话调用失败", exception);
 
-                        return new BusinessException(
-                                ErrorCode.BUSINESS_ERROR,
+                        return Flux.just(AiStreamEventResponse.error(
+                                String.valueOf(ErrorCode.BUSINESS_ERROR.getCode()),
                                 "AI流式对话失败，请稍后重试"
-                        );
+                        ));
                     });
         } catch (RuntimeException exception) {
             log.error("AI流式对话初始化失败", exception);
 
-            return Flux.error(
-                    new BusinessException(
-                            ErrorCode.BUSINESS_ERROR,
-                            "AI流式对话初始化失败"
-                    )
-            );
+            return Flux.just(AiStreamEventResponse.error(
+                    String.valueOf(ErrorCode.BUSINESS_ERROR.getCode()),
+                    "AI流式对话初始化失败"
+            ));
         }
     }
 

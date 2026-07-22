@@ -1,12 +1,14 @@
 package com.recruit.ai.controller;
 
 import com.recruit.ai.dto.request.ToolChatRequest;
+import com.recruit.ai.dto.response.AiStreamEventResponse;
 import com.recruit.ai.service.ToolChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -40,7 +42,7 @@ public class ToolChatController {
             value = "/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE
     )
-    public Flux<String> streamChat(
+    public Flux<ServerSentEvent<AiStreamEventResponse>> streamChat(
             @Valid @RequestBody ToolChatRequest request
     ) {
         return toolChatService.streamChat(request);

@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sendToolChatMessage } from '@/api/aiAssistant'
+import { sendToolChatMessage, streamToolChatMessage } from '@/api/aiAssistant'
+import { startAiStream } from '@/api/aiStream'
 import { http } from '@/api/http'
 import { generateInterviewQuestions } from '@/api/interviews'
+
+vi.mock('@/api/aiStream', () => ({ startAiStream: vi.fn() }))
 
 describe('HR AI assistant API contract', () => {
   beforeEach(() => {
@@ -17,6 +20,28 @@ describe('HR AI assistant API contract', () => {
     expect(post).toHaveBeenCalledWith('/ai/tool-chat', { message: '今天几号？' })
     expect(post).not.toHaveBeenCalledWith('/interviews/20/ai-questions', expect.anything())
     expect(result).toBe('2026-07-22')
+  })
+
+  it('starts Tool Chat streaming with typed SSE request options', async () => {
+    vi.mocked(startAiStream).mockResolvedValue(undefined)
+    const controller = new AbortController()
+    const onEvent = vi.fn()
+    const onError = vi.fn()
+
+    await streamToolChatMessage({
+      message: '今天几号？',
+      signal: controller.signal,
+      onEvent,
+      onError,
+    })
+
+    expect(startAiStream).toHaveBeenCalledWith({
+      path: '/ai/tool-chat/stream',
+      body: { message: '今天几号？' },
+      signal: controller.signal,
+      onEvent,
+      onError,
+    })
   })
 
   it('keeps interview follow-up generation on the Biz aggregate endpoint', async () => {

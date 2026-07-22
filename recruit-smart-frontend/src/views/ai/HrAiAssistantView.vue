@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { Bot, RefreshCw, Send, Trash2 } from 'lucide-vue-next'
+import { Bot, CircleStop, RefreshCw, Send, Trash2 } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 
-import { sendToolChatMessage } from '@/api/aiAssistant'
+import { streamToolChatMessage } from '@/api/aiAssistant'
 import SupportPageHeader from '@/components/shared/SupportPageHeader.vue'
 
 type AssistantRole = 'user' | 'assistant'
-type AssistantMessageStatus = 'sending' | 'failed'
+type AssistantMessageStatus = 'streaming' | 'failed' | 'stopped'
 
 interface AssistantMessage {
   id: string
@@ -19,16 +19,18 @@ interface AssistantMessage {
 
 const messages = ref<AssistantMessage[]>([])
 const draft = ref('')
-const sending = ref(false)
+const streaming = ref(false)
 const errorMessage = ref('')
 const messageList = ref<HTMLElement>()
+const activeController = ref<AbortController | null>(null)
+const streamingAssistantId = ref('')
 
-const canSend = computed(() => Boolean(draft.value.trim()) && !sending.value)
+const canSend = computed(() => Boolean(draft.value.trim()) && !streaming.value)
 
 watch(messages, async () => {
   await nextTick()
   if (messageList.value) messageList.value.scrollTop = messageList.value.scrollHeight
-})
+}, { deep: true })
 
 function createMessage(role: AssistantRole, content: string, status?: AssistantMessageStatus) {
   const message: AssistantMessage = {
@@ -46,30 +48,90 @@ function formatTime(value: string) {
 }
 
 function clearConversation() {
+  if (streaming.value) stopGeneration()
   messages.value = []
   errorMessage.value = ''
 }
 
+function findStreamingAssistant() {
+  return messages.value.find((message) => message.id === streamingAssistantId.value)
+}
+
+function markStopped(message: AssistantMessage | undefined) {
+  if (!message || message.status !== 'streaming') return
+  if (!message.content) message.content = '已停止生成'
+  message.status = 'stopped'
+}
+
+function stopGeneration() {
+  const controller = activeController.value
+  markStopped(findStreamingAssistant())
+  if (controller && !controller.signal.aborted) controller.abort()
+  activeController.value = null
+  streamingAssistantId.value = ''
+  streaming.value = false
+}
+
+function failAssistantMessage(message: AssistantMessage, error: unknown) {
+  if (message.status === 'failed') return
+  message.status = 'failed'
+  errorMessage.value = error instanceof Error ? error.message : 'HR AI 助手暂时无法响应'
+  ElMessage.error(errorMessage.value)
+}
+
 async function send() {
   const content = draft.value.trim()
-  if (!content || sending.value) return
+  if (!content || streaming.value) return
 
-  const userMessage = createMessage('user', content, 'sending')
+  const userMessage = createMessage('user', content)
+  const assistantMessage = createMessage('assistant', '', 'streaming')
+  const controller = new AbortController()
   messages.value.push(userMessage)
+  messages.value.push(assistantMessage)
   draft.value = ''
   errorMessage.value = ''
-  sending.value = true
+  streaming.value = true
+  activeController.value = controller
+  streamingAssistantId.value = assistantMessage.id
 
   try {
-    const answer = await sendToolChatMessage(content)
-    delete userMessage.status
-    messages.value.push(createMessage('assistant', answer))
+    await streamToolChatMessage({
+      message: content,
+      signal: controller.signal,
+      onEvent(event) {
+        if (event.type === 'delta') {
+          assistantMessage.content += event.content
+          return
+        }
+        if (event.type === 'done') {
+          if (!assistantMessage.content) assistantMessage.content = 'AI 未返回有效内容'
+          delete assistantMessage.status
+          return
+        }
+        if (event.type === 'error') {
+          failAssistantMessage(assistantMessage, new Error(event.message))
+        }
+      },
+      onError(error) {
+        if (!controller.signal.aborted) failAssistantMessage(assistantMessage, error)
+      },
+    })
+    if (assistantMessage.status === 'streaming') {
+      if (!assistantMessage.content) assistantMessage.content = 'AI 未返回有效内容'
+      delete assistantMessage.status
+    }
   } catch (error) {
-    userMessage.status = 'failed'
-    errorMessage.value = error instanceof Error ? error.message : 'HR AI 助手暂时无法响应'
-    ElMessage.error(errorMessage.value)
+    if (controller.signal.aborted) {
+      markStopped(assistantMessage)
+    } else {
+      failAssistantMessage(assistantMessage, error)
+    }
   } finally {
-    sending.value = false
+    if (activeController.value === controller) {
+      activeController.value = null
+      streamingAssistantId.value = ''
+      streaming.value = false
+    }
   }
 }
 </script>
@@ -90,7 +152,7 @@ async function send() {
     <section class="hr-ai-assistant">
       <header class="hr-ai-assistant__notice">
         <Bot :size="18" :stroke-width="1.75" aria-hidden="true" />
-        <p>此页面调用 /api/ai/tool-chat。面试工作区的输入框仍只生成候选人追问。</p>
+        <p>此页面调用 /api/ai/tool-chat/stream。面试工作区的输入框仍只生成候选人追问。</p>
       </header>
 
       <div ref="messageList" class="hr-ai-assistant__messages">
@@ -106,6 +168,7 @@ async function send() {
           :class="{
             'hr-ai-assistant-message--user': message.role === 'user',
             'hr-ai-assistant-message--failed': message.status === 'failed',
+            'hr-ai-assistant-message--stopped': message.status === 'stopped',
           }"
         >
           <div>
@@ -113,8 +176,9 @@ async function send() {
             <span>{{ formatTime(message.createdAt) }}</span>
           </div>
           <p>{{ message.content }}</p>
-          <small v-if="message.status === 'sending'">发送中</small>
+          <small v-if="message.status === 'streaming'">生成中</small>
           <small v-else-if="message.status === 'failed'">发送失败</small>
+          <small v-else-if="message.status === 'stopped'">已停止</small>
         </article>
       </div>
 
@@ -123,7 +187,7 @@ async function send() {
         {{ errorMessage }}
       </div>
 
-      <form class="hr-ai-assistant__composer" @submit.prevent="send">
+      <form class="hr-ai-assistant__composer" @submit.prevent="streaming ? stopGeneration() : send()">
         <el-input
           v-model="draft"
           type="textarea"
@@ -131,16 +195,15 @@ async function send() {
           maxlength="1000"
           show-word-limit
           placeholder="输入 HR AI 助手问题，例如：今天几号？"
-          :disabled="sending"
+          :disabled="streaming"
         />
         <el-button
           native-type="submit"
-          type="primary"
-          :icon="Send"
-          :loading="sending"
-          :disabled="!canSend"
+          :type="streaming ? 'default' : 'primary'"
+          :icon="streaming ? CircleStop : Send"
+          :disabled="!canSend && !streaming"
         >
-          发送
+          {{ streaming ? '停止生成' : '发送' }}
         </el-button>
       </form>
     </section>
@@ -231,6 +294,10 @@ async function send() {
 
 .hr-ai-assistant-message--failed {
   border-color: var(--rs-danger-700);
+}
+
+.hr-ai-assistant-message--stopped {
+  border-color: var(--rs-border-strong);
 }
 
 .hr-ai-assistant-message > div {
