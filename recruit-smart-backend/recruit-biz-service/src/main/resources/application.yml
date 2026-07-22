@@ -8,6 +8,23 @@ spring:
     url: jdbc:mysql://localhost:3306/recruit_smart?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: root
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    connection-timeout: 5000
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 2
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2000
+          multiplier: 2
+          max-interval: 10000
   cloud:
     nacos:
       discovery:
@@ -16,8 +33,8 @@ spring:
       client:
         config:
           recruit-ai-service:
-            connect-timeout: 3000
-            read-timeout: 60000
+            connect-timeout: 10000
+            read-timeout: 150000
             logger-level: basic
   servlet:
     multipart:
