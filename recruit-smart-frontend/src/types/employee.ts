@@ -18,8 +18,11 @@ export interface EmployeeRecord {
   status: EmployeeStatus
   statusText: string
   performanceSummary: string | null
+  performanceScore: number | null
   attendanceSummary: string | null
+  attendanceScore: number | null
   satisfactionFeedback: string | null
+  satisfactionScore: number | null
   turnoverRiskLevel: TurnoverRiskLevel
   riskAssessedAt: string | null
   createdAt: string

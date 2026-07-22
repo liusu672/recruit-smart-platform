@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { adaptEmployeePage, updateEmployeeStatus } from '@/api/employees'
+import { adaptEmployeePage, updateEmployeeRiskData, updateEmployeeStatus } from '@/api/employees'
 import { http } from '@/api/http'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
 
@@ -31,6 +31,14 @@ describe('employee directory', () => {
     expect(unassessed).toMatchObject({ riskAssessedAt: null, status: 'ACTIVE' })
   })
 
+  it('keeps demo employee risk scores as nullable reference data', () => {
+    expect(initialDemoEmployees[0]).toMatchObject({
+      performanceScore: expect.any(Number),
+      attendanceScore: expect.any(Number),
+      satisfactionScore: expect.any(Number),
+    })
+  })
+
   it('calls the backend employee status endpoint', async () => {
     const put = vi.spyOn(http, 'put').mockResolvedValue({
       data: { code: 200, message: 'success', data: null },
@@ -39,6 +47,24 @@ describe('employee directory', () => {
     await updateEmployeeStatus(1001, { status: 'ACTIVE' })
 
     expect(put).toHaveBeenCalledWith('/employees/1001/status', { status: 'ACTIVE' })
+  })
+
+  it('calls the backend employee risk data endpoint', async () => {
+    const put = vi.spyOn(http, 'put').mockResolvedValue({
+      data: { code: 200, message: 'success', data: null },
+    })
+    const data = {
+      performanceSummary: '季度目标完成稳定',
+      performanceScore: 82,
+      attendanceSummary: '近 30 天无异常考勤',
+      attendanceScore: 94,
+      satisfactionFeedback: '访谈反馈稳定',
+      satisfactionScore: 88,
+    }
+
+    await updateEmployeeRiskData(1001, data)
+
+    expect(put).toHaveBeenCalledWith('/employees/1001/risk-data', data)
   })
 
   afterEach(() => vi.restoreAllMocks())

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ElMessage } from 'element-plus'
 import { BrainCircuit, CalendarDays, Mail, Phone, ShieldCheck } from 'lucide-vue-next'
 import { ref, watch } from 'vue'
 
+import type { EmployeeRiskDataUpdateRequest } from '@/api/employees'
 import {
   employeeStatusOptions,
   getEmployeeStatusTone,
@@ -19,20 +21,41 @@ const props = defineProps<{
   updating: boolean
   riskAnalysis: TurnoverRiskResponse | null
   analyzingRisk: boolean
+  savingRiskData: boolean
 }>()
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   updateStatus: [status: EmployeeStatus]
   assessRisk: []
+  saveRiskData: [data: EmployeeRiskDataUpdateRequest]
 }>()
 
 const selectedStatus = ref<EmployeeStatus>('PROBATION')
+const performanceSummary = ref('')
+const performanceScore = ref<number | null>(null)
+const attendanceSummary = ref('')
+const attendanceScore = ref<number | null>(null)
+const satisfactionFeedback = ref('')
+const satisfactionScore = ref<number | null>(null)
 
 watch(
   () => props.record?.status,
   (status) => {
     if (status) selectedStatus.value = status
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.record,
+  (record) => {
+    performanceSummary.value = record?.performanceSummary ?? ''
+    performanceScore.value = record?.performanceScore ?? null
+    attendanceSummary.value = record?.attendanceSummary ?? ''
+    attendanceScore.value = record?.attendanceScore ?? null
+    satisfactionFeedback.value = record?.satisfactionFeedback ?? ''
+    satisfactionScore.value = record?.satisfactionScore ?? null
   },
   { immediate: true },
 )
@@ -45,6 +68,50 @@ function formatDate(value: string | null, withTime = false) {
     day: 'numeric',
     ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
   }).format(new Date(value))
+}
+
+function isValidScore(value: number | null): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+}
+
+function submitRiskData() {
+  const trimmedPerformanceSummary = performanceSummary.value.trim()
+  const trimmedAttendanceSummary = attendanceSummary.value.trim()
+  const trimmedSatisfactionFeedback = satisfactionFeedback.value.trim()
+
+  if (!trimmedPerformanceSummary) {
+    ElMessage.warning('请填写绩效摘要')
+    return
+  }
+  if (!isValidScore(performanceScore.value)) {
+    ElMessage.warning('请填写绩效评分')
+    return
+  }
+  if (!trimmedAttendanceSummary) {
+    ElMessage.warning('请填写考勤摘要')
+    return
+  }
+  if (!isValidScore(attendanceScore.value)) {
+    ElMessage.warning('请填写考勤评分')
+    return
+  }
+  if (!trimmedSatisfactionFeedback) {
+    ElMessage.warning('请填写满意度反馈')
+    return
+  }
+  if (!isValidScore(satisfactionScore.value)) {
+    ElMessage.warning('请填写满意度评分')
+    return
+  }
+
+  emit('saveRiskData', {
+    performanceSummary: trimmedPerformanceSummary,
+    performanceScore: performanceScore.value,
+    attendanceSummary: trimmedAttendanceSummary,
+    attendanceScore: attendanceScore.value,
+    satisfactionFeedback: trimmedSatisfactionFeedback,
+    satisfactionScore: satisfactionScore.value,
+  })
 }
 </script>
 
@@ -139,16 +206,92 @@ function formatDate(value: string | null, withTime = false) {
         </div>
       </section>
       <section>
-        <h4>绩效摘要</h4>
-        <p>{{ record.performanceSummary || '暂无记录' }}</p>
-      </section>
-      <section>
-        <h4>考勤摘要</h4>
-        <p>{{ record.attendanceSummary || '暂无记录' }}</p>
-      </section>
-      <section>
-        <h4>满意度与访谈反馈</h4>
-        <p>{{ record.satisfactionFeedback || '暂无记录' }}</p>
+        <h4>风险数据维护</h4>
+        <form class="risk-data-form" @submit.prevent="submitRiskData">
+          <label>
+            <span>绩效摘要</span>
+            <el-input
+              v-model="performanceSummary"
+              type="textarea"
+              :rows="3"
+              maxlength="4000"
+              show-word-limit
+              placeholder="填写本期绩效表现和关键任务完成情况"
+              :disabled="savingRiskData"
+            />
+          </label>
+          <label>
+            <span>绩效评分</span>
+            <el-input-number
+              v-model="performanceScore"
+              :min="0"
+              :max="100"
+              :step="1"
+              :precision="0"
+              controls-position="right"
+              :disabled="savingRiskData"
+              aria-label="绩效评分"
+            />
+          </label>
+          <label>
+            <span>考勤摘要</span>
+            <el-input
+              v-model="attendanceSummary"
+              type="textarea"
+              :rows="3"
+              maxlength="4000"
+              show-word-limit
+              placeholder="填写考勤表现和异常情况"
+              :disabled="savingRiskData"
+            />
+          </label>
+          <label>
+            <span>考勤评分</span>
+            <el-input-number
+              v-model="attendanceScore"
+              :min="0"
+              :max="100"
+              :step="1"
+              :precision="0"
+              controls-position="right"
+              :disabled="savingRiskData"
+              aria-label="考勤评分"
+            />
+          </label>
+          <label>
+            <span>满意度反馈</span>
+            <el-input
+              v-model="satisfactionFeedback"
+              type="textarea"
+              :rows="3"
+              maxlength="4000"
+              show-word-limit
+              placeholder="填写员工满意度或访谈反馈"
+              :disabled="savingRiskData"
+            />
+          </label>
+          <label>
+            <span>满意度评分</span>
+            <el-input-number
+              v-model="satisfactionScore"
+              :min="0"
+              :max="100"
+              :step="1"
+              :precision="0"
+              controls-position="right"
+              :disabled="savingRiskData"
+              aria-label="满意度评分"
+            />
+          </label>
+          <el-button
+            type="primary"
+            native-type="submit"
+            :loading="savingRiskData"
+            :disabled="savingRiskData"
+          >
+            保存风险数据
+          </el-button>
+        </form>
       </section>
       <section>
         <h4>来源关联</h4>
@@ -267,6 +410,25 @@ dt {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--rs-space-2);
+}
+.risk-data-form {
+  display: grid;
+  gap: var(--rs-space-3);
+}
+.risk-data-form label {
+  display: grid;
+  gap: var(--rs-space-2);
+}
+.risk-data-form label > span {
+  color: var(--rs-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.risk-data-form :deep(.el-input-number) {
+  width: 160px;
+}
+.risk-data-form .el-button {
+  justify-self: start;
 }
 h4 {
   margin-bottom: var(--rs-space-2);

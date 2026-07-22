@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, reactive, ref } from 'vue'
 
-import { getEmployeeById, getEmployees, updateEmployeeStatus } from '@/api/employees'
+import {
+  getEmployeeById,
+  getEmployees,
+  updateEmployeeRiskData,
+  updateEmployeeStatus,
+  type EmployeeRiskDataUpdateRequest,
+} from '@/api/employees'
 import { assessTurnoverRisk } from '@/api/ai'
 import { getEmployeeStatusText } from '@/config/employees'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
@@ -73,6 +79,26 @@ export function useEmployeeDirectory() {
     onSuccess: refresh,
   })
 
+  const riskDataMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: EmployeeRiskDataUpdateRequest }) => {
+      if (!demoMode.value) return updateEmployeeRiskData(id, data)
+      const record = demoRecords.value.find((item) => item.id === id)
+      if (!record) throw new Error('演示员工档案不存在')
+      Object.assign(record, {
+        performanceSummary: data.performanceSummary,
+        performanceScore: data.performanceScore,
+        attendanceSummary: data.attendanceSummary,
+        attendanceScore: data.attendanceScore,
+        satisfactionFeedback: data.satisfactionFeedback,
+        satisfactionScore: data.satisfactionScore,
+        turnoverRiskLevel: null,
+        riskAssessedAt: null,
+        updatedAt: new Date().toISOString(),
+      })
+    },
+    onSuccess: refresh,
+  })
+
   const riskMutation = useMutation({ mutationFn: assessTurnoverRisk })
 
   return {
@@ -82,6 +108,7 @@ export function useEmployeeDirectory() {
     listQuery,
     detailQuery,
     statusMutation,
+    riskDataMutation,
     riskMutation,
     applyFilters: (filters: Pick<EmployeeQuery, 'keyword' | 'department' | 'status'>) =>
       Object.assign(query, filters, { page: 1 }),

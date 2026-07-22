@@ -38,3 +38,16 @@ export function getEmployeeById(id: number) {
 export function updateEmployeeStatus(id: number, data: EmployeeStatusUpdateRequest) {
   return unwrapVoidResult(http.put<Result<null>>(`/employees/${id}/status`, data))
 }
+
+export interface EmployeeRiskDataUpdateRequest {
+  performanceSummary: string
+  performanceScore: number
+  attendanceSummary: string
+  attendanceScore: number
+  satisfactionFeedback: string
+  satisfactionScore: number
+}
+
+export function updateEmployeeRiskData(id: number, data: EmployeeRiskDataUpdateRequest) {
+  return unwrapVoidResult(http.put<Result<null>>(`/employees/${id}/risk-data`, data))
+}

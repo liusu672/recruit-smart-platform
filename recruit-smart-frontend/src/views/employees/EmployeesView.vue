@@ -11,6 +11,7 @@ import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { employeeStatusOptions, getEmployeeStatusText } from '@/config/employees'
 import type { EmployeeStatus } from '@/types/employee'
 import type { TurnoverRiskResponse } from '@/types/ai'
+import type { EmployeeRiskDataUpdateRequest } from '@/api/employees'
 
 const state = useEmployeeDirectory()
 const urlFilters = useHrUrlFilters(['keyword', 'department', 'status', 'page', 'pageSize'])
@@ -104,6 +105,18 @@ async function assessRisk() {
     ElMessage.error(error instanceof Error ? error.message : 'AI 风险分析失败')
   }
 }
+
+async function saveRiskData(data: EmployeeRiskDataUpdateRequest) {
+  const record = state.detailQuery.data.value
+  if (!record) return
+  try {
+    await state.riskDataMutation.mutateAsync({ id: record.id, data })
+    riskAnalysis.value = null
+    ElMessage.success('风险数据已更新')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '风险数据保存失败')
+  }
+}
 </script>
 
 <template>
@@ -175,8 +188,10 @@ async function assessRisk() {
       :updating="state.statusMutation.isPending.value"
       :risk-analysis="riskAnalysis"
       :analyzing-risk="state.riskMutation.isPending.value"
+      :saving-risk-data="state.riskDataMutation.isPending.value"
       @update-status="updateStatus"
       @assess-risk="assessRisk"
+      @save-risk-data="saveRiskData"
     />
   </div>
 </template>
