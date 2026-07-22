@@ -6,7 +6,7 @@ import { ApiError, type Result } from '@/types/api'
 // 所有 REST 请求统一经过网关；业务模块不得直接访问后端服务。
 export const http: AxiosInstance = axios.create({
   baseURL: '/api',
-  timeout: 15_000,
+  timeout: 60_000,
 })
 
 http.interceptors.request.use((config) => {
