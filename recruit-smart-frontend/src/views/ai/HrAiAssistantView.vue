@@ -53,29 +53,64 @@ function clearConversation() {
   errorMessage.value = ''
 }
 
-function findStreamingAssistant() {
-  return messages.value.find((message) => message.id === streamingAssistantId.value)
+function replaceMessage(
+  id: string,
+  updater: (message: AssistantMessage) => AssistantMessage,
+) {
+  const index = messages.value.findIndex((message) => message.id === id)
+  if (index === -1) return
+  messages.value.splice(index, 1, updater(messages.value[index]!))
 }
 
-function markStopped(message: AssistantMessage | undefined) {
-  if (!message || message.status !== 'streaming') return
-  if (!message.content) message.content = '已停止生成'
-  message.status = 'stopped'
+function getMessage(id: string) {
+  return messages.value.find((message) => message.id === id)
+}
+
+function appendAssistantContent(id: string, content: string) {
+  replaceMessage(id, (message) => ({
+    ...message,
+    content: message.content + content,
+  }))
+}
+
+function completeAssistantMessage(id: string) {
+  replaceMessage(id, (message) => {
+    return {
+      id: message.id,
+      role: message.role,
+      content: message.content || 'AI 未返回有效内容',
+      createdAt: message.createdAt,
+    }
+  })
+}
+
+function markStopped(id: string) {
+  replaceMessage(id, (message) => {
+    if (message.status !== 'streaming') return message
+    return {
+      ...message,
+      content: message.content || '已停止生成',
+      status: 'stopped',
+    }
+  })
 }
 
 function stopGeneration() {
   const controller = activeController.value
-  markStopped(findStreamingAssistant())
+  markStopped(streamingAssistantId.value)
   if (controller && !controller.signal.aborted) controller.abort()
   activeController.value = null
   streamingAssistantId.value = ''
   streaming.value = false
 }
 
-function failAssistantMessage(message: AssistantMessage, error: unknown) {
-  if (message.status === 'failed') return
-  message.status = 'failed'
+function failAssistantMessage(id: string, error: unknown) {
+  if (getMessage(id)?.status === 'failed') return
   errorMessage.value = error instanceof Error ? error.message : 'HR AI 助手暂时无法响应'
+  replaceMessage(id, (message) => ({
+    ...message,
+    status: 'failed',
+  }))
   ElMessage.error(errorMessage.value)
 }
 
@@ -100,31 +135,29 @@ async function send() {
       signal: controller.signal,
       onEvent(event) {
         if (event.type === 'delta') {
-          assistantMessage.content += event.content
+          appendAssistantContent(assistantMessage.id, event.content)
           return
         }
         if (event.type === 'done') {
-          if (!assistantMessage.content) assistantMessage.content = 'AI 未返回有效内容'
-          delete assistantMessage.status
+          completeAssistantMessage(assistantMessage.id)
           return
         }
         if (event.type === 'error') {
-          failAssistantMessage(assistantMessage, new Error(event.message))
+          failAssistantMessage(assistantMessage.id, new Error(event.message))
         }
       },
       onError(error) {
-        if (!controller.signal.aborted) failAssistantMessage(assistantMessage, error)
+        if (!controller.signal.aborted) failAssistantMessage(assistantMessage.id, error)
       },
     })
-    if (assistantMessage.status === 'streaming') {
-      if (!assistantMessage.content) assistantMessage.content = 'AI 未返回有效内容'
-      delete assistantMessage.status
+    if (getMessage(assistantMessage.id)?.status === 'streaming') {
+      completeAssistantMessage(assistantMessage.id)
     }
   } catch (error) {
     if (controller.signal.aborted) {
-      markStopped(assistantMessage)
+      markStopped(assistantMessage.id)
     } else {
-      failAssistantMessage(assistantMessage, error)
+      failAssistantMessage(assistantMessage.id, error)
     }
   } finally {
     if (activeController.value === controller) {
