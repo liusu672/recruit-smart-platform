@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class KnowledgeBuildRequest {
+    private String documentKey;
     private String documentPath;
     private Integer chunkSize;
     private Integer chunkOverlap;

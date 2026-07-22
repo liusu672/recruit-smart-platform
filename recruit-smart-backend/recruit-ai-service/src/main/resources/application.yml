@@ -36,7 +36,7 @@ spring:
         client:
           host: localhost
           port: 19530
-        collectionName: recruit_ai_service_kb
+        collectionName: recruit_ai_service_kb_v3
         embeddingDimension: 1536
         initialize-schema: true
 
