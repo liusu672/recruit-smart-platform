@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
 import { BrainCircuit, CalendarDays, Mail, Phone, ShieldCheck } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
-import type { EmployeeRiskDataUpdateRequest } from '@/api/employees'
+import EmployeeBehaviorRecordsPanel from '@/components/employees/EmployeeBehaviorRecordsPanel.vue'
+import EmployeeRiskHistoryPanel from '@/components/employees/EmployeeRiskHistoryPanel.vue'
 import {
   employeeStatusOptions,
   getEmployeeStatusTone,
   getTurnoverRiskText,
   getTurnoverRiskTone,
 } from '@/config/employees'
-import type { EmployeeRecord, EmployeeStatus } from '@/types/employee'
-import type { TurnoverRiskResponse } from '@/types/ai'
+import type {
+  EmployeeBehaviorRecord,
+  EmployeeBehaviorSaveRequest,
+  EmployeeRecord,
+  EmployeeStatus,
+} from '@/types/employee'
+import type { TurnoverRiskHistoryResponse, TurnoverRiskResponse } from '@/types/ai'
 
 const props = defineProps<{
   visible: boolean
@@ -21,41 +26,31 @@ const props = defineProps<{
   updating: boolean
   riskAnalysis: TurnoverRiskResponse | null
   analyzingRisk: boolean
-  savingRiskData: boolean
+  behaviorRecords: EmployeeBehaviorRecord[]
+  loadingBehaviorRecords: boolean
+  savingBehaviorRecord: boolean
+  confirmingBehaviorRecord: boolean
+  riskHistory: TurnoverRiskHistoryResponse[]
+  loadingRiskHistory: boolean
 }>()
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   updateStatus: [status: EmployeeStatus]
   assessRisk: []
-  saveRiskData: [data: EmployeeRiskDataUpdateRequest]
+  saveBehaviorRecord: [data: EmployeeBehaviorSaveRequest]
+  confirmBehaviorRecord: [recordId: number]
 }>()
 
 const selectedStatus = ref<EmployeeStatus>('PROBATION')
-const performanceSummary = ref('')
-const performanceScore = ref<number | null>(null)
-const attendanceSummary = ref('')
-const attendanceScore = ref<number | null>(null)
-const satisfactionFeedback = ref('')
-const satisfactionScore = ref<number | null>(null)
+const confirmedBehaviorCount = computed(
+  () => props.behaviorRecords.filter((record) => record.recordStatus === 'CONFIRMED').length,
+)
 
 watch(
   () => props.record?.status,
   (status) => {
     if (status) selectedStatus.value = status
-  },
-  { immediate: true },
-)
-
-watch(
-  () => props.record,
-  (record) => {
-    performanceSummary.value = record?.performanceSummary ?? ''
-    performanceScore.value = record?.performanceScore ?? null
-    attendanceSummary.value = record?.attendanceSummary ?? ''
-    attendanceScore.value = record?.attendanceScore ?? null
-    satisfactionFeedback.value = record?.satisfactionFeedback ?? ''
-    satisfactionScore.value = record?.satisfactionScore ?? null
   },
   { immediate: true },
 )
@@ -68,50 +63,6 @@ function formatDate(value: string | null, withTime = false) {
     day: 'numeric',
     ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
   }).format(new Date(value))
-}
-
-function isValidScore(value: number | null): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
-}
-
-function submitRiskData() {
-  const trimmedPerformanceSummary = performanceSummary.value.trim()
-  const trimmedAttendanceSummary = attendanceSummary.value.trim()
-  const trimmedSatisfactionFeedback = satisfactionFeedback.value.trim()
-
-  if (!trimmedPerformanceSummary) {
-    ElMessage.warning('请填写绩效摘要')
-    return
-  }
-  if (!isValidScore(performanceScore.value)) {
-    ElMessage.warning('请填写绩效评分')
-    return
-  }
-  if (!trimmedAttendanceSummary) {
-    ElMessage.warning('请填写考勤摘要')
-    return
-  }
-  if (!isValidScore(attendanceScore.value)) {
-    ElMessage.warning('请填写考勤评分')
-    return
-  }
-  if (!trimmedSatisfactionFeedback) {
-    ElMessage.warning('请填写满意度反馈')
-    return
-  }
-  if (!isValidScore(satisfactionScore.value)) {
-    ElMessage.warning('请填写满意度评分')
-    return
-  }
-
-  emit('saveRiskData', {
-    performanceSummary: trimmedPerformanceSummary,
-    performanceScore: performanceScore.value,
-    attendanceSummary: trimmedAttendanceSummary,
-    attendanceScore: attendanceScore.value,
-    satisfactionFeedback: trimmedSatisfactionFeedback,
-    satisfactionScore: satisfactionScore.value,
-  })
 }
 </script>
 
@@ -169,18 +120,40 @@ function submitRiskData() {
         <el-button
           size="small"
           :loading="analyzingRisk"
-          :disabled="analyzingRisk"
+          :disabled="analyzingRisk || confirmedBehaviorCount < 3"
           @click="emit('assessRisk')"
         >
           重新评估风险
         </el-button>
+        <small v-if="confirmedBehaviorCount < 3" class="risk-gate">
+          至少需要 3 期已确认行为记录后才能评估。
+        </small>
         <div v-if="riskAnalysis" class="risk-analysis">
           <strong>本次分析：{{ riskAnalysis.riskScore }} 分</strong>
           <p>{{ riskAnalysis.summary }}</p>
-          <ul>
+          <div
+            v-if="
+              riskAnalysis.sentimentLabel ||
+              riskAnalysis.sentimentRiskScore !== null ||
+              riskAnalysis.sentimentSummary
+            "
+            class="sentiment-card"
+          >
+            <strong>
+              情感倾向：{{ riskAnalysis.sentimentLabel || '未返回' }}
+              <span v-if="riskAnalysis.sentimentRiskScore !== null">
+                / {{ riskAnalysis.sentimentRiskScore }} 分
+              </span>
+            </strong>
+            <p>{{ riskAnalysis.sentimentSummary || '暂无情感摘要。' }}</p>
+          </div>
+          <h4>风险因子</h4>
+          <ul v-if="riskAnalysis.riskReasons.length > 0">
             <li v-for="reason in riskAnalysis.riskReasons" :key="reason">{{ reason }}</li>
           </ul>
-          <p>{{ riskAnalysis.suggestions.join('；') }}</p>
+          <p v-else>暂无风险因子。</p>
+          <h4>干预建议</h4>
+          <p>{{ riskAnalysis.suggestions.join('；') || '暂无干预建议。' }}</p>
           <small>本次结果仅展示在当前页面，未自动修改员工状态。</small>
         </div>
       </section>
@@ -205,94 +178,16 @@ function submitRiskData() {
           </el-button>
         </div>
       </section>
-      <section>
-        <h4>风险数据维护</h4>
-        <form class="risk-data-form" @submit.prevent="submitRiskData">
-          <label>
-            <span>绩效摘要</span>
-            <el-input
-              v-model="performanceSummary"
-              type="textarea"
-              :rows="3"
-              maxlength="4000"
-              show-word-limit
-              placeholder="填写本期绩效表现和关键任务完成情况"
-              :disabled="savingRiskData"
-            />
-          </label>
-          <label>
-            <span>绩效评分</span>
-            <el-input-number
-              v-model="performanceScore"
-              :min="0"
-              :max="100"
-              :step="1"
-              :precision="0"
-              controls-position="right"
-              :disabled="savingRiskData"
-              aria-label="绩效评分"
-            />
-          </label>
-          <label>
-            <span>考勤摘要</span>
-            <el-input
-              v-model="attendanceSummary"
-              type="textarea"
-              :rows="3"
-              maxlength="4000"
-              show-word-limit
-              placeholder="填写考勤表现和异常情况"
-              :disabled="savingRiskData"
-            />
-          </label>
-          <label>
-            <span>考勤评分</span>
-            <el-input-number
-              v-model="attendanceScore"
-              :min="0"
-              :max="100"
-              :step="1"
-              :precision="0"
-              controls-position="right"
-              :disabled="savingRiskData"
-              aria-label="考勤评分"
-            />
-          </label>
-          <label>
-            <span>满意度反馈</span>
-            <el-input
-              v-model="satisfactionFeedback"
-              type="textarea"
-              :rows="3"
-              maxlength="4000"
-              show-word-limit
-              placeholder="填写员工满意度或访谈反馈"
-              :disabled="savingRiskData"
-            />
-          </label>
-          <label>
-            <span>满意度评分</span>
-            <el-input-number
-              v-model="satisfactionScore"
-              :min="0"
-              :max="100"
-              :step="1"
-              :precision="0"
-              controls-position="right"
-              :disabled="savingRiskData"
-              aria-label="满意度评分"
-            />
-          </label>
-          <el-button
-            type="primary"
-            native-type="submit"
-            :loading="savingRiskData"
-            :disabled="savingRiskData"
-          >
-            保存风险数据
-          </el-button>
-        </form>
-      </section>
+      <EmployeeBehaviorRecordsPanel
+        :records="behaviorRecords"
+        :loading="loadingBehaviorRecords"
+        :saving="savingBehaviorRecord"
+        :confirming="confirmingBehaviorRecord"
+        :disabled="record.status === 'LEFT'"
+        @save="emit('saveBehaviorRecord', $event)"
+        @confirm="emit('confirmBehaviorRecord', $event)"
+      />
+      <EmployeeRiskHistoryPanel :records="riskHistory" :loading="loadingRiskHistory" />
       <section>
         <h4>来源关联</h4>
         <dl>
@@ -394,6 +289,10 @@ dt {
 .risk .el-button {
   margin-top: var(--rs-space-3);
 }
+.risk-gate {
+  display: block;
+  margin-top: var(--rs-space-2);
+}
 .risk-analysis {
   display: grid;
   gap: var(--rs-space-2);
@@ -406,29 +305,18 @@ dt {
   margin: 0;
   color: var(--rs-text-secondary);
 }
+.sentiment-card {
+  display: grid;
+  gap: var(--rs-space-1);
+  padding: var(--rs-space-3);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-primary);
+}
 .status-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--rs-space-2);
-}
-.risk-data-form {
-  display: grid;
-  gap: var(--rs-space-3);
-}
-.risk-data-form label {
-  display: grid;
-  gap: var(--rs-space-2);
-}
-.risk-data-form label > span {
-  color: var(--rs-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-.risk-data-form :deep(.el-input-number) {
-  width: 160px;
-}
-.risk-data-form .el-button {
-  justify-self: start;
 }
 h4 {
   margin-bottom: var(--rs-space-2);

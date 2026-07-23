@@ -9,9 +9,8 @@ import EmployeeTable from '@/components/employees/EmployeeTable.vue'
 import { useEmployeeDirectory } from '@/composables/useEmployeeDirectory'
 import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
 import { employeeStatusOptions, getEmployeeStatusText } from '@/config/employees'
-import type { EmployeeStatus } from '@/types/employee'
+import type { EmployeeBehaviorSaveRequest, EmployeeStatus } from '@/types/employee'
 import type { TurnoverRiskResponse } from '@/types/ai'
-import type { EmployeeRiskDataUpdateRequest } from '@/api/employees'
 
 const state = useEmployeeDirectory()
 const urlFilters = useHrUrlFilters(['keyword', 'department', 'status', 'page', 'pageSize'])
@@ -98,6 +97,13 @@ async function assessRisk() {
     ElMessage.warning('演示模式不提供风险分析')
     return
   }
+  const confirmedCount = (state.behaviorRecordsQuery.data.value ?? []).filter(
+    (item) => item.recordStatus === 'CONFIRMED',
+  ).length
+  if (confirmedCount < 3) {
+    ElMessage.warning('至少需要3期已确认的行为数据')
+    return
+  }
   try {
     riskAnalysis.value = await state.riskMutation.mutateAsync(record.id)
     ElMessage.success('AI 风险分析已生成')
@@ -106,15 +112,30 @@ async function assessRisk() {
   }
 }
 
-async function saveRiskData(data: EmployeeRiskDataUpdateRequest) {
+async function saveBehaviorRecord(data: EmployeeBehaviorSaveRequest) {
   const record = state.detailQuery.data.value
   if (!record) return
   try {
-    await state.riskDataMutation.mutateAsync({ id: record.id, data })
+    await state.behaviorRecordMutation.mutateAsync({ employeeId: record.id, data })
     riskAnalysis.value = null
-    ElMessage.success('风险数据已更新')
+    ElMessage.success('行为记录草稿已保存')
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '风险数据保存失败')
+    ElMessage.error(error instanceof Error ? error.message : '行为记录保存失败')
+  }
+}
+
+async function confirmBehaviorRecord(recordId: number) {
+  const record = state.detailQuery.data.value
+  if (!record) return
+  try {
+    await state.confirmBehaviorRecordMutation.mutateAsync({
+      employeeId: record.id,
+      recordId,
+    })
+    riskAnalysis.value = null
+    ElMessage.success('行为记录已确认')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '行为记录确认失败')
   }
 }
 </script>
@@ -126,7 +147,7 @@ async function saveRiskData(data: EmployeeRiskDataUpdateRequest) {
       description="查看由已完成入职流程生成的员工资料、在职状态和辅助参考信息。"
     />
     <section v-if="state.demoMode.value" class="source">
-      <span><strong>演示数据模式</strong>：以下资料仅用于前端流程演示。</span
+      <span><strong>演示数据模式</strong>：不作为验收依据，以下资料仅用于前端流程演示。</span
       ><el-button link @click="state.useApiData">切换到真实数据</el-button>
     </section>
     <HrFilterBar
@@ -188,10 +209,16 @@ async function saveRiskData(data: EmployeeRiskDataUpdateRequest) {
       :updating="state.statusMutation.isPending.value"
       :risk-analysis="riskAnalysis"
       :analyzing-risk="state.riskMutation.isPending.value"
-      :saving-risk-data="state.riskDataMutation.isPending.value"
+      :behavior-records="state.behaviorRecordsQuery.data.value ?? []"
+      :loading-behavior-records="state.behaviorRecordsQuery.isFetching.value"
+      :saving-behavior-record="state.behaviorRecordMutation.isPending.value"
+      :confirming-behavior-record="state.confirmBehaviorRecordMutation.isPending.value"
+      :risk-history="state.riskHistoryQuery.data.value ?? []"
+      :loading-risk-history="state.riskHistoryQuery.isFetching.value"
       @update-status="updateStatus"
       @assess-risk="assessRisk"
-      @save-risk-data="saveRiskData"
+      @save-behavior-record="saveBehaviorRecord"
+      @confirm-behavior-record="confirmBehaviorRecord"
     />
   </div>
 </template>

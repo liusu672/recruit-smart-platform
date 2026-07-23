@@ -2,6 +2,8 @@ import type { PagedData } from '@/types/api'
 
 export type EmployeeStatus = 'PROBATION' | 'ACTIVE' | 'LEFT'
 export type TurnoverRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | null
+export type BehaviorRecordStatus = 'DRAFT' | 'CONFIRMED'
+export type BehaviorSourceType = 'HR_INPUT' | 'IMPORT' | 'SYSTEM'
 
 export interface EmployeeRecord {
   id: number
@@ -47,3 +49,43 @@ export interface EmployeeStatusUpdateRequest {
 }
 
 export type EmployeePagedData = PagedData<EmployeeRecord>
+
+export interface EmployeeBehaviorRecord {
+  id: number
+  employeeId: number
+  periodStart: string
+  periodEnd: string
+  performanceScore: number | null
+  performanceSummary: string | null
+  taskCompletionRate: number | null
+  lateCount: number | null
+  absenceDays: number | null
+  leaveDays: number | null
+  overtimeHours: number | null
+  attendanceScore: number | null
+  attendanceSummary: string | null
+  satisfactionScore: number | null
+  feedbackText: string | null
+  sourceType: BehaviorSourceType
+  recordStatus: BehaviorRecordStatus
+  createdBy: number | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface EmployeeBehaviorSaveRequest {
+  periodStart: string
+  periodEnd: string
+  performanceScore: number | null
+  performanceSummary: string | null
+  taskCompletionRate: number | null
+  lateCount: number | null
+  absenceDays: number | null
+  leaveDays: number | null
+  overtimeHours: number | null
+  attendanceScore: number | null
+  attendanceSummary: string | null
+  satisfactionScore: number | null
+  feedbackText: string | null
+  sourceType: BehaviorSourceType
+}

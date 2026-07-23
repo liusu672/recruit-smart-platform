@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { adaptEmployeePage, updateEmployeeRiskData, updateEmployeeStatus } from '@/api/employees'
+import {
+  adaptEmployeePage,
+  confirmEmployeeBehaviorRecord,
+  createEmployeeBehaviorRecord,
+  updateEmployeeStatus,
+} from '@/api/employees'
 import { http } from '@/api/http'
 import { getDemoEmployeePage, initialDemoEmployees } from '@/config/demoEmployees'
+import type { EmployeeBehaviorSaveRequest } from '@/types/employee'
 
 describe('employee directory', () => {
   it('maps employee records to the shared pagination contract', () => {
@@ -49,22 +55,32 @@ describe('employee directory', () => {
     expect(put).toHaveBeenCalledWith('/employees/1001/status', { status: 'ACTIVE' })
   })
 
-  it('calls the backend employee risk data endpoint', async () => {
-    const put = vi.spyOn(http, 'put').mockResolvedValue({
-      data: { code: 200, message: 'success', data: null },
+  it('calls the backend employee behavior record endpoints', async () => {
+    const post = vi.spyOn(http, 'post').mockResolvedValue({
+      data: { code: 200, message: 'success', data: 9001 },
     })
-    const data = {
+    const data: EmployeeBehaviorSaveRequest = {
+      periodStart: '2026-07-01',
+      periodEnd: '2026-07-31',
       performanceSummary: '季度目标完成稳定',
       performanceScore: 82,
+      taskCompletionRate: 91,
+      lateCount: 0,
+      absenceDays: 0,
+      leaveDays: 1,
+      overtimeHours: 8,
       attendanceSummary: '近 30 天无异常考勤',
       attendanceScore: 94,
-      satisfactionFeedback: '访谈反馈稳定',
       satisfactionScore: 88,
+      feedbackText: '访谈反馈稳定',
+      sourceType: 'HR_INPUT',
     }
 
-    await updateEmployeeRiskData(1001, data)
+    await createEmployeeBehaviorRecord(1001, data)
+    await confirmEmployeeBehaviorRecord(1001, 9001)
 
-    expect(put).toHaveBeenCalledWith('/employees/1001/risk-data', data)
+    expect(post).toHaveBeenNthCalledWith(1, '/employees/1001/behavior-records', data)
+    expect(post).toHaveBeenNthCalledWith(2, '/employees/1001/behavior-records/9001/confirm')
   })
 
   afterEach(() => vi.restoreAllMocks())

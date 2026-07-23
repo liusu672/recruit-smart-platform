@@ -1,21 +1,16 @@
 import { shallowMount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
+import EmployeeBehaviorRecordsPanel from '@/components/employees/EmployeeBehaviorRecordsPanel.vue'
 import EmployeeDetailDrawer from '@/components/employees/EmployeeDetailDrawer.vue'
+import EmployeeRiskHistoryPanel from '@/components/employees/EmployeeRiskHistoryPanel.vue'
 import { initialDemoEmployees } from '@/config/demoEmployees'
-import type { EmployeeRecord } from '@/types/employee'
-
-const message = vi.hoisted(() => ({
-  warning: vi.fn(),
-}))
-
-vi.mock('element-plus', async () => {
-  const actual = await vi.importActual<typeof import('element-plus')>('element-plus')
-  return {
-    ...actual,
-    ElMessage: message,
-  }
-})
+import type { TurnoverRiskHistoryResponse } from '@/types/ai'
+import type {
+  EmployeeBehaviorRecord,
+  EmployeeBehaviorSaveRequest,
+  EmployeeRecord,
+} from '@/types/employee'
 
 const stubs = {
   'el-drawer': { template: '<section><slot /></section>' },
@@ -24,25 +19,63 @@ const stubs = {
   'el-select': { template: '<div><slot /></div>' },
   'el-option': { template: '<span />' },
   'el-button': {
-    props: ['nativeType'],
-    template: '<button :type="nativeType || \'button\'"><slot /></button>',
-  },
-  'el-input': {
-    props: ['modelValue', 'type'],
-    emits: ['update:modelValue'],
-    template:
-      '<textarea v-if="type === \'textarea\'" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' +
-      '<input v-else :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
-  },
-  'el-input-number': {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template:
-      '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value === \'\' ? null : Number($event.target.value))" />',
+    props: ['disabled', 'nativeType'],
+    template: '<button :disabled="disabled" :type="nativeType || \'button\'"><slot /></button>',
   },
 }
 
-function mountDrawer(record: EmployeeRecord = initialDemoEmployees[0]!) {
+function makeBehaviorRecords(count = 3): EmployeeBehaviorRecord[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: 7000 + index,
+    employeeId: 1001,
+    periodStart: `2026-0${index + 4}-01`,
+    periodEnd: `2026-0${index + 4}-28`,
+    performanceScore: 80 + index,
+    performanceSummary: '绩效稳定',
+    taskCompletionRate: 90,
+    lateCount: 0,
+    absenceDays: 0,
+    leaveDays: 1,
+    overtimeHours: 6,
+    attendanceScore: 92,
+    attendanceSummary: '考勤正常',
+    satisfactionScore: 85,
+    feedbackText: '反馈稳定',
+    sourceType: 'HR_INPUT',
+    recordStatus: 'CONFIRMED',
+    createdBy: null,
+    createdAt: '2026-07-01T10:00:00',
+    updatedAt: '2026-07-01T10:00:00',
+  }))
+}
+
+const riskHistory: TurnoverRiskHistoryResponse[] = [
+  {
+    id: 1,
+    taskId: 10,
+    employeeId: 1001,
+    riskLevel: 'LOW',
+    riskScore: 24,
+    summary: '风险较低',
+    riskReasons: [],
+    suggestions: ['保持沟通'],
+    sentimentLabel: '稳定',
+    sentimentRiskScore: 18,
+    sentimentSummary: '反馈稳定',
+    periodStart: '2026-04-01',
+    periodEnd: '2026-06-30',
+    behaviorRecordIds: [7000, 7001, 7002],
+    source: 'LLM',
+    modelName: 'deepseek-chat',
+    promptVersion: 'turnover-risk-v2',
+    generatedAt: '2026-07-20T18:00:00',
+  },
+]
+
+function mountDrawer(
+  record: EmployeeRecord = initialDemoEmployees[0]!,
+  behaviorRecords = makeBehaviorRecords(),
+) {
   return shallowMount(EmployeeDetailDrawer, {
     props: {
       visible: true,
@@ -52,68 +85,60 @@ function mountDrawer(record: EmployeeRecord = initialDemoEmployees[0]!) {
       updating: false,
       riskAnalysis: null,
       analyzingRisk: false,
-      savingRiskData: false,
+      behaviorRecords,
+      loadingBehaviorRecords: false,
+      savingBehaviorRecord: false,
+      confirmingBehaviorRecord: false,
+      riskHistory,
+      loadingRiskHistory: false,
     },
     global: { stubs },
   })
 }
 
-describe('EmployeeDetailDrawer risk data form', () => {
-  beforeEach(() => {
-    message.warning.mockReset()
-  })
-
-  it('initializes the risk data form from the selected employee record', () => {
+describe('EmployeeDetailDrawer behavior and risk panels', () => {
+  it('passes behavior records and risk history into child panels', () => {
     const wrapper = mountDrawer()
 
-    const textareas = wrapper.findAll('textarea')
-    const numberInputs = wrapper.findAll('input[type="number"]')
-
-    expect(textareas[0]?.element.value).toBe(initialDemoEmployees[0]!.performanceSummary)
-    expect(textareas[1]?.element.value).toBe(initialDemoEmployees[0]!.attendanceSummary)
-    expect(textareas[2]?.element.value).toBe(initialDemoEmployees[0]!.satisfactionFeedback)
-    expect(numberInputs.map((input) => (input.element as HTMLInputElement).value)).toEqual([
-      '72',
-      '95',
-      '88',
-    ])
+    expect(wrapper.findComponent(EmployeeBehaviorRecordsPanel).props('records')).toHaveLength(3)
+    expect(wrapper.findComponent(EmployeeRiskHistoryPanel).props('records')).toEqual(riskHistory)
   })
 
-  it('does not emit save when required risk data is blank', async () => {
-    const wrapper = mountDrawer({
-      ...initialDemoEmployees[0]!,
-      performanceSummary: '',
-      performanceScore: 72,
-    })
-
-    await wrapper.find('form').trigger('submit')
-
-    expect(wrapper.emitted('saveRiskData')).toBeUndefined()
-    expect(message.warning).toHaveBeenCalledWith('请填写绩效摘要')
-  })
-
-  it('emits a complete risk data payload when the form is valid', async () => {
+  it('emits behavior record save and confirm events from the behavior panel', async () => {
     const wrapper = mountDrawer()
-    const textareas = wrapper.findAll('textarea')
-    const numberInputs = wrapper.findAll('input[type="number"]')
+    const payload: EmployeeBehaviorSaveRequest = {
+      periodStart: '2026-07-01',
+      periodEnd: '2026-07-31',
+      performanceScore: 82,
+      performanceSummary: '绩效稳定',
+      taskCompletionRate: 90,
+      lateCount: 0,
+      absenceDays: 0,
+      leaveDays: 1,
+      overtimeHours: 8,
+      attendanceScore: 94,
+      attendanceSummary: '考勤正常',
+      satisfactionScore: 88,
+      feedbackText: '反馈稳定',
+      sourceType: 'HR_INPUT',
+    }
 
-    await textareas[0]!.setValue(' 新绩效摘要 ')
-    await numberInputs[0]!.setValue('81')
-    await textareas[1]!.setValue(' 新考勤摘要 ')
-    await numberInputs[1]!.setValue('93')
-    await textareas[2]!.setValue(' 新满意度反馈 ')
-    await numberInputs[2]!.setValue('86')
-    await wrapper.find('form').trigger('submit')
+    wrapper.findComponent(EmployeeBehaviorRecordsPanel).vm.$emit('save', payload)
+    wrapper.findComponent(EmployeeBehaviorRecordsPanel).vm.$emit('confirm', 9001)
+    await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('saveRiskData')?.[0]).toEqual([
-      {
-        performanceSummary: '新绩效摘要',
-        performanceScore: 81,
-        attendanceSummary: '新考勤摘要',
-        attendanceScore: 93,
-        satisfactionFeedback: '新满意度反馈',
-        satisfactionScore: 86,
-      },
-    ])
+    expect(wrapper.emitted('saveBehaviorRecord')?.[0]).toEqual([payload])
+    expect(wrapper.emitted('confirmBehaviorRecord')?.[0]).toEqual([9001])
+  })
+
+  it('requires three confirmed behavior records before risk assessment', () => {
+    const wrapper = mountDrawer(initialDemoEmployees[0]!, makeBehaviorRecords(2))
+
+    const riskButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('重新评估风险'))
+
+    expect(riskButton?.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('至少需要 3 期已确认行为记录后才能评估。')
   })
 })

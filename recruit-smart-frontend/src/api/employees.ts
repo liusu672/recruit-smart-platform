@@ -1,6 +1,8 @@
 import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
+  EmployeeBehaviorRecord,
+  EmployeeBehaviorSaveRequest,
   EmployeePagedData,
   EmployeePageResponse,
   EmployeeQuery,
@@ -39,15 +41,23 @@ export function updateEmployeeStatus(id: number, data: EmployeeStatusUpdateReque
   return unwrapVoidResult(http.put<Result<null>>(`/employees/${id}/status`, data))
 }
 
-export interface EmployeeRiskDataUpdateRequest {
-  performanceSummary: string
-  performanceScore: number
-  attendanceSummary: string
-  attendanceScore: number
-  satisfactionFeedback: string
-  satisfactionScore: number
+export function listEmployeeBehaviorRecords(employeeId: number) {
+  return unwrapResult(
+    http.get<Result<EmployeeBehaviorRecord[]>>(`/employees/${employeeId}/behavior-records`),
+  )
 }
 
-export function updateEmployeeRiskData(id: number, data: EmployeeRiskDataUpdateRequest) {
-  return unwrapVoidResult(http.put<Result<null>>(`/employees/${id}/risk-data`, data))
+export function createEmployeeBehaviorRecord(
+  employeeId: number,
+  data: EmployeeBehaviorSaveRequest,
+) {
+  return unwrapResult(
+    http.post<Result<number>>(`/employees/${employeeId}/behavior-records`, data),
+  )
+}
+
+export function confirmEmployeeBehaviorRecord(employeeId: number, recordId: number) {
+  return unwrapVoidResult(
+    http.post<Result<null>>(`/employees/${employeeId}/behavior-records/${recordId}/confirm`),
+  )
 }

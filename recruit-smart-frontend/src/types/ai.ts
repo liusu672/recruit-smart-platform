@@ -47,4 +47,20 @@ export interface TurnoverRiskResponse {
   summary: string
   riskReasons: string[]
   suggestions: string[]
+  sentimentLabel: string | null
+  sentimentRiskScore: number | null
+  sentimentSummary: string | null
+}
+
+export interface TurnoverRiskHistoryResponse extends TurnoverRiskResponse {
+  id: number
+  taskId: number | null
+  employeeId: number
+  periodStart: string | null
+  periodEnd: string | null
+  behaviorRecordIds: number[]
+  source: string | null
+  modelName: string | null
+  promptVersion: string | null
+  generatedAt: string | null
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { assessTurnoverRisk, generateFeedbackSummary } from '@/api/ai'
+import { assessTurnoverRisk, generateFeedbackSummary, listTurnoverRiskHistory } from '@/api/ai'
 import { http } from '@/api/http'
 import { generateInterviewQuestions } from '@/api/interviews'
 import { generateApplicationAiMatch } from '@/api/pipeline'
@@ -86,6 +86,9 @@ describe('Biz AI aggregation API contracts', () => {
           summary: '风险较低',
           riskReasons: [],
           suggestions: ['保持沟通'],
+          sentimentLabel: '稳定',
+          sentimentRiskScore: 12,
+          sentimentSummary: '反馈稳定',
         },
       },
     })
@@ -94,5 +97,42 @@ describe('Biz AI aggregation API contracts', () => {
 
     expect(post).toHaveBeenCalledWith('/employees/30/turnover-risk')
     expect(result.riskLevel).toBe('LOW')
+    expect(result.sentimentLabel).toBe('稳定')
+  })
+
+  it('requests turnover risk history through the employee aggregate endpoint', async () => {
+    const get = vi.spyOn(http, 'get').mockResolvedValue({
+      data: {
+        code: 200,
+        message: 'success',
+        data: [
+          {
+            id: 1,
+            employeeId: 30,
+            riskLevel: 'MEDIUM',
+            riskScore: 48,
+            summary: '需关注',
+            riskReasons: ['满意度下降'],
+            suggestions: ['安排访谈'],
+            sentimentLabel: '压力上升',
+            sentimentRiskScore: 56,
+            periodStart: '2026-04-01',
+            periodEnd: '2026-06-30',
+            behaviorRecordIds: [11, 12, 13],
+            modelName: 'deepseek-chat',
+            generatedAt: '2026-07-20T18:00:00',
+          },
+        ],
+      },
+    })
+
+    const result = await listTurnoverRiskHistory(30)
+
+    expect(get).toHaveBeenCalledWith('/employees/30/turnover-risks')
+    expect(result[0]).toMatchObject({
+      riskLevel: 'MEDIUM',
+      behaviorRecordIds: [11, 12, 13],
+      sentimentRiskScore: 56,
+    })
   })
 })
