@@ -8,6 +8,9 @@ import com.recruit.common.result.Result;
 import com.recruit.feign.dto.response.FeedbackSummaryResponse;
 import com.recruit.feign.dto.response.InterviewQuestionResponse;
 import com.recruit.feign.dto.response.TurnoverRiskResponse;
+import com.recruit.feign.dto.response.TurnoverRiskHistoryResponse;
+import org.springframework.web.bind.annotation.GetMapping;
+import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -66,6 +69,19 @@ public class AiAggregationController {
     ) {
         return Result.success(
                 aiAggregationService.assessTurnoverRisk(id)
+        );
+    }
+
+    @GetMapping("/employees/{id}/turnover-risks")
+    @RequireRoles({"ADMIN", "HR"})
+    @Operation(summary = "查询员工历史离职风险结果")
+    public Result<List<TurnoverRiskHistoryResponse>>
+    listTurnoverRiskHistory(
+            @PathVariable("id") Long id
+    ) {
+        return Result.success(
+                aiAggregationService
+                        .listTurnoverRiskHistory(id)
         );
     }
 }

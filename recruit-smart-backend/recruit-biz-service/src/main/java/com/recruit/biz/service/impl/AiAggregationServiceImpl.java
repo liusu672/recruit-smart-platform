@@ -13,14 +13,7 @@ import com.recruit.biz.entity.InterviewFeedback;
 import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
-import com.recruit.biz.mapper.AiMatchResultMapper;
-import com.recruit.biz.mapper.CandidateMapper;
-import com.recruit.biz.mapper.EmployeeProfileMapper;
-import com.recruit.biz.mapper.InterviewFeedbackMapper;
-import com.recruit.biz.mapper.InterviewMapper;
-import com.recruit.biz.mapper.JobApplicationMapper;
-import com.recruit.biz.mapper.JobPositionMapper;
-import com.recruit.biz.mapper.ResumeMapper;
+import com.recruit.biz.mapper.*;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.AiAggregationService;
 import com.recruit.biz.vo.AiMatchSummaryVO;
@@ -35,6 +28,12 @@ import com.recruit.feign.dto.response.FeedbackSummaryResponse;
 import com.recruit.feign.dto.response.InterviewQuestionResponse;
 import com.recruit.feign.dto.response.ResumeMatchResponse;
 import com.recruit.feign.dto.response.TurnoverRiskResponse;
+import com.recruit.biz.entity.EmployeeBehaviorRecord;
+import com.recruit.biz.mapper.EmployeeBehaviorRecordMapper;
+import com.recruit.feign.dto.request.EmployeeBehaviorRecordDTO;
+import com.recruit.feign.dto.response.TurnoverRiskHistoryResponse;
+
+import java.util.Collections;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +66,8 @@ public class AiAggregationServiceImpl implements AiAggregationService {
     private final EmployeeProfileMapper employeeProfileMapper;
     private final AiMatchResultMapper aiMatchResultMapper;
     private final ObjectMapper objectMapper;
+    private final EmployeeBehaviorRecordMapper
+            employeeBehaviorRecordMapper;
 
     @Override
     public AiMatchSummaryVO generateResumeMatch(Long applicationId) {
@@ -241,11 +242,14 @@ public class AiAggregationServiceImpl implements AiAggregationService {
     }
 
     @Override
-    public TurnoverRiskResponse assessTurnoverRisk(Long employeeId) {
+    public TurnoverRiskResponse assessTurnoverRisk(
+            Long employeeId
+    ) {
         requireStaffRole();
-        EmployeeProfile employee = employeeProfileMapper.selectById(
-                employeeId
-        );
+
+        EmployeeProfile employee =
+                employeeProfileMapper.selectById(employeeId);
+
         if (employee == null) {
             throw new BusinessException(
                     ErrorCode.NOT_FOUND,
@@ -253,52 +257,177 @@ public class AiAggregationServiceImpl implements AiAggregationService {
             );
         }
 
-        TurnoverRiskRequest request = new TurnoverRiskRequest();
+        List<EmployeeBehaviorRecord> records =
+                employeeBehaviorRecordMapper.selectList(
+                        new LambdaQueryWrapper
+                                <EmployeeBehaviorRecord>()
+                                .eq(
+                                        EmployeeBehaviorRecord
+                                                ::getEmployeeId,
+                                        employeeId
+                                )
+                                .eq(
+                                        EmployeeBehaviorRecord
+                                                ::getRecordStatus,
+                                        "CONFIRMED"
+                                )
+                                .orderByDesc(
+                                        EmployeeBehaviorRecord
+                                                ::getPeriodStart
+                                )
+                                .last("limit 6")
+                );
+
+        if (records.size() < 3) {
+            throw new BusinessException(
+                    ErrorCode.PARAM_ERROR,
+                    "至少需要3期已确认的行为数据"
+            );
+        }
+
+        /*
+         * 查询结果是倒序，计算趋势前改成正序。
+         */
+        Collections.reverse(records);
+
+        EmployeeBehaviorRecord first =
+                records.getFirst();
+
+        EmployeeBehaviorRecord latest =
+                records.getLast();
+
+        TurnoverRiskRequest request =
+                new TurnoverRiskRequest();
+
         request.setEmployeeId(employee.getId());
         request.setEmployeeName(employee.getName());
         request.setDepartment(employee.getDepartment());
         request.setPosition(employee.getPosition());
-        request.setPerformanceSummary(employee.getPerformanceSummary());
-        request.setPerformanceScore(employee.getPerformanceScore());
-        request.setAttendanceSummary(employee.getAttendanceSummary());
-        request.setAttendanceScore(employee.getAttendanceScore());
+
+        request.setPeriodStart(first.getPeriodStart());
+        request.setPeriodEnd(latest.getPeriodEnd());
+
+        request.setPerformanceTrend(
+                buildTrend(
+                        "绩效",
+                        first.getPerformanceScore(),
+                        latest.getPerformanceScore(),
+                        records.size()
+                )
+        );
+
+        request.setAttendanceTrend(
+                buildTrend(
+                        "考勤",
+                        first.getAttendanceScore(),
+                        latest.getAttendanceScore(),
+                        records.size()
+                )
+        );
+
+        request.setSatisfactionTrend(
+                buildTrend(
+                        "满意度",
+                        first.getSatisfactionScore(),
+                        latest.getSatisfactionScore(),
+                        records.size()
+                )
+        );
+
+        request.setLatestFeedback(
+                latest.getFeedbackText()
+        );
+
+        request.setBehaviorRecords(
+                records.stream()
+                        .map(this::toBehaviorDTO)
+                        .toList()
+        );
+
+        /*
+         * 旧字段暂时继续赋值，
+         * 防止当前旧Prompt或规则算法仍然读取这些字段。
+         */
+        request.setPerformanceScore(
+                latest.getPerformanceScore()
+        );
+        request.setPerformanceSummary(
+                latest.getPerformanceSummary()
+        );
+        request.setAttendanceScore(
+                latest.getAttendanceScore()
+        );
+        request.setAttendanceSummary(
+                latest.getAttendanceSummary()
+        );
+        request.setSatisfactionScore(
+                latest.getSatisfactionScore()
+        );
         request.setSatisfactionFeedback(
-                employee.getSatisfactionFeedback()
+                latest.getFeedbackText()
         );
-        request.setSatisfactionScore(employee.getSatisfactionScore());
 
-        TurnoverRiskResponse response = invokeAi(
-                "离职风险评估",
-                () -> aiServiceClient.predictTurnoverRisk(request)
-        );
-        if (!RISK_LEVELS.contains(response.getRiskLevel())) {
-            throw new BusinessException(
-                    ErrorCode.BUSINESS_ERROR,
-                    "AI返回的离职风险等级不正确"
-            );
-        }
+        TurnoverRiskResponse response =
+                invokeAi(
+                        "离职风险评估",
+                        () -> aiServiceClient
+                                .predictTurnoverRisk(request)
+                );
 
-        LocalDateTime assessedAt = LocalDateTime.now();
+        validateRiskResponse(response);
+
+        LocalDateTime assessedAt =
+                LocalDateTime.now();
+
         int updated = employeeProfileMapper.update(
                 null,
                 new LambdaUpdateWrapper<EmployeeProfile>()
-                        .eq(EmployeeProfile::getId, employeeId)
+                        .eq(
+                                EmployeeProfile::getId,
+                                employeeId
+                        )
                         .set(
-                                EmployeeProfile::getTurnoverRiskLevel,
+                                EmployeeProfile
+                                        ::getTurnoverRiskLevel,
                                 response.getRiskLevel()
                         )
                         .set(
-                                EmployeeProfile::getRiskAssessedAt,
+                                EmployeeProfile
+                                        ::getRiskAssessedAt,
                                 assessedAt
                         )
         );
+
         if (updated != 1) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_ERROR,
                     "保存员工离职风险评估结果失败"
             );
         }
+
         return response;
+    }
+
+    @Override
+    public List<TurnoverRiskHistoryResponse>
+    listTurnoverRiskHistory(Long employeeId) {
+        requireStaffRole();
+
+        EmployeeProfile employee =
+                employeeProfileMapper.selectById(employeeId);
+
+        if (employee == null) {
+            throw new BusinessException(
+                    ErrorCode.NOT_FOUND,
+                    "员工档案不存在"
+            );
+        }
+
+        return invokeAi(
+                "离职风险历史查询",
+                () -> aiServiceClient
+                        .listTurnoverRiskHistory(employeeId)
+        );
     }
 
     private ApplicationContext loadApplicationContext(Long applicationId) {
@@ -528,5 +657,116 @@ public class AiAggregationServiceImpl implements AiAggregationService {
             Interview interview,
             ApplicationContext applicationContext
     ) {
+    }
+
+    private String buildTrend(
+            String name,
+            Integer first,
+            Integer latest,
+            int periods
+    ) {
+        if (first == null || latest == null) {
+            return "近" + periods + "期"
+                    + name + "数据不完整";
+        }
+
+        int change = latest - first;
+
+        String direction;
+
+        if (change > 0) {
+            direction = "上升";
+        } else if (change < 0) {
+            direction = "下降";
+        } else {
+            direction = "持平";
+        }
+
+        return "近" + periods + "期"
+                + name
+                + "由"
+                + first
+                + "变为"
+                + latest
+                + "，"
+                + direction
+                + Math.abs(change)
+                + "分";
+    }
+
+    private EmployeeBehaviorRecordDTO toBehaviorDTO(
+            EmployeeBehaviorRecord record
+    ) {
+        EmployeeBehaviorRecordDTO dto =
+                new EmployeeBehaviorRecordDTO();
+
+        dto.setRecordId(record.getId());
+        dto.setPeriodStart(record.getPeriodStart());
+        dto.setPeriodEnd(record.getPeriodEnd());
+        dto.setPerformanceScore(
+                record.getPerformanceScore()
+        );
+        dto.setPerformanceSummary(
+                record.getPerformanceSummary()
+        );
+        dto.setTaskCompletionRate(
+                record.getTaskCompletionRate()
+        );
+        dto.setLateCount(record.getLateCount());
+        dto.setAbsenceDays(record.getAbsenceDays());
+        dto.setLeaveDays(record.getLeaveDays());
+        dto.setOvertimeHours(record.getOvertimeHours());
+        dto.setAttendanceScore(
+                record.getAttendanceScore()
+        );
+        dto.setAttendanceSummary(
+                record.getAttendanceSummary()
+        );
+        dto.setSatisfactionScore(
+                record.getSatisfactionScore()
+        );
+        dto.setFeedbackText(
+                record.getFeedbackText()
+        );
+
+        return dto;
+    }
+
+    private void validateRiskResponse(
+            TurnoverRiskResponse response
+    ) {
+        if (response == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "AI未返回离职风险结果"
+            );
+        }
+
+        if (!RISK_LEVELS.contains(
+                response.getRiskLevel()
+        )) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "AI返回的离职风险等级不正确"
+            );
+        }
+
+        if (response.getRiskScore() == null
+                || response.getRiskScore() < 0
+                || response.getRiskScore() > 100) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "AI返回的离职风险分数不正确"
+            );
+        }
+
+        if (response.getSentimentRiskScore() != null
+                && (response.getSentimentRiskScore() < 0
+                || response.getSentimentRiskScore() > 100)) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_ERROR,
+                    "AI返回的情感风险分数不正确"
+            );
+        }
     }
 }

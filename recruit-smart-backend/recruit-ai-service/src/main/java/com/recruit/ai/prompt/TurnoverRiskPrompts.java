@@ -1,79 +1,159 @@
 package com.recruit.ai.prompt;
 
 import com.recruit.ai.dto.request.TurnoverRiskRequest;
+import com.recruit.feign.dto.request.EmployeeBehaviorRecordDTO;
 
 public final class TurnoverRiskPrompts {
 
-    public static final String VERSION = "turnover-risk-v1";
+    public static final String VERSION = "turnover-risk-v2";
 
     public static final String SYSTEM_PROMPT = """
-            你是招聘与人才管理平台的 AI 员工离职风险分析助手。
+            你是招聘与人才管理平台的员工离职风险分析助手。
 
-            你的任务：
-            根据员工基础信息、绩效情况、考勤情况、满意度反馈、访谈反馈和知识库参考内容，
-            分析员工当前离职风险。
+            你的任务是根据员工最近多个周期的绩效、考勤、满意度、
+            工作反馈和岗位信息，分析员工的情感状态和离职风险。
 
-            规则：
-            1. AI 结果只作为 HR 参考，不能自动改变员工状态。
-            2. 必须基于输入信息分析，不要凭空编造。
-            3. 知识库内容只是参考标准，不是硬性结论。
-            4. riskScore 范围是 0 到 100，分数越高表示离职风险越高。
-            5. riskLevel 只能是 LOW、MEDIUM、HIGH。
-            6. riskReasons 要说明风险原因。
-            7. suggestions 要给出 HR 可执行的干预建议。
-            8. 必须只返回 JSON，不要返回 Markdown，不要解释。
+            必须遵守以下规则：
 
-            JSON 格式：
+            1. AI结果只能作为HR参考，不能自动决定辞退、降薪、调岗或其他业务结果。
+            2. 必须基于输入内容分析，不能凭空编造员工信息。
+            3. 需要综合分析行为数据趋势，而不是只看最近一期数据。
+            4. satisfactionScore越低，情绪风险通常越高。
+            5. performanceScore持续下降时，需要增加离职风险判断。
+            6. attendanceScore下降、迟到和缺勤增加时，需要增加风险判断。
+            7. 反馈中出现工作压力、晋升疑虑、薪资不满、离职、跳槽、其他机会等内容时，
+               需要重点分析情绪风险。
+            8. riskScore必须是0到100之间的整数。
+            9. sentimentRiskScore必须是0到100之间的整数。
+            10. sentimentLabel只能是POSITIVE、NEUTRAL或NEGATIVE。
+            11. riskLevel只能是LOW、MEDIUM或HIGH。
+            12. riskReasons必须是字符串数组。
+            13. suggestions必须是面向HR的可执行建议数组。
+            14. 只能返回JSON，不要返回Markdown代码块，不要添加额外解释。
+
+            必须严格按照以下JSON格式返回：
+
             {
+              "sentimentLabel": "POSITIVE",
+              "sentimentRiskScore": 0,
+              "sentimentSummary": "情感分析说明",
               "riskLevel": "LOW",
               "riskScore": 0,
-              "summary": "整体摘要",
+              "summary": "综合风险分析摘要",
               "riskReasons": [],
               "suggestions": []
             }
             """;
 
-    public static String buildUserPrompt(TurnoverRiskRequest request, String knowledgeContext) {
-        return """
-                【员工基础信息】
-                员工ID：%s
-                员工姓名：%s
-                部门：%s
-                岗位：%s
+    public static String buildUserPrompt(
+            TurnoverRiskRequest request,
+            String knowledgeContext
+    ) {
+        StringBuilder prompt = new StringBuilder();
 
-                【评分信息】
-                绩效评分：%s
-                考勤评分：%s
-                满意度评分：%s
+        prompt.append("【员工基础信息】\n");
+        prompt.append("员工ID：")
+                .append(value(request.getEmployeeId()))
+                .append("\n");
+        prompt.append("员工姓名：")
+                .append(value(request.getEmployeeName()))
+                .append("\n");
+        prompt.append("部门：")
+                .append(value(request.getDepartment()))
+                .append("\n");
+        prompt.append("岗位：")
+                .append(value(request.getPosition()))
+                .append("\n\n");
 
-                【文本信息】
-                绩效摘要：%s
-                考勤摘要：%s
-                满意度反馈：%s
-                访谈反馈：%s
+        prompt.append("【多周期趋势】\n");
+        prompt.append("绩效趋势：")
+                .append(value(request.getPerformanceTrend()))
+                .append("\n");
+        prompt.append("考勤趋势：")
+                .append(value(request.getAttendanceTrend()))
+                .append("\n");
+        prompt.append("满意度趋势：")
+                .append(value(request.getSatisfactionTrend()))
+                .append("\n\n");
 
-                【知识库参考内容】
-                %s
+        prompt.append("【最近一期数据】\n");
+        prompt.append("绩效分数：")
+                .append(value(request.getPerformanceScore()))
+                .append("\n");
+        prompt.append("考勤分数：")
+                .append(value(request.getAttendanceScore()))
+                .append("\n");
+        prompt.append("满意度分数：")
+                .append(value(request.getSatisfactionScore()))
+                .append("\n");
+        prompt.append("绩效摘要：")
+                .append(value(request.getPerformanceSummary()))
+                .append("\n");
+        prompt.append("考勤摘要：")
+                .append(value(request.getAttendanceSummary()))
+                .append("\n");
+        prompt.append("满意度反馈：")
+                .append(value(request.getSatisfactionFeedback()))
+                .append("\n");
+        prompt.append("最近反馈：")
+                .append(value(request.getLatestFeedback()))
+                .append("\n\n");
 
-                请分析员工离职风险，并返回 JSON。
-                """.formatted(
-                request.getEmployeeId() == null ? "" : request.getEmployeeId().toString(),
-                safe(request.getEmployeeName()),
-                safe(request.getDepartment()),
-                safe(request.getPosition()),
-                request.getPerformanceScore() == null ? "未提供" : request.getPerformanceScore().toString(),
-                request.getAttendanceScore() == null ? "未提供" : request.getAttendanceScore().toString(),
-                request.getSatisfactionScore() == null ? "未提供" : request.getSatisfactionScore().toString(),
-                safe(request.getPerformanceSummary()),
-                safe(request.getAttendanceSummary()),
-                safe(request.getSatisfactionFeedback()),
-                safe(request.getInterviewFeedback()),
-                safe(knowledgeContext)
-        );
+        prompt.append("【各周期行为数据】\n");
+
+        if (request.getBehaviorRecords() == null
+                || request.getBehaviorRecords().isEmpty()) {
+            prompt.append("没有提供多周期行为数据\n");
+        } else {
+            for (EmployeeBehaviorRecordDTO record
+                    : request.getBehaviorRecords()) {
+                prompt.append("周期：")
+                        .append(value(record.getPeriodStart()))
+                        .append(" 至 ")
+                        .append(value(record.getPeriodEnd()))
+                        .append("\n");
+
+                prompt.append("绩效：")
+                        .append(value(record.getPerformanceScore()))
+                        .append("\n");
+
+                prompt.append("任务完成率：")
+                        .append(value(record.getTaskCompletionRate()))
+                        .append("\n");
+
+                prompt.append("考勤：")
+                        .append(value(record.getAttendanceScore()))
+                        .append("\n");
+
+                prompt.append("迟到次数：")
+                        .append(value(record.getLateCount()))
+                        .append("\n");
+
+                prompt.append("缺勤天数：")
+                        .append(value(record.getAbsenceDays()))
+                        .append("\n");
+
+                prompt.append("满意度：")
+                        .append(value(record.getSatisfactionScore()))
+                        .append("\n");
+
+                prompt.append("员工反馈：")
+                        .append(value(record.getFeedbackText()))
+                        .append("\n\n");
+            }
+        }
+
+        prompt.append("【知识库参考内容】\n");
+        prompt.append(value(knowledgeContext))
+                .append("\n\n");
+
+        prompt.append("请根据以上信息分析情感状态和离职风险，只返回JSON。");
+
+        return prompt.toString();
     }
 
-    private static String safe(String value) {
-        return value == null ? "" : value;
+    private static String value(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private TurnoverRiskPrompts() {

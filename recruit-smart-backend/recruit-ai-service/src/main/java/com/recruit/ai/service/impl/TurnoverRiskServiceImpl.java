@@ -6,6 +6,7 @@ import com.recruit.ai.dto.response.TurnoverRiskResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResult;
 import com.recruit.ai.knowledge.service.KnowledgeBaseService;
+import com.recruit.ai.prompt.TurnoverRiskPrompts;
 import com.recruit.ai.service.AiTaskService;
 import com.recruit.ai.service.AiTurnoverRiskResultService;
 import com.recruit.ai.service.TurnoverRiskService;
@@ -22,7 +23,8 @@ public class TurnoverRiskServiceImpl implements TurnoverRiskService {
     private static final String TASK_TYPE = "TURNOVER_RISK";
     private static final String BIZ_TYPE = "EMPLOYEE";
     private static final String MODEL_NAME = "deepseek-chat";
-    private static final String PROMPT_VERSION = "turnover-risk-v1";
+    private static final String PROMPT_VERSION =
+            TurnoverRiskPrompts.VERSION;
 
     private final TurnoverRiskAlgorithm turnoverRiskAlgorithm;
     private final KnowledgeBaseService knowledgeBaseService;
@@ -67,27 +69,32 @@ public class TurnoverRiskServiceImpl implements TurnoverRiskService {
         }
     }
 
-    private String buildKnowledgeQuery(TurnoverRiskRequest request) {
+    private String buildKnowledgeQuery(
+            TurnoverRiskRequest request
+    ) {
         StringBuilder builder = new StringBuilder();
 
-        if (request.getDepartment() != null) {
-            builder.append(request.getDepartment()).append(" ");
-        }
-        if (request.getPosition() != null) {
-            builder.append(request.getPosition()).append(" ");
-        }
-        if (request.getPerformanceSummary() != null) {
-            builder.append(request.getPerformanceSummary()).append(" ");
-        }
-        if (request.getAttendanceSummary() != null) {
-            builder.append(request.getAttendanceSummary()).append(" ");
-        }
-        if (request.getSatisfactionFeedback() != null) {
-            builder.append(request.getSatisfactionFeedback()).append(" ");
-        }
+        append(builder, request.getDepartment());
+        append(builder, request.getPosition());
+        append(builder, request.getPerformanceTrend());
+        append(builder, request.getAttendanceTrend());
+        append(builder, request.getSatisfactionTrend());
+        append(builder, request.getLatestFeedback());
 
-        builder.append("离职风险 员工满意度 绩效下降 考勤异常 干预建议");
+        builder.append("员工离职风险 情绪分析 ")
+                .append("绩效下降 考勤异常 满意度下降 ")
+                .append("HR干预建议");
+
         return builder.toString().trim();
+    }
+
+    private void append(
+            StringBuilder builder,
+            String value
+    ) {
+        if (value != null && !value.isBlank()) {
+            builder.append(value).append(" ");
+        }
     }
 
     private String buildKnowledgeContext(KnowledgeSearchResponse searchResponse) {

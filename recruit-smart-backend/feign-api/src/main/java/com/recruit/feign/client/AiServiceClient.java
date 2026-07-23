@@ -9,6 +9,11 @@ import com.recruit.feign.dto.response.InterviewQuestionResponse;
 import com.recruit.feign.dto.response.ResumeMatchResponse;
 import com.recruit.feign.dto.response.ResumeParseResponse;
 import com.recruit.feign.dto.response.TurnoverRiskResponse;
+import com.recruit.feign.dto.response.TurnoverRiskHistoryResponse;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,5 +48,12 @@ public interface AiServiceClient {
     @PostMapping("/turnover-risk")
     TurnoverRiskResponse predictTurnoverRisk(
             @RequestBody TurnoverRiskRequest request
+    );
+
+    @GetMapping(
+            "/turnover-risk/employees/{employeeId}/history"
+    )
+    List<TurnoverRiskHistoryResponse> listTurnoverRiskHistory(
+            @PathVariable("employeeId") Long employeeId
     );
 }

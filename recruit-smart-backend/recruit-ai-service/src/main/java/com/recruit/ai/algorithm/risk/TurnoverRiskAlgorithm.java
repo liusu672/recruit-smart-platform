@@ -9,52 +9,127 @@ import java.util.List;
 
 @Component
 public class TurnoverRiskAlgorithm {
-    public TurnoverRiskResponse predict(TurnoverRiskRequest request) {
+    public TurnoverRiskResponse predict(
+            TurnoverRiskRequest request
+    ) {
         List<String> riskReasons = new ArrayList<>();
         int riskScore = 0;
 
-        riskScore += evaluateScoreRisk(request.getPerformanceScore(), 25, "绩效评分偏低", riskReasons);
-        riskScore += evaluateScoreRisk(request.getAttendanceScore(), 25, "考勤表现异常", riskReasons);
-        riskScore += evaluateScoreRisk(request.getSatisfactionScore(), 30, "满意度评分偏低", riskReasons);
+        riskScore += evaluateScoreRisk(
+                request.getPerformanceScore(),
+                25,
+                "最近一期绩效分数偏低",
+                riskReasons
+        );
+
+        riskScore += evaluateScoreRisk(
+                request.getAttendanceScore(),
+                20,
+                "最近一期考勤表现异常",
+                riskReasons
+        );
+
+        riskScore += evaluateScoreRisk(
+                request.getSatisfactionScore(),
+                30,
+                "最近一期满意度偏低",
+                riskReasons
+        );
 
         String text = joinText(
                 request.getPerformanceSummary(),
                 request.getAttendanceSummary(),
                 request.getSatisfactionFeedback(),
-                request.getInterviewFeedback()
+                request.getLatestFeedback(),
+                request.getPerformanceTrend(),
+                request.getAttendanceTrend(),
+                request.getSatisfactionTrend()
         );
 
-        if (containsAny(text, "离职", "跳槽", "新机会", "换工作")) {
-            riskScore += 20;
-            riskReasons.add("反馈中出现离职倾向相关表达");
+        if (containsAny(
+                text,
+                "离职",
+                "跳槽",
+                "新机会",
+                "换工作",
+                "其他机会"
+        )) {
+            riskScore += 25;
+            riskReasons.add("反馈中出现离职或跳槽倾向");
         }
 
-        if (containsAny(text, "不满意", "压力大", "加班多", "发展空间小", "薪资低")) {
-            riskScore += 20;
-            riskReasons.add("反馈中出现满意度或发展诉求问题");
-        }
-
-        if (containsAny(text, "迟到", "缺勤", "请假频繁", "考勤异常")) {
+        if (containsAny(
+                text,
+                "压力大",
+                "工作压力",
+                "不满意",
+                "晋升",
+                "薪资",
+                "发展空间",
+                "加班"
+        )) {
             riskScore += 15;
-            riskReasons.add("近期考勤表现存在异常");
+            riskReasons.add("反馈中出现压力或发展诉求");
         }
 
-        if (containsAny(text, "绩效下降", "积极性下降", "状态不佳", "产出下降")) {
-            riskScore += 15;
-            riskReasons.add("近期工作状态或绩效表现下降");
+        if (containsAny(
+                text,
+                "迟到",
+                "缺勤",
+                "考勤异常"
+        )) {
+            riskScore += 10;
+            riskReasons.add("近期考勤表现出现异常");
+        }
+
+        if (containsAny(
+                text,
+                "下降",
+                "延期增多",
+                "积极性下降",
+                "状态下降"
+        )) {
+            riskScore += 10;
+            riskReasons.add("近期绩效或工作状态呈下降趋势");
         }
 
         riskScore = Math.min(riskScore, 100);
+
+        String sentimentLabel = calculateSentimentLabel(
+                request,
+                text
+        );
+
+        int sentimentRiskScore = calculateSentimentRiskScore(
+                request,
+                text
+        );
+
         String riskLevel = calculateRiskLevel(riskScore);
-        List<String> suggestions = buildSuggestions(riskLevel);
-        String summary = buildSummary(request.getEmployeeName(), request.getPosition(), riskLevel, riskScore, riskReasons);
 
         TurnoverRiskResponse response = new TurnoverRiskResponse();
+        response.setSentimentLabel(sentimentLabel);
+        response.setSentimentRiskScore(sentimentRiskScore);
+        response.setSentimentSummary(
+                buildSentimentSummary(
+                        sentimentLabel,
+                        sentimentRiskScore
+                )
+        );
         response.setRiskLevel(riskLevel);
         response.setRiskScore(riskScore);
+        response.setSummary(
+                buildSummary(
+                        request.getEmployeeName(),
+                        request.getPosition(),
+                        riskLevel,
+                        riskScore,
+                        riskReasons
+                )
+        );
         response.setRiskReasons(riskReasons);
-        response.setSuggestions(suggestions);
-        response.setSummary(summary);
+        response.setSuggestions(buildSuggestions(riskLevel));
+
         return response;
     }
 
@@ -140,5 +215,93 @@ public class TurnoverRiskAlgorithm {
 
     private String safeText(String text) {
         return text == null ? "" : text.trim();
+    }
+
+    private String calculateSentimentLabel(
+            TurnoverRiskRequest request,
+            String text
+    ) {
+        int score = calculateSentimentRiskScore(request, text);
+
+        if (score >= 60) {
+            return "NEGATIVE";
+        }
+
+        if (score >= 30) {
+            return "NEUTRAL";
+        }
+
+        return "POSITIVE";
+    }
+
+    private int calculateSentimentRiskScore(
+            TurnoverRiskRequest request,
+            String text
+    ) {
+        int score = 0;
+
+        Integer satisfactionScore =
+                request.getSatisfactionScore();
+
+        if (satisfactionScore != null) {
+            if (satisfactionScore < 50) {
+                score += 45;
+            } else if (satisfactionScore < 70) {
+                score += 30;
+            } else if (satisfactionScore < 85) {
+                score += 15;
+            }
+        }
+
+        if (containsAny(
+                text,
+                "离职",
+                "跳槽",
+                "其他机会",
+                "换工作"
+        )) {
+            score += 40;
+        }
+
+        if (containsAny(
+                text,
+                "压力大",
+                "工作压力",
+                "不满意",
+                "晋升疑虑",
+                "发展空间",
+                "薪资"
+        )) {
+            score += 20;
+        }
+
+        if (containsAny(
+                text,
+                "满意",
+                "稳定",
+                "喜欢团队",
+                "认可团队"
+        )) {
+            score -= 20;
+        }
+
+        return Math.max(0, Math.min(score, 100));
+    }
+
+    private String buildSentimentSummary(
+            String label,
+            int score
+    ) {
+        return switch (label) {
+            case "NEGATIVE" ->
+                    "反馈中存在较明显的负面情绪或离职倾向，情感风险分数为"
+                            + score;
+            case "NEUTRAL" ->
+                    "反馈整体较为中性，存在一定压力或不确定因素，情感风险分数为"
+                            + score;
+            default ->
+                    "反馈整体积极，暂未发现明显负面情绪，情感风险分数为"
+                            + score;
+        };
     }
 }
