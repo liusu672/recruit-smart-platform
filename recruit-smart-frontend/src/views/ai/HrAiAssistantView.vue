@@ -348,6 +348,8 @@ async function send() {
 
 .hr-ai-assistant-message p {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
 }
 
 .hr-ai-assistant-message small {
