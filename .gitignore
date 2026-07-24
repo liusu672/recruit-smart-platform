@@ -17,7 +17,9 @@ recruit-smart-frontend/design.md
 recruit-smart-frontend/prototype-images/
 recruit-smart-frontend/reference-images/
 
-# Local design/doc artifacts
+# Local-only documentation and design artifacts (never commit or push)
+/docs/
+/README.md
 assets/design-doc/
 /*.doc
 /*.docx
@@ -34,3 +36,6 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local agent instructions
+AGENTS.md
