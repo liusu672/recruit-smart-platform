@@ -8,16 +8,19 @@ import {
   Settings,
 } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
+import { provideWorkspacePageHeader } from '@/composables/useWorkspacePageHeader'
 import { useMessageNotifications } from '@/composables/useMessages'
 import { ROLE_WORKSPACES } from '@/config/roleAccess'
 import { useSessionStore } from '@/stores/session'
 
 const SIDEBAR_STORAGE_KEY = 'rs-hr-sidebar-collapsed'
 const router = useRouter()
+const route = useRoute()
 const session = useSessionStore()
 const { unreadQuery } = useMessageNotifications()
+const pageHeader = provideWorkspacePageHeader()
 const workspace = ROLE_WORKSPACES.HR
 const storedPreference = window.localStorage.getItem(SIDEBAR_STORAGE_KEY)
 const collapsed = ref(
@@ -33,6 +36,11 @@ const navigationGroups = computed(() => {
   return [...groups.entries()].map(([label, items]) => ({ label, items }))
 })
 const userInitial = computed(() => (session.user?.name ?? 'HR').slice(0, 1))
+const topbarTitle = computed(() => {
+  if (pageHeader.title.value) return pageHeader.title.value
+  return typeof route.meta.title === 'string' ? route.meta.title : ''
+})
+const topbarDescription = computed(() => pageHeader.description.value)
 
 onMounted(() => document.documentElement.classList.add('rs-hr-workspace'))
 onBeforeUnmount(() => document.documentElement.classList.remove('rs-hr-workspace'))
@@ -96,6 +104,10 @@ function handleUserCommand(command: string) {
           <PanelLeftOpen v-if="collapsed" :size="18" :stroke-width="1.75" />
           <PanelLeftClose v-else :size="18" :stroke-width="1.75" />
         </button>
+        <div v-if="topbarTitle || topbarDescription" class="workspace-topbar__page-copy">
+          <h1 v-if="topbarTitle">{{ topbarTitle }}</h1>
+          <p v-if="topbarDescription">{{ topbarDescription }}</p>
+        </div>
         <div class="workspace-topbar__actions">
           <RouterLink
             class="workspace-icon-button workspace-message-link"

@@ -8,6 +8,7 @@ import {
   applyDemoScreeningDecision,
   applyDemoStatusUpdate,
   getDemoPipelinePage,
+  getDemoPipelineStageCounts,
   initialDemoPipeline,
 } from '@/config/demoPipeline'
 import { getPipelineStageKey } from '@/config/pipeline'
@@ -51,6 +52,36 @@ describe('pipeline stages and demo operations', () => {
 
     expect(page.total).toBe(1)
     expect(page.items[0]?.candidateName).toBe('林一凡')
+  })
+
+  it('filters by selected pipeline stage when no exact status is set', () => {
+    const page = getDemoPipelinePage(initialDemoPipeline, {
+      keyword: '',
+      jobId: null,
+      stage: 'INTERVIEW',
+      status: '',
+      page: 1,
+      pageSize: 20,
+    })
+
+    expect(page.total).toBe(2)
+    expect(page.items.map((item) => item.status).sort()).toEqual(['INTERVIEWING', 'SCREEN_PASSED'])
+  })
+
+  it('counts all six pipeline stage entries independently from pagination', () => {
+    const counts = getDemoPipelineStageCounts(initialDemoPipeline, {
+      keyword: '',
+      jobId: null,
+    })
+
+    expect(counts).toEqual([
+      { stage: 'NEW', count: 1 },
+      { stage: 'SCREENING', count: 1 },
+      { stage: 'INTERVIEW', count: 2 },
+      { stage: 'OFFER', count: 1 },
+      { stage: 'HIRED', count: 1 },
+      { stage: 'CLOSED', count: 2 },
+    ])
   })
 
   it('starts screening only from a newly submitted application', () => {

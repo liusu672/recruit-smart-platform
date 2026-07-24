@@ -13,6 +13,7 @@ import com.recruit.biz.vo.JobApplicationSummaryVO;
 import com.recruit.biz.vo.JobApplicationDetailVO;
 import com.recruit.biz.vo.PipelineApplicationDetailVO;
 import com.recruit.biz.vo.PipelineApplicationSummaryVO;
+import com.recruit.biz.vo.PipelineStageCountVO;
 import com.recruit.common.result.PageResult;
 import com.recruit.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +61,15 @@ public class JobApplicationController {
             @Valid @ModelAttribute PipelineApplicationQueryDTO dto
     ) {
         return Result.success(pipelineService.listPipeline(dto));
+    }
+
+    @GetMapping("/pipeline/stage-counts")
+    @RequireRoles({"HR", "ADMIN"})
+    @Operation(summary = "查询招聘流程阶段数量")
+    public Result<java.util.List<PipelineStageCountVO>> listPipelineStageCounts(
+            @Valid @ModelAttribute PipelineApplicationQueryDTO dto
+    ) {
+        return Result.success(pipelineService.listStageCounts(dto));
     }
 
     @GetMapping("/{id}/pipeline")

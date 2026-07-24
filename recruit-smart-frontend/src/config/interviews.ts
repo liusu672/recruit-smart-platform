@@ -1,6 +1,8 @@
+import type { ApplicationStatus } from '@/types/candidate'
 import type {
   InterviewFeedbackState,
   InterviewMethod,
+  InterviewScoreItem,
   InterviewRound,
   InterviewStatus,
   InterviewSuggestion,
@@ -44,33 +46,123 @@ export const interviewSuggestionOptions: Array<{
   { label: '建议不通过', value: 'REJECT' },
 ]
 
-export const defaultInterviewScorecard = [
-  {
-    key: 'professional',
-    label: '专业能力',
-    description: '是否具备岗位要求的核心知识、方法与实践深度。',
-  },
-  {
-    key: 'problem-solving',
-    label: '问题解决',
-    description: '能否拆解问题、说明判断依据并形成可执行方案。',
-  },
-  {
-    key: 'collaboration',
-    label: '协作与影响力',
-    description: '能否清晰沟通、推动协作并对结果负责。',
-  },
-  {
-    key: 'reflection',
-    label: '结果与复盘',
-    description: '能否量化结果、识别不足并沉淀后续改进。',
-  },
-]
+type InterviewScoreCriterion = Omit<InterviewScoreItem, 'score' | 'evidence'>
+
+export const interviewScorecardTemplates: Record<
+  InterviewRound,
+  InterviewScoreCriterion[]
+> = {
+  FIRST: [
+    {
+      key: 'resume-verification',
+      label: '简历与经历真实性',
+      description: '候选人描述的职责、技术细节与成果是否真实且前后一致。',
+    },
+    {
+      key: 'fundamentals',
+      label: '核心基础能力',
+      description: '是否掌握岗位要求的基础知识、常用方法与基本实践。',
+    },
+    {
+      key: 'basic-problem-solving',
+      label: '基础问题解决',
+      description: '能否理解问题、拆解步骤并给出清晰可执行的处理思路。',
+    },
+    {
+      key: 'communication-motivation',
+      label: '沟通与岗位动机',
+      description: '表达是否清晰，求职动机与岗位方向是否基本匹配。',
+    },
+  ],
+  SECOND: [
+    {
+      key: 'professional-depth',
+      label: '专业深度',
+      description: '能否深入解释关键原理、边界条件与实际应用经验。',
+    },
+    {
+      key: 'solution-design',
+      label: '方案设计与取舍',
+      description: '能否针对复杂场景设计方案并说明成本、风险与取舍依据。',
+    },
+    {
+      key: 'ownership-results',
+      label: '项目主导与结果',
+      description: '是否真正承担关键责任，并能用事实说明推进过程和最终结果。',
+    },
+    {
+      key: 'collaboration-influence',
+      label: '协作与影响力',
+      description: '能否处理分歧、推动跨角色协作并对团队结果产生积极影响。',
+    },
+  ],
+  HR: [
+    {
+      key: 'career-motivation',
+      label: '求职动机',
+      description: '离职原因、求职诉求与选择本岗位的动机是否合理一致。',
+    },
+    {
+      key: 'stability-planning',
+      label: '稳定性与职业规划',
+      description: '职业规划是否清晰，与岗位发展路径和预期任职周期是否匹配。',
+    },
+    {
+      key: 'values-fit',
+      label: '价值观与团队匹配',
+      description: '工作方式、责任意识和协作理念是否与团队要求相符。',
+    },
+    {
+      key: 'offer-risk',
+      label: '薪资、到岗与录用风险',
+      description: '薪资期望、到岗时间及其他可能影响录用或入职的风险是否可控。',
+    },
+  ],
+}
+
+export function getDefaultInterviewScorecard(round: InterviewRound) {
+  return interviewScorecardTemplates[round]
+}
 
 export function getInterviewRoundText(round: InterviewRound) {
   if (round === 'SECOND') return '二面'
   if (round === 'HR') return 'HR 面'
   return '一面'
+}
+
+export function getInterviewArrangementText(round: InterviewRound) {
+  return `\u5b89\u6392${getInterviewRoundText(round).replace(/\s+/g, '')}`
+}
+
+interface NextInterviewRoundContext {
+  applicationStatus: ApplicationStatus
+  currentRound: InterviewRound | null | undefined
+  interviewStatus: InterviewStatus | null | undefined
+  feedbackState: InterviewFeedbackState | null | undefined
+  requiredInterviewRounds: number
+}
+
+const orderedInterviewRounds: InterviewRound[] = ['FIRST', 'SECOND', 'HR']
+
+export function getNextSchedulableInterviewRound(context: NextInterviewRoundContext) {
+  const requiredRounds = Math.min(Math.max(context.requiredInterviewRounds, 1), 3)
+  if (!['SCREEN_PASSED', 'INTERVIEWING'].includes(context.applicationStatus)) return null
+
+  if (!context.currentRound) return orderedInterviewRounds[0] ?? null
+
+  const currentIndex = orderedInterviewRounds.indexOf(context.currentRound)
+  if (currentIndex < 0 || currentIndex >= requiredRounds) return null
+
+  if (context.interviewStatus === 'CANCELED') return context.currentRound
+  if (
+    context.interviewStatus !== 'COMPLETED' ||
+    context.feedbackState !== 'SUBMITTED' ||
+    currentIndex + 1 >= requiredRounds
+  ) {
+    return null
+  }
+
+  return orderedInterviewRounds[currentIndex + 1] ?? null
 }
 
 export function getInterviewMethodText(method: InterviewMethod | null) {

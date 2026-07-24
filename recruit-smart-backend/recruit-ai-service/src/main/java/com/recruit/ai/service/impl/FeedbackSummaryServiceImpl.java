@@ -5,6 +5,7 @@ import com.recruit.ai.dto.request.FeedbackSummaryRequest;
 import com.recruit.ai.dto.response.FeedbackSummaryResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResponse;
 import com.recruit.ai.knowledge.dto.KnowledgeSearchResult;
+import com.recruit.ai.prompt.FeedbackSummaryPrompts;
 import com.recruit.ai.knowledge.service.KnowledgeBaseService;
 import com.recruit.ai.service.AiFeedbackSummaryResultService;
 import com.recruit.ai.service.AiTaskService;
@@ -22,7 +23,7 @@ public class FeedbackSummaryServiceImpl implements FeedbackSummaryService {
     private static final String TASK_TYPE = "FEEDBACK_SUMMARY";
     private static final String BIZ_TYPE = "INTERVIEW";
     private static final String MODEL_NAME = "deepseek-chat";
-    private static final String PROMPT_VERSION = "feedback-summary-v1";
+    private static final String PROMPT_VERSION = FeedbackSummaryPrompts.VERSION;
 
     private final FeedbackSummaryAlgorithm feedbackSummaryAlgorithm;
     private final KnowledgeBaseService knowledgeBaseService;
@@ -73,8 +74,21 @@ public class FeedbackSummaryServiceImpl implements FeedbackSummaryService {
         if (request.getJobTitle() != null) {
             builder.append(request.getJobTitle()).append(" ");
         }
+        if (request.getInterviewRound() != null) {
+            builder.append(request.getInterviewRound()).append(" ");
+        }
         if (request.getFeedbackText() != null) {
             builder.append(request.getFeedbackText()).append(" ");
+        }
+        if (request.getScorecard() != null) {
+            request.getScorecard().forEach(item -> {
+                if (item.getLabel() != null) {
+                    builder.append(item.getLabel()).append(" ");
+                }
+                if (item.getEvidence() != null) {
+                    builder.append(item.getEvidence()).append(" ");
+                }
+            });
         }
 
         builder.append("面试评价标准 候选人优势 不足 风险点 录用建议");

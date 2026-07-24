@@ -37,6 +37,7 @@ import type {
 } from '@/types/interview'
 import type { FeedbackSummaryResponse } from '@/types/ai'
 
+const DEFAULT_INTERVIEW_QUESTION_FOCUS = '基于候选人简历和岗位要求生成面试问题'
 const session = useSessionStore()
 const route = useRoute()
 const isHr = computed(() => session.currentRole === 'HR')
@@ -293,16 +294,15 @@ async function submitFeedback() {
   }
 }
 
-async function generateQuestion(focus: string) {
+async function generateQuestion() {
   const interview = workspace.value
   if (!interview) return
   try {
-    const questions = await questionMutation.mutateAsync({
+    await questionMutation.mutateAsync({
       id: interview.id,
-      data: { focus },
+      data: { focus: DEFAULT_INTERVIEW_QUESTION_FOCUS },
     })
-    extraQuestions.value.push(...questions)
-    ElMessage.success('已生成参考追问')
+    ElMessage.success('已生成面试问题')
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '参考问题生成失败')
   }

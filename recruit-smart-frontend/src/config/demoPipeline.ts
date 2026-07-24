@@ -1,4 +1,9 @@
-import { getApplicationStatusText, getScreeningDecisionStatus } from '@/config/pipeline'
+import {
+  getApplicationStatusText,
+  getPipelineStageKey,
+  getScreeningDecisionStatus,
+  pipelineStages,
+} from '@/config/pipeline'
 import { getInterviewRoundText, getInterviewStatusText } from '@/config/interviews'
 import type {
   InterviewAssignmentRequest,
@@ -10,6 +15,7 @@ import type {
   PipelineApplicationSummary,
   PipelineInterviewSummary,
   PipelineQuery,
+  PipelineRejectRequest,
   PipelineReviewRequest,
   PipelineStatusUpdateRequest,
 } from '@/types/pipeline'
@@ -538,7 +544,9 @@ export function getDemoPipelinePage(records: PipelineApplicationDetail[], query:
     return (
       (!keyword || keywordFields.some((value) => value.toLocaleLowerCase().includes(keyword))) &&
       (query.jobId === null || application.jobId === query.jobId) &&
-      (!query.status || application.status === query.status)
+      (query.status
+        ? application.status === query.status
+        : !query.stage || getPipelineStageKey(application.status) === query.stage)
     )
   })
   const start = (query.page - 1) * query.pageSize
@@ -549,6 +557,30 @@ export function getDemoPipelinePage(records: PipelineApplicationDetail[], query:
     pageSize: query.pageSize,
     total: filtered.length,
   }
+}
+
+export function getDemoPipelineStageCounts(
+  records: PipelineApplicationDetail[],
+  query: Pick<PipelineQuery, 'keyword' | 'jobId'>,
+) {
+  const keyword = query.keyword.trim().toLocaleLowerCase()
+  const filtered = records.filter((application) => {
+    const keywordFields = [
+      application.candidateName,
+      application.candidatePhone ?? '',
+      application.jobTitle,
+    ]
+    return (
+      (!keyword || keywordFields.some((value) => value.toLocaleLowerCase().includes(keyword))) &&
+      (query.jobId === null || application.jobId === query.jobId)
+    )
+  })
+
+  return pipelineStages.map((stage) => ({
+    stage: stage.key,
+    count: filtered.filter((application) => getPipelineStageKey(application.status) === stage.key)
+      .length,
+  }))
 }
 
 export function applyDemoStatusUpdate(
@@ -618,6 +650,42 @@ export function applyDemoScreeningDecision(
         id: `${application.id}-review-${occurredAt}`,
         title: actionText,
         description: request.note.trim() || 'HR 已完成本次筛选审核。',
+        actorName: '当前 HR',
+        occurredAt,
+        source: 'BUSINESS' as const,
+        relatedObject: `投递 #${application.id}`,
+      },
+    ],
+  }
+}
+
+export function applyDemoApplicationReject(
+  application: PipelineApplicationDetail,
+  request: PipelineRejectRequest,
+  occurredAt = new Date().toISOString(),
+) {
+  const rejectableStatuses = ['SCREEN_PASSED', 'INTERVIEWING', 'OFFERED']
+  if (!rejectableStatuses.includes(application.status)) {
+    throw new Error('当前投递状态不能淘汰')
+  }
+  if (!request.reasonCode || !request.reason.trim()) {
+    throw new Error('淘汰候选人必须选择原因并填写说明')
+  }
+
+  return {
+    ...application,
+    status: 'REJECTED' as const,
+    statusText: getApplicationStatusText('REJECTED'),
+    rejectReasonCode: request.reasonCode,
+    rejectReason: request.reason.trim(),
+    reviewedAt: occurredAt,
+    lastActivityAt: occurredAt,
+    timeline: [
+      ...application.timeline,
+      {
+        id: `${application.id}-rejected-${occurredAt}`,
+        title: '终止招聘流程',
+        description: request.reason.trim(),
         actorName: '当前 HR',
         occurredAt,
         source: 'BUSINESS' as const,

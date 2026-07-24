@@ -48,7 +48,7 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
             try {
                 String query = buildKnowledgeQuery(request);
-                KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 3);
+                KnowledgeSearchResponse searchResponse = knowledgeBaseService.searchKnowledge(query, 5);
                 String knowledgeContext = buildKnowledgeContext(searchResponse);
 
                 response = llmInterviewQuestionService.generate(request, knowledgeContext);
@@ -71,6 +71,19 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
 
     private String buildKnowledgeQuery(InterviewQuestionRequest request) {
         StringBuilder builder = new StringBuilder();
+        String roundLabel = InterviewQuestionPrompts.roundLabel(
+                request.getInterviewRound()
+        );
+        builder.append("三轮面试 ")
+                .append(roundLabel)
+                .append(" ")
+                .append(InterviewQuestionPrompts.roundSearchTerms(
+                        request.getInterviewRound()))
+                .append(" 面试题生成规则 ")
+                .append(InterviewQuestionPrompts.roundGoal(
+                        request.getInterviewRound()
+                ))
+                .append(" ");
 
         if (request.getJobTitle() != null) {
             builder.append(request.getJobTitle()).append(" ");
@@ -85,7 +98,8 @@ public class InterviewQuestionServiceImpl implements InterviewQuestionService {
             builder.append(request.getSkills()).append(" ");
         }
 
-        builder.append("面试题 评价标准 技术能力 项目经验 岗位技能");
+        builder.append("面试题 评价标准 评价依据 岗位技能 当前轮次 ")
+                .append(roundLabel);
         return builder.toString().trim();
     }
 

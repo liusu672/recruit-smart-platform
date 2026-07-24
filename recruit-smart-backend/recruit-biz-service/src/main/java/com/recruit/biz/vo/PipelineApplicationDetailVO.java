@@ -22,6 +22,7 @@ public class PipelineApplicationDetailVO
     private String rejectReasonCode;
     private String rejectReason;
     private LocalDateTime reviewedAt;
+    private Integer requiredInterviewRounds;
     private AiMatchSummaryVO aiMatch;
     private InterviewSummaryVO interview;
     private OfferSummaryVO offer;

@@ -83,9 +83,16 @@ function selectCandidate(applicationId: number) {
 }
 
 function formatCandidateLabel(candidate: OfferCandidateOption) {
-  const score =
-    candidate.interviewScore === null ? '面试评分待补充' : `面试 ${candidate.interviewScore} 分`
-  return `${candidate.candidateName} - ${candidate.jobTitle}（${score}）`
+  const score = candidate.interviewScore === null ? '面试已提交' : `面试 ${candidate.interviewScore} 分`
+  const suggestion =
+    candidate.interviewSuggestion === 'PASS'
+      ? '建议通过'
+      : candidate.interviewSuggestion === 'REJECT'
+        ? '建议不通过'
+        : candidate.interviewSuggestion === 'PENDING'
+          ? '建议待定'
+          : '已完成反馈'
+  return `${candidate.candidateName} - ${candidate.jobTitle}（${score} / ${suggestion}）`
 }
 
 async function requestClose(done?: () => void) {

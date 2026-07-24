@@ -48,7 +48,8 @@
 
 .candidate-shell .workspace-brand__mark {
   flex: 0 0 32px;
-  background: var(--rs-blue-700);
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
 }
 
 .candidate-brand__copy {
@@ -172,6 +173,8 @@
 }
 
 .candidate-shell .workspace-topbar {
+  justify-content: flex-start;
+  gap: var(--rs-space-4);
   padding: 0 var(--rs-space-6);
 }
 
@@ -240,6 +243,10 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--rs-space-6);
+}
+
+.candidate-page-header--actions-only {
+  justify-content: flex-end;
 }
 
 .candidate-page-header__copy {

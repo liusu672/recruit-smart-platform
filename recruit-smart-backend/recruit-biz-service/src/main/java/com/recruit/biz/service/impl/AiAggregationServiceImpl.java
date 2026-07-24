@@ -9,15 +9,18 @@ import com.recruit.biz.entity.AiMatchResult;
 import com.recruit.biz.entity.Candidate;
 import com.recruit.biz.entity.EmployeeProfile;
 import com.recruit.biz.entity.Interview;
+import com.recruit.biz.enums.InterviewRound;
 import com.recruit.biz.entity.InterviewFeedback;
 import com.recruit.biz.entity.JobApplication;
 import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Resume;
+import com.recruit.biz.support.InterviewScorecardCodec;
 import com.recruit.biz.mapper.*;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.AiAggregationService;
 import com.recruit.biz.vo.AiMatchSummaryVO;
 import com.recruit.common.enums.ErrorCode;
+import com.recruit.feign.dto.request.FeedbackScoreItemRequest;
 import com.recruit.common.exception.BusinessException;
 import com.recruit.feign.client.AiServiceClient;
 import com.recruit.feign.dto.request.FeedbackSummaryRequest;
@@ -60,6 +63,7 @@ public class AiAggregationServiceImpl implements AiAggregationService {
     private final JobApplicationMapper jobApplicationMapper;
     private final JobPositionMapper jobPositionMapper;
     private final CandidateMapper candidateMapper;
+    private final InterviewScorecardCodec scorecardCodec;
     private final ResumeMapper resumeMapper;
     private final InterviewMapper interviewMapper;
     private final InterviewFeedbackMapper interviewFeedbackMapper;
@@ -130,6 +134,7 @@ public class AiAggregationServiceImpl implements AiAggregationService {
 
         InterviewQuestionRequest request = new InterviewQuestionRequest();
         request.setInterviewId(interviewId);
+        request.setInterviewRound(context.interview().getRound());
         request.setJobId(context.applicationContext().job().getId());
         request.setCandidateId(
                 context.applicationContext().candidate().getId()
@@ -209,9 +214,17 @@ public class AiAggregationServiceImpl implements AiAggregationService {
         request.setCandidateName(
                 context.applicationContext().candidate().getName()
         );
+        InterviewRound round = InterviewRound.fromCode(
+                context.interview().getRound()
+        );
+        request.setInterviewRound(round == null
+                ? context.interview().getRound()
+                : round.getDescription());
         request.setFeedbackText(buildFeedbackText(feedback));
         request.setScore(feedback.getScore());
 
+        request.setSuggestion(feedback.getSuggestion());
+        request.setScorecard(toFeedbackScorecard(feedback));
         FeedbackSummaryResponse response = invokeAi(
                 "面试反馈摘要",
                 () -> aiServiceClient.generateFeedbackSummary(request)
@@ -537,19 +550,25 @@ public class AiAggregationServiceImpl implements AiAggregationService {
     }
 
     private String buildFeedbackText(InterviewFeedback feedback) {
-        StringBuilder builder = new StringBuilder();
-        if (hasText(feedback.getComment())) {
-            builder.append("面试评价：")
-                    .append(feedback.getComment().trim());
-        }
-        if (hasText(feedback.getSuggestion())) {
-            if (!builder.isEmpty()) {
-                builder.append("\n");
-            }
-            builder.append("录用建议：")
-                    .append(feedback.getSuggestion());
-        }
-        return builder.toString();
+        return hasText(feedback.getComment())
+                ? feedback.getComment().trim()
+                : "";
+    }
+
+    private List<FeedbackScoreItemRequest> toFeedbackScorecard(
+            InterviewFeedback feedback
+    ) {
+        return scorecardCodec.read(feedback.getScorecardJson()).stream()
+                .map(item -> {
+                    FeedbackScoreItemRequest request =
+                            new FeedbackScoreItemRequest();
+                    request.setLabel(item.getLabel());
+                    request.setDescription(item.getDescription());
+                    request.setScore(item.getScore());
+                    request.setEvidence(item.getEvidence());
+                    return request;
+                })
+                .toList();
     }
 
     private boolean isSubmitted(InterviewFeedback feedback) {

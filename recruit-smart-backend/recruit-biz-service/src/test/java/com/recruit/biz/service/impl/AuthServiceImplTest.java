@@ -76,6 +76,10 @@ class AuthServiceImplTest {
         assertEquals(1L, result.getUserInfo().getUserId());
         assertEquals("admin", result.getUserInfo().getUsername());
         assertEquals("ADMIN", result.getUserInfo().getRoleCode());
+        ArgumentCaptor<SysUser> loginUpdateCaptor = ArgumentCaptor.forClass(SysUser.class);
+        verify(sysUserMapper).updateById(loginUpdateCaptor.capture());
+        assertEquals(1L, loginUpdateCaptor.getValue().getId());
+        assertNotNull(loginUpdateCaptor.getValue().getLastLoginAt());
     }
 
     @Test
@@ -191,6 +195,10 @@ class AuthServiceImplTest {
 
         assertNotNull(result);
         assertEquals("mock-jwt", result.getToken());
+        verify(sysUserMapper).updateById(argThat(user ->
+                Long.valueOf(100L).equals(user.getId())
+                        && user.getLastLoginAt() != null
+        ));
 
         ArgumentCaptor<SysUser> userCaptor = ArgumentCaptor.forClass(SysUser.class);
         verify(sysUserMapper).insert(userCaptor.capture());

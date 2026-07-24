@@ -1,6 +1,7 @@
 import { http, unwrapResult, unwrapVoidResult } from '@/api/http'
 import type { Result } from '@/types/api'
 import type {
+  OfferCandidateOption,
   OfferCreateRequest,
   OfferPageResponse,
   OfferPagedData,
@@ -36,6 +37,17 @@ interface BackendOfferRecord {
 interface BackendOfferPageResponse {
   total: number
   records: BackendOfferRecord[]
+}
+
+interface BackendOfferCandidateOption {
+  applicationId: number
+  candidateId: number
+  candidateName: string
+  jobId: number
+  jobTitle: string
+  department: string
+  interviewScore: number | null
+  interviewSuggestion: string | null
 }
 
 function buildOfferTimeline(offer: BackendOfferRecord): OfferRecord['timeline'] {
@@ -128,6 +140,12 @@ export async function getOffers(query: OfferQuery) {
 
 export function getOfferById(id: number) {
   return unwrapResult(http.get<Result<BackendOfferRecord>>(`/offers/${id}`)).then(adaptOffer)
+}
+
+export function getEligibleOfferApplications(): Promise<OfferCandidateOption[]> {
+  return unwrapResult(
+    http.get<Result<BackendOfferCandidateOption[]>>('/offers/eligible-applications'),
+  )
 }
 
 export function createOffer(data: OfferCreateRequest) {

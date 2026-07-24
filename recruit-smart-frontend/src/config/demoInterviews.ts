@@ -1,5 +1,5 @@
 import {
-  defaultInterviewScorecard,
+  getDefaultInterviewScorecard,
   getFeedbackStateText,
   getInterviewMethodText,
   getInterviewRoundText,
@@ -7,13 +7,18 @@ import {
 } from '@/config/interviews'
 import type {
   InterviewFeedbackRequest,
+  InterviewRound,
   InterviewTaskQuery,
   InterviewScheduleRequest,
   InterviewWorkspace,
 } from '@/types/interview'
 
-function createScorecard(scores: Array<number | null>, evidence: string[]) {
-  return defaultInterviewScorecard.map((item, index) => ({
+function createScorecard(
+  round: InterviewRound,
+  scores: Array<number | null>,
+  evidence: string[],
+) {
+  return getDefaultInterviewScorecard(round).map((item, index) => ({
     ...item,
     score: scores[index] ?? null,
     evidence: evidence[index] ?? '',
@@ -55,6 +60,7 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
       riskPoints: ['复杂业务建模深度仍需面试核实'],
     },
     scorecard: createScorecard(
+      'FIRST',
       [3, 3, null, null],
       ['能说明接口幂等与状态流转。', '按领域拆分问题，思路较清晰。'],
     ),
@@ -123,7 +129,7 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
       matchSummary: '企业工作台经验与岗位匹配，工程深度需要终面确认。',
       riskPoints: ['跨团队技术决策的推动方式需要进一步确认'],
     },
-    scorecard: createScorecard([null, null, null, null], []),
+    scorecard: createScorecard('SECOND', [null, null, null, null], []),
     questions: [
       {
         id: '702-job-1',
@@ -184,6 +190,7 @@ export const initialDemoInterviews: InterviewWorkspace[] = [
       riskPoints: ['团队管理范围需要进一步核实'],
     },
     scorecard: createScorecard(
+      'FIRST',
       [4, 3, 3, 3],
       [
         '能用真实案例说明设计系统治理。',

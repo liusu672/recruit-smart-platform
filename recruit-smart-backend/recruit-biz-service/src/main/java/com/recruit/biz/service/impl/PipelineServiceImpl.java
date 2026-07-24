@@ -14,6 +14,7 @@ import com.recruit.biz.entity.JobPosition;
 import com.recruit.biz.entity.Offer;
 import com.recruit.biz.entity.Resume;
 import com.recruit.biz.entity.SysUser;
+import com.recruit.biz.enums.JobApplicationStatus;
 import com.recruit.biz.mapper.AiMatchResultMapper;
 import com.recruit.biz.mapper.ApplicationProcessEventMapper;
 import com.recruit.biz.mapper.CandidateMapper;
@@ -27,6 +28,7 @@ import com.recruit.biz.mapper.SysUserMapper;
 import com.recruit.biz.service.PipelineService;
 import com.recruit.biz.vo.PipelineApplicationDetailVO;
 import com.recruit.biz.vo.PipelineApplicationSummaryVO;
+import com.recruit.biz.vo.PipelineStageCountVO;
 import com.recruit.common.enums.ErrorCode;
 import com.recruit.common.exception.BusinessException;
 import com.recruit.common.result.PageResult;
@@ -43,6 +45,38 @@ import java.util.stream.Stream;
 
 @Service
 public class PipelineServiceImpl implements PipelineService {
+
+    private static final List<String> PIPELINE_STAGE_ORDER = List.of(
+            "NEW",
+            "SCREENING",
+            "INTERVIEW",
+            "OFFER",
+            "HIRED",
+            "CLOSED"
+    );
+
+    private static final Map<String, List<String>> PIPELINE_STAGE_STATUSES =
+            Map.of(
+                    "NEW",
+                    List.of(JobApplicationStatus.SUBMITTED.name()),
+                    "SCREENING",
+                    List.of(JobApplicationStatus.SCREENING.name()),
+                    "INTERVIEW",
+                    List.of(
+                            JobApplicationStatus.SCREEN_PASSED.name(),
+                            JobApplicationStatus.INTERVIEWING.name()
+                    ),
+                    "OFFER",
+                    List.of(JobApplicationStatus.OFFERED.name()),
+                    "HIRED",
+                    List.of(JobApplicationStatus.HIRED.name()),
+                    "CLOSED",
+                    List.of(
+                            JobApplicationStatus.SCREEN_REJECT.name(),
+                            JobApplicationStatus.REJECTED.name(),
+                            JobApplicationStatus.WITHDRAWN.name()
+                    )
+            );
 
     @Resource
     private JobApplicationMapper jobApplicationMapper;
@@ -74,18 +108,11 @@ public class PipelineServiceImpl implements PipelineService {
         PipelineApplicationQueryDTO query = dto == null
                 ? new PipelineApplicationQueryDTO()
                 : dto;
-        LambdaQueryWrapper<JobApplication> wrapper =
-                new LambdaQueryWrapper<>();
-        if (hasText(query.getStatus())) {
-            wrapper.eq(JobApplication::getStatus, query.getStatus());
-        }
-        if (query.getJobId() != null) {
-            wrapper.eq(JobApplication::getJobId, query.getJobId());
-        }
-        if (hasText(query.getKeyword())
-                && !applyKeywordFilter(wrapper, query.getKeyword().trim())) {
+        LambdaQueryWrapper<JobApplication> wrapper = buildBaseWrapper(query);
+        if (wrapper == null) {
             return new PageResult<>(0L, List.of());
         }
+        applyStatusOrStageFilter(wrapper, query);
 
         wrapper.orderByDesc(JobApplication::getUpdatedAt)
                 .orderByDesc(JobApplication::getAppliedAt)
@@ -120,6 +147,36 @@ public class PipelineServiceImpl implements PipelineService {
                 ))
                 .toList();
         return new PageResult<>(result.getTotal(), records);
+    }
+
+    @Override
+    public List<PipelineStageCountVO> listStageCounts(
+            PipelineApplicationQueryDTO dto
+    ) {
+        PipelineApplicationQueryDTO query = dto == null
+                ? new PipelineApplicationQueryDTO()
+                : dto;
+        LambdaQueryWrapper<JobApplication> wrapper = buildBaseWrapper(query);
+        if (wrapper == null) {
+            return emptyStageCounts();
+        }
+
+        Map<String, Long> counts = jobApplicationMapper.selectList(wrapper)
+                .stream()
+                .map(JobApplication::getStatus)
+                .map(this::resolveStage)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(
+                        Function.identity(),
+                        Collectors.counting()
+                ));
+
+        return PIPELINE_STAGE_ORDER.stream()
+                .map(stage -> new PipelineStageCountVO(
+                        stage,
+                        counts.getOrDefault(stage, 0L)
+                ))
+                .toList();
     }
 
     @Override
@@ -215,6 +272,55 @@ public class PipelineServiceImpl implements PipelineService {
                 processEvents,
                 userMap
         );
+    }
+
+    private LambdaQueryWrapper<JobApplication> buildBaseWrapper(
+            PipelineApplicationQueryDTO query
+    ) {
+        LambdaQueryWrapper<JobApplication> wrapper =
+                new LambdaQueryWrapper<>();
+        if (query.getJobId() != null) {
+            wrapper.eq(JobApplication::getJobId, query.getJobId());
+        }
+        if (hasText(query.getKeyword())
+                && !applyKeywordFilter(wrapper, query.getKeyword().trim())) {
+            return null;
+        }
+        return wrapper;
+    }
+
+    private void applyStatusOrStageFilter(
+            LambdaQueryWrapper<JobApplication> wrapper,
+            PipelineApplicationQueryDTO query
+    ) {
+        if (hasText(query.getStatus())) {
+            wrapper.eq(JobApplication::getStatus, query.getStatus());
+            return;
+        }
+
+        if (!hasText(query.getStage())) {
+            return;
+        }
+
+        List<String> statuses = PIPELINE_STAGE_STATUSES.get(query.getStage());
+        if (statuses != null && !statuses.isEmpty()) {
+            wrapper.in(JobApplication::getStatus, statuses);
+        }
+    }
+
+    private List<PipelineStageCountVO> emptyStageCounts() {
+        return PIPELINE_STAGE_ORDER.stream()
+                .map(stage -> new PipelineStageCountVO(stage, 0L))
+                .toList();
+    }
+
+    private String resolveStage(String status) {
+        return PIPELINE_STAGE_STATUSES.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue().contains(status))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
     }
 
     private boolean applyKeywordFilter(

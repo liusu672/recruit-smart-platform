@@ -70,6 +70,36 @@
 .workspace-topbar__context { margin: 0; color: var(--rs-text-tertiary); font-size: 12px; }
 .workspace-topbar__actions { display: flex; align-items: center; gap: var(--rs-space-3); }
 
+.workspace-topbar__page-copy {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
+
+.workspace-topbar__page-copy h1,
+.workspace-topbar__page-copy p {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-topbar__page-copy h1 {
+  color: var(--rs-text-primary);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.workspace-topbar__page-copy p {
+  max-width: 820px;
+  color: var(--rs-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .workspace-search {
   display: flex;
   align-items: center;

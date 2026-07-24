@@ -31,6 +31,8 @@
 
 .interviewer-shell .workspace-topbar {
   height: var(--rs-interviewer-topbar-height);
+  justify-content: flex-start;
+  gap: var(--rs-space-4);
   padding: 0 var(--rs-space-6);
 }
 

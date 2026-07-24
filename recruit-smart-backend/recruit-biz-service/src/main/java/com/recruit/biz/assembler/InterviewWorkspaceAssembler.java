@@ -106,7 +106,7 @@ public class InterviewWorkspaceAssembler {
                 : scorecardCodec.read(feedback.getScorecardJson());
         vo.setScorecard(
                 savedScorecard.isEmpty()
-                        ? defaultScorecard()
+                        ? defaultScorecard(detail.getRound())
                         : savedScorecard
         );
         vo.setQuestions(List.of());
@@ -233,36 +233,103 @@ public class InterviewWorkspaceAssembler {
                 : feedback.getState();
     }
 
-    private List<InterviewScoreItemVO> defaultScorecard() {
+    private List<InterviewScoreItemVO> defaultScorecard(String roundCode) {
+        InterviewRound round = InterviewRound.fromCode(roundCode);
+        if (InterviewRound.SECOND.equals(round)) {
+            return secondRoundScorecard();
+        }
+        if (InterviewRound.HR.equals(round)) {
+            return hrRoundScorecard();
+        }
+        return firstRoundScorecard();
+    }
+
+    private List<InterviewScoreItemVO> firstRoundScorecard() {
         return List.of(
-                new InterviewScoreItemVO(
-                        "professional",
-                        "专业能力",
-                        "是否具备岗位要求的核心知识、方法与实践深度。",
-                        null,
-                        ""
+                scoreItem(
+                        "resume-verification",
+                        "简历与经历真实性",
+                        "候选人描述的职责、技术细节与成果是否真实且前后一致。"
                 ),
-                new InterviewScoreItemVO(
-                        "problem-solving",
-                        "问题解决",
-                        "能否拆解问题、说明判断依据并形成可执行方案。",
-                        null,
-                        ""
+                scoreItem(
+                        "fundamentals",
+                        "核心基础能力",
+                        "是否掌握岗位要求的基础知识、常用方法与基本实践。"
                 ),
-                new InterviewScoreItemVO(
-                        "collaboration",
-                        "协作与影响力",
-                        "能否清晰沟通、推动协作并对结果负责。",
-                        null,
-                        ""
+                scoreItem(
+                        "basic-problem-solving",
+                        "基础问题解决",
+                        "能否理解问题、拆解步骤并给出清晰可执行的处理思路。"
                 ),
-                new InterviewScoreItemVO(
-                        "reflection",
-                        "结果与复盘",
-                        "能否量化结果、识别不足并沉淀后续改进。",
-                        null,
-                        ""
+                scoreItem(
+                        "communication-motivation",
+                        "沟通与岗位动机",
+                        "表达是否清晰，求职动机与岗位方向是否基本匹配。"
                 )
+        );
+    }
+
+    private List<InterviewScoreItemVO> secondRoundScorecard() {
+        return List.of(
+                scoreItem(
+                        "professional-depth",
+                        "专业深度",
+                        "能否深入解释关键原理、边界条件与实际应用经验。"
+                ),
+                scoreItem(
+                        "solution-design",
+                        "方案设计与取舍",
+                        "能否针对复杂场景设计方案并说明成本、风险与取舍依据。"
+                ),
+                scoreItem(
+                        "ownership-results",
+                        "项目主导与结果",
+                        "是否真正承担关键责任，并能用事实说明推进过程和最终结果。"
+                ),
+                scoreItem(
+                        "collaboration-influence",
+                        "协作与影响力",
+                        "能否处理分歧、推动跨角色协作并对团队结果产生积极影响。"
+                )
+        );
+    }
+
+    private List<InterviewScoreItemVO> hrRoundScorecard() {
+        return List.of(
+                scoreItem(
+                        "career-motivation",
+                        "求职动机",
+                        "离职原因、求职诉求与选择本岗位的动机是否合理一致。"
+                ),
+                scoreItem(
+                        "stability-planning",
+                        "稳定性与职业规划",
+                        "职业规划是否清晰，与岗位发展路径和预期任职周期是否匹配。"
+                ),
+                scoreItem(
+                        "values-fit",
+                        "价值观与团队匹配",
+                        "工作方式、责任意识和协作理念是否与团队要求相符。"
+                ),
+                scoreItem(
+                        "offer-risk",
+                        "薪资、到岗与录用风险",
+                        "薪资期望、到岗时间及其他可能影响录用或入职的风险是否可控。"
+                )
+        );
+    }
+
+    private InterviewScoreItemVO scoreItem(
+            String key,
+            String label,
+            String description
+    ) {
+        return new InterviewScoreItemVO(
+                key,
+                label,
+                description,
+                null,
+                ""
         );
     }
 

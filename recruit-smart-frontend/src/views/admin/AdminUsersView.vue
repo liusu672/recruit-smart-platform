@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Database, Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
+import { Plus, RefreshCw, RotateCcw, Search } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -242,14 +242,6 @@ function handleCommand(command: AdminUserCommand, record: AdminUserRecord) {
       </template>
     </SupportPageHeader>
 
-    <section class="admin-users-source" aria-label="当前数据来源">
-      <Database :size="17" :stroke-width="1.75" aria-hidden="true" />
-      <div>
-        <strong>管理员接口数据</strong>
-        <span>页面按真实接口契约加载；本地验收时可使用 Mock API 提供的内存演示数据。</span>
-      </div>
-    </section>
-
     <form class="admin-users-filters" role="search" @submit.prevent="submitFilters">
       <div class="admin-users-filters__fields">
         <el-input
@@ -421,31 +413,12 @@ function handleCommand(command: AdminUserCommand, record: AdminUserRecord) {
   gap: var(--rs-space-4);
   min-height: 0;
 }
-.admin-users-source,
 .admin-users-filters,
 .admin-users-filters__fields,
 .admin-users-filters__actions,
 .admin-users-pagination {
   display: flex;
   align-items: center;
-}
-.admin-users-source {
-  gap: var(--rs-space-3);
-  min-height: 48px;
-  padding: 0 var(--rs-space-4);
-  border: 1px solid var(--rs-blue-500);
-  border-radius: var(--rs-radius-sm);
-  background: var(--rs-surface-selected);
-  color: var(--rs-blue-700);
-}
-.admin-users-source > div {
-  display: flex;
-  align-items: baseline;
-  gap: var(--rs-space-2);
-}
-.admin-users-source span {
-  color: var(--rs-text-secondary);
-  font-size: 12px;
 }
 .admin-users-filters {
   justify-content: space-between;
@@ -501,10 +474,6 @@ function handleCommand(command: AdminUserCommand, record: AdminUserRecord) {
   font-size: 12px;
 }
 @media (max-width: 1366px) {
-  .admin-users-source > div {
-    display: grid;
-    gap: 0;
-  }
   .admin-users-filters__fields :deep(.el-input) {
     width: 300px;
   }

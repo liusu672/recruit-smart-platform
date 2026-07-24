@@ -1,6 +1,11 @@
 import type { PagedData } from '@/types/api'
 import type { ApplicationStatus } from '@/types/candidate'
-import type { InterviewMethod, InterviewRound, InterviewStatus } from '@/types/interview'
+import type {
+  InterviewFeedbackState,
+  InterviewMethod,
+  InterviewRound,
+  InterviewStatus,
+} from '@/types/interview'
 
 export type PipelineViewMode = 'BOARD' | 'TABLE'
 export type PipelineStageKey = 'NEW' | 'SCREENING' | 'INTERVIEW' | 'OFFER' | 'HIRED' | 'CLOSED'
@@ -20,6 +25,7 @@ export interface PipelineInterviewSummary {
   statusText: string
   assignedAt: string | null
   scheduledAt: string | null
+  feedbackState?: InterviewFeedbackState | null
   feedbackScore: number | null
   feedbackSuggestion: string | null
 }
@@ -88,6 +94,7 @@ export interface PipelineApplicationDetail extends PipelineApplicationSummary {
   rejectReasonCode: string | null
   rejectReason: string | null
   reviewedAt: string | null
+  requiredInterviewRounds?: number | null
   aiMatch: AiMatchSummary | null
   interview: PipelineInterviewSummary | null
   offer: PipelineOfferSummary | null
@@ -99,9 +106,15 @@ export interface PipelinePageResponse {
   records: PipelineApplicationSummary[]
 }
 
+export interface PipelineStageCount {
+  stage: PipelineStageKey
+  count: number
+}
+
 export interface PipelineQuery {
   keyword: string
   jobId: number | null
+  stage?: PipelineStageKey | ''
   status: ApplicationStatus | ''
   page: number
   pageSize: number
@@ -111,6 +124,11 @@ export interface PipelineReviewRequest {
   decision: ScreeningDecision
   rejectReasonCode: string
   note: string
+}
+
+export interface PipelineRejectRequest {
+  reasonCode: string
+  reason: string
 }
 
 export interface PipelineStatusUpdateRequest {

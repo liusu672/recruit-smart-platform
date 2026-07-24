@@ -33,6 +33,8 @@ export const pipelineStages: PipelineStageDefinition[] = [
   },
 ]
 
+export const defaultPipelineStageKey: PipelineStageKey = 'NEW'
+
 export const applicationStatusOptions: Array<{ label: string; value: ApplicationStatus }> = [
   { label: '已投递', value: 'SUBMITTED' },
   { label: '筛选中', value: 'SCREENING' },
@@ -80,6 +82,14 @@ export function getApplicationStatusText(status: ApplicationStatus) {
 
 export function getPipelineStageKey(status: ApplicationStatus): PipelineStageKey {
   return pipelineStages.find((stage) => stage.statuses.includes(status))?.key ?? 'CLOSED'
+}
+
+export function getPipelineStage(key: PipelineStageKey) {
+  return pipelineStages.find((stage) => stage.key === key) ?? pipelineStages[0]!
+}
+
+export function isPipelineStageKey(value: string): value is PipelineStageKey {
+  return pipelineStages.some((stage) => stage.key === value)
 }
 
 export function getApplicationStatusTone(status: ApplicationStatus): HrStatusTone {

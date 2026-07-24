@@ -420,7 +420,7 @@ function handleJobCommand(command: string, job: JobPosition) {
       </el-table>
 
       <footer class="jobs-pagination">
-        <span>共 {{ total }} 个职位</span>
+        <span class="jobs-pagination__total">共 {{ total }} 个职位</span>
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
@@ -468,7 +468,6 @@ function handleJobCommand(command: string, job: JobPosition) {
 .jobs-view__intro,
 .jobs-toolbar,
 .jobs-error,
-.jobs-pagination,
 .job-row-actions {
   display: grid;
   align-items: center;
@@ -477,8 +476,7 @@ function handleJobCommand(command: string, job: JobPosition) {
 }
 
 .jobs-view__intro,
-.jobs-error,
-.jobs-pagination {
+.jobs-error {
   justify-content: space-between;
 }
 
@@ -606,9 +604,20 @@ function handleJobCommand(command: string, job: JobPosition) {
 }
 
 .jobs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-4);
   min-height: 56px;
   padding: 0 var(--rs-space-4);
   border-top: 1px solid var(--rs-border-default);
   color: var(--rs-text-secondary);
+}
+
+.jobs-pagination__total {
+  display: inline-flex;
+  align-items: center;
+  min-width: max-content;
+  white-space: nowrap;
 }
 </style>

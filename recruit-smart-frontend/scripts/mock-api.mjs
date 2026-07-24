@@ -534,6 +534,44 @@ function findPipelineApplication(response, id) {
   return application
 }
 
+const pipelineStageOrder = ['NEW', 'SCREENING', 'INTERVIEW', 'OFFER', 'HIRED', 'CLOSED']
+const pipelineStageStatuses = {
+  NEW: ['SUBMITTED'],
+  SCREENING: ['SCREENING'],
+  INTERVIEW: ['SCREEN_PASSED', 'INTERVIEWING'],
+  OFFER: ['OFFERED'],
+  HIRED: ['HIRED'],
+  CLOSED: ['SCREEN_REJECT', 'REJECTED', 'WITHDRAWN'],
+}
+
+function getPipelineStageKey(status) {
+  return (
+    pipelineStageOrder.find((stage) => pipelineStageStatuses[stage].includes(status)) ?? 'CLOSED'
+  )
+}
+
+function filterPipelineApplications(url, includeStage = true) {
+  const keyword = (url.searchParams.get('keyword') ?? '').toLocaleLowerCase()
+  const jobId = Number(url.searchParams.get('jobId') ?? 0)
+  const status = url.searchParams.get('status') ?? ''
+  const stage = url.searchParams.get('stage') ?? ''
+
+  return pipelineApplications.filter((application) => {
+    const keywordFields = [
+      application.candidateName,
+      application.candidatePhone ?? '',
+      application.jobTitle,
+    ]
+    return (
+      (!keyword || keywordFields.some((value) => value.toLocaleLowerCase().includes(keyword))) &&
+      (!jobId || application.jobId === jobId) &&
+      (status
+        ? application.status === status
+        : !includeStage || !stage || getPipelineStageKey(application.status) === stage)
+    )
+  })
+}
+
 function findInterview(response, id) {
   const interview = interviewTasks.find((item) => item.id === id)
   if (!interview) fail(response, 404, '面试任务不存在')
@@ -1321,24 +1359,9 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === 'GET' && url.pathname === '/applications/pipeline') {
-      const keyword = (url.searchParams.get('keyword') ?? '').toLocaleLowerCase()
-      const jobId = Number(url.searchParams.get('jobId') ?? 0)
-      const status = url.searchParams.get('status') ?? ''
       const pageNum = Number(url.searchParams.get('pageNum') ?? 1)
       const pageSize = Number(url.searchParams.get('pageSize') ?? 20)
-      const filtered = pipelineApplications.filter((application) => {
-        const keywordFields = [
-          application.candidateName,
-          application.candidatePhone ?? '',
-          application.jobTitle,
-        ]
-        return (
-          (!keyword ||
-            keywordFields.some((value) => value.toLocaleLowerCase().includes(keyword))) &&
-          (!jobId || application.jobId === jobId) &&
-          (!status || application.status === status)
-        )
-      })
+      const filtered = filterPipelineApplications(url)
       const start = (pageNum - 1) * pageSize
       success(response, {
         total: filtered.length,
@@ -1348,6 +1371,19 @@ const server = createServer(async (request, response) => {
           recommendLevel: application.aiMatch?.recommendLevel ?? null,
         })),
       })
+      return
+    }
+
+    if (method === 'GET' && url.pathname === '/applications/pipeline/stage-counts') {
+      const filtered = filterPipelineApplications(url, false)
+      success(
+        response,
+        pipelineStageOrder.map((stage) => ({
+          stage,
+          count: filtered.filter((application) => getPipelineStageKey(application.status) === stage)
+            .length,
+        })),
+      )
       return
     }
 
@@ -1412,7 +1448,7 @@ const server = createServer(async (request, response) => {
       const now = new Date().toISOString()
       application.status =
         body.decision === 'PASS'
-          ? 'SCREEN_PASS'
+          ? 'SCREEN_PASSED'
           : body.decision === 'REJECT'
             ? 'SCREEN_REJECT'
             : 'SCREENING'

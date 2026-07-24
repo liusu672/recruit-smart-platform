@@ -6,6 +6,7 @@ import com.recruit.biz.dto.OfferQueryDTO;
 import com.recruit.biz.dto.OfferHRQueryDTO;
 import com.recruit.biz.security.RequireRoles;
 import com.recruit.biz.service.OfferService;
+import com.recruit.biz.vo.OfferCandidateOptionVO;
 import com.recruit.biz.vo.OfferDetailVO;
 import com.recruit.biz.vo.OfferSummaryVO;
 import com.recruit.biz.vo.OfferHRSummaryVO;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "Offer管理接口")
 @RestController
 @RequestMapping("/offers")
@@ -37,6 +40,13 @@ public class OfferController {
     @Operation(summary = "创建Offer草稿")
     public Result<Long> create(@Valid @RequestBody OfferCreateDTO dto) {
         return Result.success(offerService.createOffer(dto));
+    }
+
+    @GetMapping("/eligible-applications")
+    @RequireRoles({"ADMIN", "HR"})
+    @Operation(summary = "查询可创建Offer的投递候选项")
+    public Result<List<OfferCandidateOptionVO>> listEligibleApplications() {
+        return Result.success(offerService.listEligibleApplications());
     }
 
     @PutMapping("/{id}")

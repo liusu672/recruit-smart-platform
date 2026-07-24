@@ -20,6 +20,15 @@ interface BackendQuestionResponse {
   questions?: unknown
 }
 
+function readQuestionContent(question: unknown) {
+  if (typeof question === 'string') return question.trim()
+  if (!question || typeof question !== 'object') return ''
+
+  const record = question as Record<string, unknown>
+  const content = record.content ?? record.question
+  return typeof content === 'string' ? content.trim() : ''
+}
+
 export function adaptInterviewQuestions(
   id: number,
   source: BackendQuestionResponse,
@@ -27,7 +36,7 @@ export function adaptInterviewQuestions(
   const category =
     typeof source.category === 'string' && source.category.trim() ? source.category : 'AI 追问'
   const questions = Array.isArray(source.questions)
-    ? source.questions.filter((question): question is string => typeof question === 'string')
+    ? source.questions.map(readQuestionContent).filter(Boolean)
     : []
   return questions.map((question, index) => ({
     id: `${id}-ai-${index}`,

@@ -5,7 +5,7 @@ import { Plus } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { getPipelineApplications } from '@/api/pipeline'
+import { getEligibleOfferApplications } from '@/api/offers'
 import HrErrorState from '@/components/hr/HrErrorState.vue'
 import HrFilterBar from '@/components/hr/HrFilterBar.vue'
 import HrPageHeader from '@/components/hr/HrPageHeader.vue'
@@ -14,7 +14,7 @@ import OfferFormDrawer from '@/components/offers/OfferFormDrawer.vue'
 import OfferTable from '@/components/offers/OfferTable.vue'
 import { useOfferManagement } from '@/composables/useOfferManagement'
 import { useHrUrlFilters } from '@/composables/useHrUrlFilters'
-import { getDemoPipelinePage, initialDemoPipeline } from '@/config/demoPipeline'
+import { initialDemoPipeline } from '@/config/demoPipeline'
 import { formatOfferSalary, offerStatusOptions, validateOfferForSend } from '@/config/offers'
 import type {
   OfferCandidateOption,
@@ -64,28 +64,26 @@ const activeFilterCount = computed(
 const eligibleApplicationsQuery = useQuery({
   queryKey: computed(() => ['offer-eligible-applications', demoMode.value ? 'demo' : 'api']),
   queryFn: async (): Promise<OfferCandidateOption[]> => {
-    const page = demoMode.value
-      ? getDemoPipelinePage(initialDemoPipeline, {
-          keyword: '',
-          jobId: null,
-          status: 'INTERVIEWING',
-          page: 1,
-          pageSize: 20,
-        })
-      : await getPipelineApplications({
-          keyword: '',
-          jobId: null,
-          status: 'INTERVIEWING',
-          page: 1,
-          pageSize: 20,
-        })
-
-    return page.items.map((application) => ({
-      applicationId: application.id,
-      candidateName: application.candidateName,
-      jobTitle: application.jobTitle,
-      interviewScore: null,
-    }))
+    if (!demoMode.value) return getEligibleOfferApplications()
+    return initialDemoPipeline
+      .filter(
+        (application) =>
+          application.status === 'INTERVIEWING' &&
+          application.interview?.status === 'COMPLETED' &&
+          application.interview.feedbackScore !== null &&
+          application.interview.feedbackSuggestion !== null &&
+          !application.offer,
+      )
+      .map((application) => ({
+        applicationId: application.id,
+        candidateId: application.candidateId,
+        candidateName: application.candidateName,
+        jobId: application.jobId,
+        jobTitle: application.jobTitle,
+        department: application.department,
+        interviewScore: application.interview?.feedbackScore ?? null,
+        interviewSuggestion: application.interview?.feedbackSuggestion ?? null,
+      }))
   },
 })
 const offerCandidates = computed(() => {

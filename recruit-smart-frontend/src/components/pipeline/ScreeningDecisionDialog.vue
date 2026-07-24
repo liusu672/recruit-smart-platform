@@ -10,6 +10,7 @@ const props = defineProps<{
   decision: ScreeningDecision
   candidateName: string
   submitting: boolean
+  context?: 'SCREENING' | 'APPLICATION_REJECT'
 }>()
 
 const emit = defineEmits<{
@@ -18,7 +19,16 @@ const emit = defineEmits<{
 
 const form = reactive({ rejectReasonCode: '', note: '' })
 const errors = reactive({ rejectReasonCode: '', note: '' })
-const copy = computed(() => screeningDecisionCopy[props.decision])
+const copy = computed(() => {
+  if (props.context === 'APPLICATION_REJECT') {
+    return {
+      title: '确认淘汰候选人',
+      confirmLabel: '确认淘汰',
+      description: '该操作会结束当前投递流程，必须记录可审计的业务原因。',
+    }
+  }
+  return screeningDecisionCopy[props.decision]
+})
 
 watch(visible, (isVisible) => {
   if (!isVisible) return

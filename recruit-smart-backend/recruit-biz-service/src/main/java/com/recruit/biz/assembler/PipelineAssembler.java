@@ -120,6 +120,11 @@ public class PipelineAssembler {
         vo.setRejectReasonCode(application.getRejectReasonCode());
         vo.setRejectReason(application.getRejectReason());
         vo.setReviewedAt(application.getReviewedAt());
+        vo.setRequiredInterviewRounds(
+                job == null || job.getRequiredInterviewRounds() == null
+                        ? 1
+                        : job.getRequiredInterviewRounds()
+        );
         vo.setAiMatch(toAiMatchSummary(aiMatch));
         vo.setInterview(toInterviewSummary(
                 currentInterview,
@@ -211,12 +216,29 @@ public class PipelineAssembler {
                         Comparator.nullsFirst(Comparator.naturalOrder())
                 ))
                 .orElseGet(() -> interviews.stream()
-                        .max(Comparator.comparing(
-                                Interview::getInterviewTime,
-                                Comparator.nullsFirst(
-                                        Comparator.naturalOrder()
+                        .max(Comparator
+                                .comparingInt(
+                                        (Interview interview) -> {
+                                            InterviewRound round =
+                                                    InterviewRound.fromCode(
+                                                            interview.getRound()
+                                                    );
+                                            return round == null
+                                                    ? 0 : round.getOrder();
+                                        }
                                 )
-                        ))
+                                .thenComparing(
+                                        Interview::getInterviewTime,
+                                        Comparator.nullsFirst(
+                                                Comparator.naturalOrder()
+                                        )
+                                )
+                                .thenComparing(
+                                        Interview::getId,
+                                        Comparator.nullsFirst(
+                                                Comparator.naturalOrder()
+                                        )
+                                ))
                         .orElse(null));
     }
 
@@ -269,6 +291,7 @@ public class PipelineAssembler {
         vo.setAssignedAt(interview.getAssignedAt());
         vo.setScheduledAt(interview.getScheduledAt());
         if (feedback != null) {
+            vo.setFeedbackState(feedback.getState());
             vo.setFeedbackScore(feedback.getScore());
             vo.setFeedbackSuggestion(feedback.getSuggestion());
         }

@@ -10,11 +10,14 @@ import {
 import {
   getPipelineApplication,
   getPipelineApplications,
+  getPipelineStageCounts,
   generateApplicationAiMatch,
+  rejectApplication,
   reviewApplication,
   updateApplicationStatus,
 } from '@/api/pipeline'
 import {
+  applyDemoApplicationReject,
   applyDemoInterviewAssignment,
   applyDemoInterviewCancellation,
   applyDemoInterviewReassignment,
@@ -22,12 +25,14 @@ import {
   applyDemoStatusUpdate,
   demoInterviewerOptions,
   getDemoPipelinePage,
+  getDemoPipelineStageCounts,
   initialDemoPipeline,
 } from '@/config/demoPipeline'
 import type { InterviewAssignmentRequest, InterviewUpdateRequest } from '@/types/interview'
 import type {
   PipelineApplicationDetail,
   PipelineQuery,
+  PipelineRejectRequest,
   PipelineReviewRequest,
   PipelineStatusUpdateRequest,
 } from '@/types/pipeline'
@@ -44,6 +49,7 @@ export function useRecruitmentPipeline() {
   const query = reactive<PipelineQuery>({
     keyword: '',
     jobId: null,
+    stage: 'NEW',
     status: '',
     page: 1,
     pageSize: 20,
@@ -55,6 +61,7 @@ export function useRecruitmentPipeline() {
       demoMode.value ? 'demo' : 'api',
       query.keyword,
       query.jobId,
+      query.stage,
       query.status,
       query.page,
       query.pageSize,
@@ -63,6 +70,27 @@ export function useRecruitmentPipeline() {
       demoMode.value
         ? Promise.resolve(getDemoPipelinePage(demoRecords.value, { ...query }))
         : getPipelineApplications({ ...query }),
+  })
+
+  const stageCountsQuery = useQuery({
+    queryKey: computed(() => [
+      'pipeline-stage-counts',
+      demoMode.value ? 'demo' : 'api',
+      query.keyword,
+      query.jobId,
+    ]),
+    queryFn: () =>
+      demoMode.value
+        ? Promise.resolve(
+            getDemoPipelineStageCounts(demoRecords.value, {
+              keyword: query.keyword,
+              jobId: query.jobId,
+            }),
+          )
+        : getPipelineStageCounts({
+            keyword: query.keyword,
+            jobId: query.jobId,
+          }),
   })
 
   const detailQuery = useQuery({
@@ -92,6 +120,7 @@ export function useRecruitmentPipeline() {
   async function invalidatePipeline() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['pipeline'] }),
+      queryClient.invalidateQueries({ queryKey: ['pipeline-stage-counts'] }),
       queryClient.invalidateQueries({ queryKey: ['pipeline-detail'] }),
     ])
   }
@@ -112,6 +141,16 @@ export function useRecruitmentPipeline() {
       const index = demoRecords.value.findIndex((item) => item.id === id)
       if (index < 0) throw new Error('演示投递记录不存在')
       demoRecords.value[index] = applyDemoScreeningDecision(demoRecords.value[index]!, data)
+    },
+    onSuccess: invalidatePipeline,
+  })
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: PipelineRejectRequest }) => {
+      if (!demoMode.value) return rejectApplication(id, data)
+      const index = demoRecords.value.findIndex((item) => item.id === id)
+      if (index < 0) throw new Error('演示投递记录不存在')
+      demoRecords.value[index] = applyDemoApplicationReject(demoRecords.value[index]!, data)
     },
     onSuccess: invalidatePipeline,
   })
@@ -168,12 +207,12 @@ export function useRecruitmentPipeline() {
     onSuccess: invalidatePipeline,
   })
 
-  function applyFilters(filters: Pick<PipelineQuery, 'keyword' | 'jobId' | 'status'>) {
+  function applyFilters(filters: Pick<PipelineQuery, 'keyword' | 'jobId' | 'stage' | 'status'>) {
     Object.assign(query, filters, { page: 1 })
   }
 
   function resetFilters() {
-    Object.assign(query, { keyword: '', jobId: null, status: '', page: 1 })
+    Object.assign(query, { keyword: '', jobId: null, stage: 'NEW', status: '', page: 1 })
   }
 
   function useDemoData() {
@@ -201,10 +240,12 @@ export function useRecruitmentPipeline() {
     demoMode,
     selectedApplicationId,
     pipelineQuery,
+    stageCountsQuery,
     detailQuery,
     interviewerQuery,
     statusMutation,
     reviewMutation,
+    rejectMutation,
     interviewAssignmentMutation,
     interviewReassignmentMutation,
     interviewCancellationMutation,

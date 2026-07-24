@@ -135,16 +135,42 @@ export function useInterviewWorkspace() {
       if (!demoMode.value) return generateInterviewQuestions(id, data)
       const interview = demoRecords.value.find((item) => item.id === id)
       if (!interview) throw new Error('演示面试任务不存在')
-      const focus = data.focus.trim()
-      if (!focus) throw new Error('请先填写需要追问的主题')
+      const timestamp = Date.now()
+      const skillText = interview.candidateBrief.skills.slice(0, 3).join('、') || interview.jobTitle
+      const projectText =
+        interview.candidateBrief.projectExperience ??
+        interview.candidateBrief.workExperience ??
+        '简历项目经历'
+      const riskText = interview.candidateBrief.riskPoints[0] ?? '简历真实性与岗位匹配度'
       return [
         {
-          id: `${id}-manual-${Date.now()}`,
-          category: '临场追问',
-          question: `请结合真实项目说明“${focus}”中的关键判断、执行过程与最终结果。`,
-          source: 'MANUAL' as const,
+          id: `${id}-resume-${timestamp}`,
+          category: '简历追问',
+          question: `请结合“${projectText}”说明候选人在 ${skillText} 方面的核心职责、技术取舍和最终结果。`,
+          source: 'RESUME' as const,
+        },
+        {
+          id: `${id}-job-${timestamp}`,
+          category: '岗位匹配',
+          question: `围绕“${interview.jobTitle}”岗位要求，请候选人说明一个最能体现岗位匹配度的项目案例。`,
+          source: 'JOB' as const,
+        },
+        {
+          id: `${id}-risk-${timestamp}`,
+          category: '风险核实',
+          question: `针对“${riskText}”，请候选人补充具体背景、个人贡献和可验证的结果指标。`,
+          source: 'RISK' as const,
         },
       ]
+    },
+    onSuccess: (questions, { id }) => {
+      if (demoMode.value) {
+        updateDemoInterview(id, (interview) => ({ ...interview, questions }))
+      }
+      queryClient.setQueryData<InterviewWorkspace>(
+        ['interview-workspace', demoMode.value ? 'demo' : 'api', id],
+        (interview) => (interview ? { ...interview, questions } : interview),
+      )
     },
   })
 

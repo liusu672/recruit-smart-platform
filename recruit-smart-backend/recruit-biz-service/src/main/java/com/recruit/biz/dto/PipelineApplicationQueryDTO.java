@@ -18,6 +18,13 @@ public class PipelineApplicationQueryDTO {
     )
     private String status;
 
+    @Schema(description = "招聘流程阶段", example = "INTERVIEW")
+    @Pattern(
+            regexp = "^(NEW|SCREENING|INTERVIEW|OFFER|HIRED|CLOSED)$",
+            message = "招聘流程阶段不正确"
+    )
+    private String stage;
+
     @Schema(description = "职位ID")
     @Min(value = 1, message = "职位ID必须大于0")
     private Long jobId;

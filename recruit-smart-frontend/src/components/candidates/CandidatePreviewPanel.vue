@@ -7,6 +7,7 @@ import {
   Mail,
   Phone,
   Sparkles,
+  UserRound,
   X,
 } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
@@ -91,7 +92,9 @@ function formatDate(value: string | null) {
       />
 
       <section class="candidate-preview__identity">
-        <span class="candidate-avatar" aria-hidden="true">{{ candidate.name.slice(0, 1) }}</span>
+        <span class="candidate-avatar" aria-hidden="true">
+          <UserRound :size="24" :stroke-width="1.9" />
+        </span>
         <div>
           <div class="candidate-preview__name-row">
             <h2>{{ candidate.name }}</h2>
@@ -308,10 +311,8 @@ function formatDate(value: string | null) {
   height: 48px;
   place-items: center;
   border-radius: 50%;
-  background: var(--rs-action-primary);
-  color: var(--rs-white);
-  font-size: 18px;
-  font-weight: 700;
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
 }
 
 .candidate-preview__name-row {

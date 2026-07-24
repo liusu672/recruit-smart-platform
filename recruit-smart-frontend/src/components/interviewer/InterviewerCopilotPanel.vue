@@ -3,8 +3,8 @@ import {
   Bot,
   Check,
   Clipboard,
+  FileText,
   PanelRightClose,
-  Send,
   ShieldCheck,
   TriangleAlert,
 } from 'lucide-vue-next'
@@ -27,16 +27,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  generate: [focus: string]
+  generate: []
   summarize: []
 }>()
 
-const focus = ref('')
 const askedQuestionIds = ref(new Set<string>())
+const summaryDialogVisible = ref(false)
 
 watch(
   () => props.interviewId,
-  () => (askedQuestionIds.value = new Set()),
+  () => {
+    askedQuestionIds.value = new Set()
+    summaryDialogVisible.value = false
+  },
+)
+
+watch(
+  () => props.feedbackSummary,
+  (summary) => {
+    if (summary) summaryDialogVisible.value = true
+  },
 )
 
 const sourceText: Record<InterviewQuestion['source'], string> = {
@@ -44,13 +54,6 @@ const sourceText: Record<InterviewQuestion['source'], string> = {
   RESUME: '候选人简历',
   RISK: '风险核实',
   MANUAL: '临场追问',
-}
-
-function submitFocus() {
-  const value = focus.value.trim()
-  if (!value) return
-  emit('generate', value)
-  focus.value = ''
 }
 
 async function copyQuestion(question: InterviewQuestion) {
@@ -111,7 +114,7 @@ function toggleAsked(question: InterviewQuestion) {
           </footer>
         </article>
       </div>
-      <p v-else class="interviewer-copilot__empty">暂无推荐问题，可在下方补充追问主题。</p>
+      <p v-else class="interviewer-copilot__empty">暂无推荐问题，可点击下方按钮生成。</p>
       <small class="interviewer-copilot__local-note"
         >“已提问”仅用于本次页面记录，刷新后不会保留。</small
       >
@@ -131,48 +134,75 @@ function toggleAsked(question: InterviewQuestion) {
 
     <section
       v-if="aiSummary || feedbackSummary"
-      class="interviewer-copilot__section interviewer-copilot__summary"
+      class="interviewer-copilot__section interviewer-copilot__summary-card"
     >
-      <h3>反馈摘要</h3>
-      <p v-if="feedbackSummary">{{ feedbackSummary.summary }}</p>
-      <p v-else>{{ aiSummary }}</p>
-      <template v-if="feedbackSummary">
-        <strong>优势</strong>
-        <ul>
-          <li v-for="item in feedbackSummary.advantages" :key="item">{{ item }}</li>
-        </ul>
-        <strong>待核实</strong>
-        <ul>
-          <li v-for="item in feedbackSummary.risks" :key="item">{{ item }}</li>
-        </ul>
-        <small>{{ feedbackSummary.suggestion }}。该结果未覆盖原始评价。</small>
-      </template>
+      <div>
+        <h3>反馈摘要</h3>
+        <p>
+          {{
+            feedbackSummary
+              ? '本次反馈摘要已生成，可在弹窗中查看完整内容。'
+              : '已保存 AI 反馈摘要。'
+          }}
+        </p>
+      </div>
+      <el-button
+        size="small"
+        type="primary"
+        plain
+        :icon="FileText"
+        @click="summaryDialogVisible = true"
+      >
+        查看摘要
+      </el-button>
     </section>
 
     <section class="interviewer-copilot__section interviewer-copilot__actions">
-      <el-button :loading="summarizing" :disabled="!canSummarize" @click="emit('summarize')"
+      <el-button
+        type="primary"
+        :loading="summarizing"
+        :disabled="!canSummarize"
+        @click="emit('summarize')"
         >生成反馈摘要</el-button
       >
-      <form @submit.prevent="submitFocus">
-        <label for="interviewer-question-focus">补充追问主题</label>
-        <div>
-          <el-input
-            id="interviewer-question-focus"
-            v-model="focus"
-            placeholder="例如：复杂状态流转"
-            :disabled="generating"
-          /><el-tooltip content="生成参考问题" placement="top"
-            ><el-button
-              native-type="submit"
-              circle
-              :icon="Send"
-              :loading="generating"
-              :disabled="!focus.trim()"
-              aria-label="生成参考问题"
-          /></el-tooltip>
-        </div>
-      </form>
+      <el-button :loading="generating" @click="emit('generate')">生成面试问题</el-button>
     </section>
+
+    <el-dialog
+      v-model="summaryDialogVisible"
+      title="反馈摘要"
+      width="720px"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="interviewer-summary-dialog__content">
+        <section v-if="aiSummary" class="interviewer-summary-dialog__section">
+          <h3>AI 反馈摘要</h3>
+          <p>{{ aiSummary }}</p>
+          <small>摘要与已提交的面试官原始评价分开保存。</small>
+        </section>
+
+        <section v-if="feedbackSummary" class="interviewer-summary-dialog__section">
+          <h3>本次生成的反馈摘要</h3>
+          <p>{{ feedbackSummary.summary }}</p>
+          <div class="interviewer-summary-dialog__grid">
+            <div>
+              <strong>优势</strong>
+              <ul>
+                <li v-for="item in feedbackSummary.advantages" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div>
+              <strong>待核实</strong>
+              <ul>
+                <li v-for="item in feedbackSummary.risks" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+          </div>
+          <small>{{ feedbackSummary.suggestion }}。该结果未覆盖原始评价。</small>
+        </section>
+      </div>
+    </el-dialog>
   </aside>
 </template>
 
@@ -190,8 +220,7 @@ function toggleAsked(question: InterviewQuestion) {
 .interviewer-copilot__questions article > div,
 .interviewer-copilot__questions footer,
 .interviewer-copilot__risks li,
-.interviewer-copilot__error,
-.interviewer-copilot__actions form > div {
+.interviewer-copilot__error {
   display: flex;
   align-items: center;
 }
@@ -275,7 +304,7 @@ function toggleAsked(question: InterviewQuestion) {
 }
 .interviewer-copilot__questions article > div span,
 .interviewer-copilot__local-note,
-.interviewer-copilot__summary small {
+.interviewer-summary-dialog__content small {
   color: var(--rs-text-tertiary);
   font-size: 12px;
 }
@@ -294,7 +323,7 @@ function toggleAsked(question: InterviewQuestion) {
   color: var(--rs-text-secondary);
 }
 .interviewer-copilot__risks ul,
-.interviewer-copilot__summary ul {
+.interviewer-summary-dialog__grid ul {
   display: grid;
   gap: var(--rs-space-1);
   padding-left: var(--rs-space-4);
@@ -307,21 +336,41 @@ function toggleAsked(question: InterviewQuestion) {
   color: var(--rs-warning-800);
   font-size: 12px;
 }
-.interviewer-copilot__summary p {
+.interviewer-copilot__summary-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  background: var(--rs-surface-selected);
+}
+.interviewer-copilot__summary-card p,
+.interviewer-summary-dialog__content p {
   color: var(--rs-text-secondary);
 }
-.interviewer-copilot__actions form {
+.interviewer-summary-dialog__content {
   display: grid;
-  gap: var(--rs-space-2);
+  max-height: 62dvh;
+  gap: var(--rs-space-4);
+  overflow-y: auto;
 }
-.interviewer-copilot__actions label {
-  font-size: 12px;
-  font-weight: 600;
+.interviewer-summary-dialog__section {
+  padding: var(--rs-space-4);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-selected);
 }
-.interviewer-copilot__actions form > div {
-  gap: var(--rs-space-2);
+.interviewer-summary-dialog__section h3,
+.interviewer-summary-dialog__section p {
+  margin: 0;
 }
-.interviewer-copilot__actions :deep(.el-input) {
-  flex: 1;
+.interviewer-summary-dialog__section p {
+  margin-top: var(--rs-space-2);
+}
+.interviewer-summary-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--rs-space-3);
+  margin: var(--rs-space-3) 0;
+}
+.interviewer-copilot__actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 </style>

@@ -21,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 public class AuthServiceImpl implements AuthService {
     @Resource
@@ -52,7 +54,7 @@ public class AuthServiceImpl implements AuthService {
         if (sysRole == null) {
             throw new BusinessException(ErrorCode.FORBIDDEN,"用户角色不存在");
         }
-        return buildLoginVO(user,sysRole);
+        return completeLogin(user, sysRole);
     }
     @Override
     public UserInfoVO getCurrentUser(){
@@ -146,8 +148,19 @@ public class AuthServiceImpl implements AuthService {
 
         candidateMapper.insert(candidate);
 
+        return completeLogin(user, role);
+    }
+
+    private LoginVO completeLogin(SysUser user, SysRole role) {
+        LocalDateTime loginTime = LocalDateTime.now();
+        SysUser loginUpdate = new SysUser();
+        loginUpdate.setId(user.getId());
+        loginUpdate.setLastLoginAt(loginTime);
+        sysUserMapper.updateById(loginUpdate);
+        user.setLastLoginAt(loginTime);
         return buildLoginVO(user, role);
     }
+
     private LoginVO buildLoginVO(SysUser user,SysRole role){
         String token = jwtUtil.generateToken(
                 user.getId(),

@@ -32,6 +32,7 @@ import com.recruit.biz.mapper.OnboardingMapper;
 import com.recruit.biz.security.UserContext;
 import com.recruit.biz.service.OfferService;
 import com.recruit.biz.service.ApplicationProcessEventService;
+import com.recruit.biz.vo.OfferCandidateOptionVO;
 import com.recruit.biz.vo.OfferDetailVO;
 import com.recruit.biz.vo.OfferHRSummaryVO;
 import com.recruit.biz.vo.OfferSummaryVO;
@@ -44,6 +45,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -746,6 +748,103 @@ public class OfferServiceImpl implements OfferService {
     }
 
     @Override
+    public List<OfferCandidateOptionVO> listEligibleApplications() {
+        List<JobApplication> applications = jobApplicationMapper.selectList(
+                new LambdaQueryWrapper<JobApplication>()
+                        .eq(
+                                JobApplication::getStatus,
+                                JobApplicationStatus.INTERVIEWING.name()
+                        )
+                        .orderByDesc(JobApplication::getReviewedAt)
+                        .orderByDesc(JobApplication::getUpdatedAt)
+                        .orderByDesc(JobApplication::getId)
+        );
+        if (applications.isEmpty()) {
+            return List.of();
+        }
+
+        Set<Long> applicationIds = applications.stream()
+                .map(JobApplication::getId)
+                .collect(Collectors.toSet());
+        Set<Long> applicationIdsWithOffer = offerMapper.selectList(
+                        new LambdaQueryWrapper<Offer>()
+                                .in(Offer::getApplicationId, applicationIds)
+                )
+                .stream()
+                .map(Offer::getApplicationId)
+                .collect(Collectors.toSet());
+
+        Set<Long> jobIds = applications.stream()
+                .map(JobApplication::getJobId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, JobPosition> jobMap = jobIds.isEmpty()
+                ? Map.of()
+                : jobPositionMapper.selectBatchIds(jobIds)
+                .stream()
+                .collect(Collectors.toMap(JobPosition::getId, Function.identity()));
+
+        Set<Long> candidateIds = applications.stream()
+                .map(JobApplication::getCandidateId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Candidate> candidateMap = candidateIds.isEmpty()
+                ? Map.of()
+                : candidateMapper.selectBatchIds(candidateIds)
+                .stream()
+                .collect(Collectors.toMap(Candidate::getId, Function.identity()));
+
+        List<Interview> completedInterviews = interviewMapper.selectList(
+                new LambdaQueryWrapper<Interview>()
+                        .in(Interview::getApplicationId, applicationIds)
+                        .eq(Interview::getStatus, InterviewStatus.COMPLETED.name())
+        );
+        Map<Long, List<Interview>> completedInterviewMap = completedInterviews
+                .stream()
+                .collect(Collectors.groupingBy(Interview::getApplicationId));
+
+        Set<Long> completedInterviewIds = completedInterviews.stream()
+                .map(Interview::getId)
+                .collect(Collectors.toSet());
+        Map<Long, InterviewFeedback> submittedFeedbackMap =
+                completedInterviewIds.isEmpty()
+                        ? Map.of()
+                        : interviewFeedbackMapper.selectList(
+                                new LambdaQueryWrapper<InterviewFeedback>()
+                                        .in(
+                                                InterviewFeedback::getInterviewId,
+                                                completedInterviewIds
+                                        )
+                                        .eq(
+                                                InterviewFeedback::getState,
+                                                "SUBMITTED"
+                                        )
+                        )
+                        .stream()
+                        .collect(Collectors.toMap(
+                                InterviewFeedback::getInterviewId,
+                                Function.identity(),
+                                (left, right) -> left
+                        ));
+
+        return applications.stream()
+                .filter(application ->
+                        !applicationIdsWithOffer.contains(application.getId()))
+                .map(application -> toOfferCandidateOption(
+                        application,
+                        jobMap.get(application.getJobId()),
+                        candidateMap.get(application.getCandidateId()),
+                        completedInterviewMap.getOrDefault(
+                                application.getId(),
+                                List.of()
+                        ),
+                        submittedFeedbackMap
+                ))
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void revokeOffer(Long id) {
         Offer offer = requireOffer(id);
@@ -912,6 +1011,102 @@ public class OfferServiceImpl implements OfferService {
         );
 
         return vo;
+    }
+
+    private OfferCandidateOptionVO toOfferCandidateOption(
+            JobApplication application,
+            JobPosition job,
+            Candidate candidate,
+            List<Interview> completedInterviews,
+            Map<Long, InterviewFeedback> submittedFeedbackMap
+    ) {
+        if (job == null || candidate == null) {
+            return null;
+        }
+        int requiredRounds = job.getRequiredInterviewRounds() == null
+                ? 1
+                : job.getRequiredInterviewRounds();
+        List<Interview> requiredCompletedInterviews = completedInterviews
+                .stream()
+                .filter(interview -> isRequiredCompletedWithFeedback(
+                        interview,
+                        requiredRounds,
+                        submittedFeedbackMap
+                ))
+                .toList();
+        if (!hasAllRequiredRounds(
+                requiredCompletedInterviews,
+                requiredRounds
+        )) {
+            return null;
+        }
+
+        List<InterviewFeedback> submittedFeedbacks = requiredCompletedInterviews
+                .stream()
+                .map(interview -> submittedFeedbackMap.get(interview.getId()))
+                .filter(Objects::nonNull)
+                .toList();
+        Integer averageScore = submittedFeedbacks.stream()
+                .map(InterviewFeedback::getScore)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .average()
+                .stream()
+                .mapToInt(score -> (int) Math.round(score))
+                .findFirst()
+                .orElse(0);
+        Interview latestRequiredInterview = requiredCompletedInterviews.stream()
+                .max(Comparator.comparingInt(interview -> {
+                    InterviewRound round = InterviewRound.fromCode(
+                            interview.getRound()
+                    );
+                    return round == null ? 0 : round.getOrder();
+                }))
+                .orElse(null);
+        InterviewFeedback latestFeedback = latestRequiredInterview == null
+                ? null
+                : submittedFeedbackMap.get(latestRequiredInterview.getId());
+
+        OfferCandidateOptionVO vo = new OfferCandidateOptionVO();
+        vo.setApplicationId(application.getId());
+        vo.setCandidateId(application.getCandidateId());
+        vo.setCandidateName(candidate.getName());
+        vo.setJobId(application.getJobId());
+        vo.setJobTitle(job.getTitle());
+        vo.setDepartment(job.getDepartment());
+        vo.setInterviewScore(averageScore);
+        vo.setInterviewSuggestion(
+                latestFeedback == null ? null : latestFeedback.getSuggestion()
+        );
+        return vo;
+    }
+
+    private boolean isRequiredCompletedWithFeedback(
+            Interview interview,
+            int requiredRounds,
+            Map<Long, InterviewFeedback> submittedFeedbackMap
+    ) {
+        InterviewRound round = InterviewRound.fromCode(interview.getRound());
+        return round != null
+                && round.getOrder() <= requiredRounds
+                && submittedFeedbackMap.containsKey(interview.getId());
+    }
+
+    private boolean hasAllRequiredRounds(
+            List<Interview> completedInterviews,
+            int requiredRounds
+    ) {
+        Set<Integer> completedRoundOrders = completedInterviews.stream()
+                .map(interview -> InterviewRound.fromCode(interview.getRound()))
+                .filter(Objects::nonNull)
+                .map(InterviewRound::getOrder)
+                .collect(Collectors.toSet());
+        for (int order = 1; order <= requiredRounds; order++) {
+            if (!completedRoundOrders.contains(order)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Offer requireOffer(Long id) {

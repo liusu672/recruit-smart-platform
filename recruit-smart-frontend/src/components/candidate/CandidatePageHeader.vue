@@ -1,13 +1,24 @@
 <script setup lang="ts">
-defineProps<{
+import { useWorkspacePageHeader } from '@/composables/useWorkspacePageHeader'
+
+const props = defineProps<{
   title: string
   description: string
 }>()
+
+const usesTopbarHeader = useWorkspacePageHeader(() => ({
+  title: props.title,
+  description: props.description,
+}))
 </script>
 
 <template>
-  <header class="candidate-page-header">
-    <div class="candidate-page-header__copy">
+  <header
+    v-if="!usesTopbarHeader || $slots.actions"
+    class="candidate-page-header"
+    :class="{ 'candidate-page-header--actions-only': usesTopbarHeader }"
+  >
+    <div v-if="!usesTopbarHeader" class="candidate-page-header__copy">
       <h1>{{ title }}</h1>
       <p>{{ description }}</p>
     </div>

@@ -44,6 +44,7 @@ import type {
 
 const COPILOT_STORAGE_KEY = 'rs-interviewer-copilot-collapsed'
 const TASK_LIST_STORAGE_KEY = 'rs-interviewer-task-list-collapsed'
+const DEFAULT_INTERVIEW_QUESTION_FOCUS = '基于候选人简历和岗位要求生成面试问题'
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
@@ -372,16 +373,15 @@ async function submitFeedback() {
   }
 }
 
-async function generateQuestion(focus: string) {
+async function generateQuestion() {
   const interview = workspace.value
   if (!interview) return
   copilotError.value = ''
   try {
-    const questions = await questionMutation.mutateAsync({
+    await questionMutation.mutateAsync({
       id: interview.id,
-      data: { focus },
+      data: { focus: DEFAULT_INTERVIEW_QUESTION_FOCUS },
     })
-    extraQuestions.value.push(...questions)
   } catch (error) {
     copilotError.value = error instanceof Error ? error.message : '参考问题生成失败，请重试'
   }

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Bot, Send, ShieldCheck } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { Bot, FileText, ShieldCheck } from 'lucide-vue-next'
+import { ref, watch } from 'vue'
 
 import type { FeedbackSummaryResponse } from '@/types/ai'
 import type { InterviewQuestion } from '@/types/interview'
 
-defineProps<{
+const props = defineProps<{
   questions: InterviewQuestion[]
   aiSummary: string | null
   generating: boolean
@@ -15,24 +15,24 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  generate: [focus: string]
+  generate: []
   summarize: []
 }>()
 
-const focus = ref('')
+const summaryDialogVisible = ref(false)
+
+watch(
+  () => props.feedbackSummary,
+  (summary) => {
+    if (summary) summaryDialogVisible.value = true
+  },
+)
 
 const sourceText: Record<InterviewQuestion['source'], string> = {
   JOB: '岗位要求',
   RESUME: '候选人简历',
   RISK: '风险核实',
   MANUAL: '临场追问',
-}
-
-function submitFocus() {
-  const value = focus.value.trim()
-  if (!value) return
-  emit('generate', value)
-  focus.value = ''
 }
 </script>
 
@@ -61,59 +61,75 @@ function submitFocus() {
       </article>
     </section>
 
-    <section v-if="aiSummary" class="copilot__summary">
-      <h4>AI 反馈摘要</h4>
-      <p>{{ aiSummary }}</p>
-      <small>摘要与上方已提交的面试官原始评价分开保存。</small>
-    </section>
-
-    <section v-if="feedbackSummary" class="copilot__summary">
-      <h4>本次生成的反馈摘要</h4>
-      <p>{{ feedbackSummary.summary }}</p>
-      <div class="copilot__summary-grid">
-        <div>
-          <strong>优势</strong>
-          <ul>
-            <li v-for="item in feedbackSummary.advantages" :key="item">{{ item }}</li>
-          </ul>
-        </div>
-        <div>
-          <strong>待核实</strong>
-          <ul>
-            <li v-for="item in feedbackSummary.risks" :key="item">{{ item }}</li>
-          </ul>
-        </div>
+    <section v-if="aiSummary || feedbackSummary" class="copilot__summary-card">
+      <div>
+        <h4>反馈摘要</h4>
+        <p>
+          {{
+            feedbackSummary
+              ? '本次反馈摘要已生成，可在弹窗中查看完整内容。'
+              : '已保存 AI 反馈摘要。'
+          }}
+        </p>
       </div>
-      <small>{{ feedbackSummary.suggestion }}。该结果未覆盖面试官原始评价。</small>
+      <el-button
+        size="small"
+        type="primary"
+        plain
+        :icon="FileText"
+        @click="summaryDialogVisible = true"
+      >
+        查看摘要
+      </el-button>
     </section>
 
-    <div class="copilot__summary-action">
-      <el-button :loading="summarizing" :disabled="!canSummarize" @click="emit('summarize')">
+    <div class="copilot__actions">
+      <el-button
+        type="primary"
+        :loading="summarizing"
+        :disabled="!canSummarize"
+        @click="emit('summarize')"
+      >
         生成反馈摘要
       </el-button>
+      <el-button :loading="generating" @click="emit('generate')">生成面试问题</el-button>
     </div>
 
-    <form class="copilot__composer" @submit.prevent="submitFocus">
-      <label for="interview-focus">补充追问主题</label>
-      <div>
-        <el-input
-          id="interview-focus"
-          v-model="focus"
-          placeholder="输入需要补充追问的主题，如 Java 并发、项目难点"
-          :disabled="generating"
-        />
-        <el-tooltip content="生成面试追问" placement="top">
-          <el-button
-            native-type="submit"
-            circle
-            :icon="Send"
-            :loading="generating"
-            :disabled="!focus.trim()"
-            aria-label="生成面试追问"
-          />
-        </el-tooltip>
+    <el-dialog
+      v-model="summaryDialogVisible"
+      title="反馈摘要"
+      width="720px"
+      append-to-body
+      destroy-on-close
+    >
+      <div class="copilot-summary-dialog__content">
+        <section v-if="aiSummary" class="copilot-summary-dialog__section">
+          <h4>AI 反馈摘要</h4>
+          <p>{{ aiSummary }}</p>
+          <small>摘要与上方已提交的面试官原始评价分开保存。</small>
+        </section>
+
+        <section v-if="feedbackSummary" class="copilot-summary-dialog__section">
+          <h4>本次生成的反馈摘要</h4>
+          <p>{{ feedbackSummary.summary }}</p>
+          <div class="copilot-summary-dialog__grid">
+            <div>
+              <strong>优势</strong>
+              <ul>
+                <li v-for="item in feedbackSummary.advantages" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+            <div>
+              <strong>待核实</strong>
+              <ul>
+                <li v-for="item in feedbackSummary.risks" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+          </div>
+          <small>{{ feedbackSummary.suggestion }}。该结果未覆盖面试官原始评价。</small>
+        </section>
       </div>
-    </form>
+    </el-dialog>
   </aside>
 </template>
 
@@ -129,8 +145,7 @@ function submitFocus() {
 .copilot__header,
 .copilot__header > div,
 .copilot__boundary,
-.copilot__questions article > div,
-.copilot__composer > div {
+.copilot__questions article > div {
   display: flex;
   align-items: center;
 }
@@ -143,8 +158,7 @@ function submitFocus() {
 }
 
 .copilot__header > div,
-.copilot__boundary,
-.copilot__composer > div {
+.copilot__boundary {
   gap: var(--rs-space-2);
 }
 
@@ -191,14 +205,15 @@ function submitFocus() {
 }
 
 .copilot__questions strong,
-.copilot__summary h4,
-.copilot__composer label {
+.copilot__summary-card h4,
+.copilot-summary-dialog__content h4 {
   font-size: 12px;
   font-weight: 600;
 }
 
 .copilot__questions span,
-.copilot__summary small {
+.copilot__summary-card p,
+.copilot-summary-dialog__content small {
   color: var(--rs-text-tertiary);
   font-size: 12px;
 }
@@ -207,42 +222,54 @@ function submitFocus() {
   color: var(--rs-text-secondary);
 }
 
-.copilot__summary {
+.copilot__summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-3);
   padding: var(--rs-space-4);
   border-top: 1px solid var(--rs-border-default);
   background: var(--rs-surface-selected);
 }
 
-.copilot__summary p {
-  margin: var(--rs-space-2) 0;
+.copilot__summary-card p,
+.copilot-summary-dialog__content p {
+  margin: var(--rs-space-2) 0 0;
   color: var(--rs-text-secondary);
 }
 
-.copilot__composer {
+.copilot__actions {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--rs-space-2);
   padding: var(--rs-space-4);
   border-top: 1px solid var(--rs-border-default);
 }
 
-.copilot__summary-action {
-  padding: 0 var(--rs-space-4) var(--rs-space-4);
+.copilot-summary-dialog__content {
+  display: grid;
+  max-height: 62dvh;
+  gap: var(--rs-space-4);
+  overflow-y: auto;
 }
 
-.copilot__summary-grid {
+.copilot-summary-dialog__section {
+  padding: var(--rs-space-4);
+  border: 1px solid var(--rs-border-default);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface-selected);
+}
+
+.copilot-summary-dialog__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--rs-space-3);
   margin: var(--rs-space-3) 0;
 }
 
-.copilot__summary-grid ul {
+.copilot-summary-dialog__grid ul {
   padding-left: var(--rs-space-4);
   margin: var(--rs-space-1) 0 0;
   color: var(--rs-text-secondary);
-}
-
-.copilot__composer :deep(.el-input) {
-  flex: 1;
 }
 </style>

@@ -62,9 +62,13 @@ export interface OfferFormValue {
 
 export interface OfferCandidateOption {
   applicationId: number
+  candidateId: number
   candidateName: string
+  jobId: number
   jobTitle: string
+  department: string
   interviewScore: number | null
+  interviewSuggestion: string | null
 }
 
 export interface OfferFormSubmitValue {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { Plus, UsersRound } from 'lucide-vue-next'
+import { Plus, UserRound, UsersRound } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 
 import CandidateFormDrawer from '@/components/candidates/CandidateFormDrawer.vue'
@@ -254,9 +254,9 @@ function openEditCandidate() {
           <el-table-column prop="name" label="候选人" min-width="190" fixed="left">
             <template #default="{ row }: { row: CandidateSummary }">
               <div class="candidate-name-cell">
-                <span class="candidate-name-cell__avatar" aria-hidden="true">{{
-                  row.name.slice(0, 1)
-                }}</span>
+                <span class="candidate-name-cell__avatar" aria-hidden="true">
+                  <UserRound :size="18" :stroke-width="1.9" />
+                </span>
                 <div>
                   <strong>{{ row.name }}</strong>
                   <span>{{ maskPhone(row.phone) || row.email || '联系方式待补充' }}</span>
@@ -502,9 +502,8 @@ function openEditCandidate() {
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: var(--rs-action-primary);
-  color: var(--rs-white);
-  font-weight: 700;
+  background: var(--rs-blue-050);
+  color: var(--rs-blue-700);
 }
 
 .candidate-name-cell > div,
@@ -522,7 +521,7 @@ function openEditCandidate() {
   white-space: nowrap;
 }
 
-.candidate-name-cell span,
+.candidate-name-cell > div > span,
 .candidate-two-line-cell > span:not(.rs-status-pill) {
   overflow: hidden;
   color: var(--rs-text-tertiary);

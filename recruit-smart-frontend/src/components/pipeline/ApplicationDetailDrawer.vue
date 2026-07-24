@@ -9,7 +9,7 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import {
   getResumeDownloadFile,
@@ -17,13 +17,18 @@ import {
   openBlobPreview,
   saveBlobAsFile,
 } from '@/api/resumes'
-import { getInterviewStatusTone } from '@/config/interviews'
+import {
+  getInterviewArrangementText,
+  getInterviewStatusTone,
+  getNextSchedulableInterviewRound,
+} from '@/config/interviews'
 import { getApplicationStatusTone } from '@/config/pipeline'
+import type { InterviewRound } from '@/types/interview'
 import type { PipelineApplicationDetail, ScreeningDecision } from '@/types/pipeline'
 
 const visible = defineModel<boolean>('visible', { required: true })
 
-defineProps<{
+const props = defineProps<{
   application: PipelineApplicationDetail | undefined
   loading: boolean
   error: Error | null
@@ -36,14 +41,41 @@ const emit = defineEmits<{
   startScreening: [application: PipelineApplicationDetail]
   review: [decision: ScreeningDecision, application: PipelineApplicationDetail]
   assignInterview: [application: PipelineApplicationDetail]
+  assignNextInterview: [
+    application: PipelineApplicationDetail,
+    round: InterviewRound,
+  ]
   reassignInterview: [application: PipelineApplicationDetail]
   cancelInterview: [application: PipelineApplicationDetail]
+  rejectApplication: [application: PipelineApplicationDetail]
   contact: [applicationId: number]
   generateAiMatch: [application: PipelineApplicationDetail]
 }>()
 
 const activeTab = ref('summary')
 const resumeActionLoading = ref(false)
+
+const nextInterviewRound = computed(() => {
+  const application = props.application
+  if (!application) return null
+
+  const interview = application.interview
+  return getNextSchedulableInterviewRound({
+    applicationStatus: application.status,
+    currentRound: interview?.round,
+    interviewStatus: interview?.status,
+    feedbackState: interview?.feedbackState,
+    requiredInterviewRounds: application.requiredInterviewRounds ?? 1,
+  })
+})
+const nextInterviewActionText = computed(() =>
+  nextInterviewRound.value ? getInterviewArrangementText(nextInterviewRound.value) : '',
+)
+
+function assignNextInterview(application: PipelineApplicationDetail) {
+  const round = nextInterviewRound.value
+  if (round) emit('assignNextInterview', application, round)
+}
 
 watch(visible, (isVisible) => {
   if (isVisible) activeTab.value = 'summary'
@@ -283,6 +315,17 @@ async function downloadResume(application: PipelineApplicationDetail) {
 
       <footer class="application-detail__actions">
         <el-button v-if="canManage" @click="emit('contact', application.id)">联系候选人</el-button>
+        <el-button
+          v-if="
+            canManage &&
+            ['SCREEN_PASSED', 'INTERVIEWING', 'OFFERED'].includes(application.status)
+          "
+          type="danger"
+          plain
+          @click="emit('rejectApplication', application)"
+        >
+          淘汰候选人
+        </el-button>
         <template v-if="canManage && application.status === 'SUBMITTED'">
           <el-button type="primary" @click="emit('startScreening', application)">
             开始筛选
@@ -295,6 +338,11 @@ async function downloadResume(application: PipelineApplicationDetail) {
           </el-button>
           <el-button type="primary" @click="emit('review', 'PASS', application)">
             初筛通过
+          </el-button>
+        </template>
+        <template v-else-if="canManage && nextInterviewRound">
+          <el-button type="primary" @click="assignNextInterview(application)">
+            {{ nextInterviewActionText }}
           </el-button>
         </template>
         <template
